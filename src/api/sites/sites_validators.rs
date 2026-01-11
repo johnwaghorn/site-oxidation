@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, ToSchema)]
-#[schema(value_type = String, example = "Wedding website")]
+#[schema(value_type = String, example = "Waghorn Technology Ltd")]
 pub struct SiteName(String);
 
 impl SiteName {
@@ -91,7 +91,7 @@ impl<'de> Deserialize<'de> for ExpectedStatus {
 }
 
 #[derive(Debug, Clone, ToSchema)]
-#[schema(value_type = String, example = "Search for company")]
+#[schema(value_type = String, example = "Waghorn Technology")]
 pub struct ExpectedText(String);
 
 impl ExpectedText {
@@ -123,8 +123,8 @@ mod tests {
     use serde_json::json;
     #[test]
     fn test_site_name() {
-        let site_name: SiteName = serde_json::from_value(json!("Wedding Website")).unwrap();
-        assert_eq!(site_name.as_str(), "Wedding Website");
+        let site_name: SiteName = serde_json::from_value(json!("Waghorn Technology Ltd")).unwrap();
+        assert_eq!(site_name.as_str(), "Waghorn Technology Ltd");
     }
     #[test]
     fn test_site_name_too_long_rejected() {
@@ -171,8 +171,8 @@ mod tests {
 
     #[test]
     fn test_expected_text_valid() {
-        let text: ExpectedText = serde_json::from_value(json!("Search for a company")).unwrap();
-        assert_eq!(text.as_str(), "Search for a company");
+        let text: ExpectedText = serde_json::from_value(json!("Waghorn Technology")).unwrap();
+        assert_eq!(text.as_str(), "Waghorn Technology");
     }
 
     #[test]

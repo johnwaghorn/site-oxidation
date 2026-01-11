@@ -16,7 +16,6 @@ See [docs/migrations.md](docs/migrations.md).
 
 ## TODO
 
-- add pre-commit hooks
 - tech stack watch - cves
 - notifications on outage, cves
 - FE
