@@ -32,5 +32,3 @@ export function SiteList({sites, onDelete}: SiteListProps){
         </table>
 )
 }
-
-

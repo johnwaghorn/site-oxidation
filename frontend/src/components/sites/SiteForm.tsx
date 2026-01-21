@@ -43,7 +43,7 @@ export function SiteForm({ onSubmit, isLoading, mode = 'create', initialData }: 
             />
             <input
                 type="url"
-                placeholder="https://example.com"
+                placeholder="https://waghorn.tech"
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 required
@@ -51,7 +51,7 @@ export function SiteForm({ onSubmit, isLoading, mode = 'create', initialData }: 
             />
             <input
                 type="number"
-                placeholder="Expected status"
+                placeholder="Expected status code"
                 value={expectedStatus}
                 onChange={e => setExpectedStatus(Number(e.target.value))}
                 min={100}
