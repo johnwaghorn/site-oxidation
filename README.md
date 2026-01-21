@@ -4,10 +4,10 @@ A simple uptime monitor that detects when your sites start to rust.
 
 ## Requirements
 
-| Tool | Version              | Configured in                                       |
-|------|----------------------|-----------------------------------------------------|
-| Rust | 1.85+ (edition 2024) | [Cargo.toml](Cargo.toml), [Dockerfile](Dockerfile)  |
-| Node | 24+                  | [Dockerfile](Dockerfile)                            |
+| Tool | Version              | Configured in                                                                               |
+|------|----------------------|---------------------------------------------------------------------------------------------|
+| Rust | 1.85+ (edition 2024) | [Cargo.toml](Cargo.toml), [Dockerfile](Dockerfile)                                          |
+| Node | 24+                  | [.nvmrc](frontend/.nvmrc), [package.json](frontend/package.json), [Dockerfile](Dockerfile) |
 
 ## Development
 
