@@ -33,7 +33,10 @@ async fn main() {
         pool: pool.clone(),
         config: config.clone(),
     };
-    let client = Client::new();
+    let client = Client::builder()
+        .user_agent("SiteOxidation/1.0 (+https://github.com/johnwaghorn/site-oxidation)")
+        .build()
+        .expect("Failed to create HTTP client");
     let checker_pool = pool.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(check_interval));

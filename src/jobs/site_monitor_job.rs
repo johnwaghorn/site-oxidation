@@ -64,13 +64,12 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, site: SiteRow) {
 
 pub async fn probe_site(client: &Client, url: &str, check: &CheckExpectation) -> ProbeResult {
     let start = std::time::Instant::now();
-    let needs_body = check.expected_text.is_some();
-    let request = if needs_body {
-        client.get(url)
-    } else {
-        client.head(url)
-    };
-    match request.timeout(Duration::from_secs(5)).send().await {
+    match client
+        .get(url)
+        .timeout(Duration::from_secs(20))
+        .send()
+        .await
+    {
         Ok(res) => {
             let status = res.status();
             let latency_ms = start.elapsed().as_millis();
