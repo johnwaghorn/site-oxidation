@@ -48,7 +48,6 @@ async fn main() {
     });
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));
     let app = Router::new()
-        .route("/", get(root))
         .route("/api/health", get(health))
         .nest(
             "/api",
@@ -73,8 +72,4 @@ async fn main() {
         tracing::error!("Server error: {e}");
         std::process::exit(1);
     }
-}
-
-async fn root() -> &'static str {
-    "Hello, go to /api/docs to get started!"
 }
