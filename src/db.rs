@@ -1,4 +1,6 @@
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions};
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteSynchronous,
+};
 use std::path::Path;
 
 pub async fn init_db(database_path: &str) -> Result<SqlitePool, sqlx::Error> {
@@ -9,6 +11,7 @@ pub async fn init_db(database_path: &str) -> Result<SqlitePool, sqlx::Error> {
         .filename(database_path)
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Normal)
         .foreign_keys(true);
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
