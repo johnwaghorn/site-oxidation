@@ -35,6 +35,7 @@ async fn main() {
     };
     let client = Client::builder()
         .user_agent("SiteOxidation/1.0 (+https://github.com/johnwaghorn/site-oxidation)")
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .expect("Failed to create HTTP client");
     let checker_pool = pool.clone();

@@ -1,10 +1,17 @@
 # Site Oxidation
 
-## Tools
+A simple uptime monitor that detects when your sites start to rust.
 
-```bash
-cargo clippy --all -- -W clippy::all -W clippy::pedantic
-```
+## Requirements
+
+| Tool | Version              | Configured in                                       |
+|------|----------------------|-----------------------------------------------------|
+| Rust | 1.85+ (edition 2024) | [Cargo.toml](Cargo.toml), [Dockerfile](Dockerfile)  |
+| Node | 24+                  | [Dockerfile](Dockerfile)                            |
+
+## Development
+
+See [docs/development.md](docs/development.md) for how to run locally, generate OpenAPI types, build the frontend, Docker use etc.
 
 ## Migrations
 
@@ -18,10 +25,9 @@ See [docs/migrations.md](docs/migrations.md).
 
 - tech stack watch - cves
 - notifications on outage, cves
-- FE
-- serve static
-
-
+- import/export sites to csv
+- expand FE
+- redo "auth" or remove it
 
 
 

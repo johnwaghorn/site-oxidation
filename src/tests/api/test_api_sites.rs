@@ -1,3 +1,4 @@
+use crate::models::SiteStatus;
 use crate::tests::api::test_auth_header;
 use crate::tests::{TEST_SITE_NAME, TEST_SITE_URL, insert_test_site, test_app};
 use axum::{
@@ -9,7 +10,7 @@ use sqlx::SqlitePool;
 use tower::ServiceExt;
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_sites_returns_inserted_site(pool: SqlitePool) {
-    insert_test_site(&pool, 1).await;
+    insert_test_site(&pool, SiteStatus::Up).await;
     let app = test_app(pool);
     let (auth_header_name, auth_header_value) = test_auth_header();
     let response = app
@@ -74,7 +75,7 @@ async fn test_create_site_invalid_payload_returns_422(pool: SqlitePool) {
 async fn test_delete_site_cascades_outages(pool: SqlitePool) {
     let app = test_app(pool.clone());
     let (auth_header_name, auth_header_value) = test_auth_header();
-    insert_test_site(&pool, 1).await;
+    insert_test_site(&pool, SiteStatus::Up).await;
     sqlx::query("INSERT INTO outages (site_id, http_status) VALUES (?, ?)")
         .bind(1)
         .bind(500)

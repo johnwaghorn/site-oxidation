@@ -4,8 +4,7 @@ CREATE TABLE sites (
     url TEXT NOT NULL UNIQUE CHECK(length(url) BETWEEN 10 AND 2000),
     expected_status INTEGER DEFAULT 200 CHECK(expected_status BETWEEN 100 AND 599),
     expected_text TEXT CHECK(expected_text IS NULL OR length(expected_text) BETWEEN 1 AND 500),
-    is_up INTEGER NOT NULL DEFAULT 1 CHECK(is_up IN (0, 1)),
-    expected_response INTEGER NOT NULL DEFAULT 1 CHECK(expected_response IN (0, 1)),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'up', 'down')),
     last_checked_at DATETIME,
     last_response_time_ms INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP

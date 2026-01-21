@@ -3,6 +3,7 @@ mod sites_validators;
 
 use super::errors::ApiError;
 use super::pagination::PaginatedResponse;
+use crate::models::SiteStatus;
 use crate::state::AppState;
 use axum::{Router, routing::get};
 use chrono::{DateTime, Utc};
@@ -23,7 +24,7 @@ use utoipa::{OpenApi, ToSchema};
         sites_endpoints::delete_site,
         sites_endpoints::get_site_outages
     ),
-    components(schemas(SiteResponse, PaginatedResponse<SiteResponse>, OutageResponse, PaginatedResponse<OutageResponse>, SitePayload, ApiError)),
+    components(schemas(SiteResponse, PaginatedResponse<SiteResponse>, OutageResponse, PaginatedResponse<OutageResponse>, SitePayload, SiteStatus, ApiError)),
     tags(
           (name = "sites", description = "Site monitoring"),
     ),
@@ -35,7 +36,7 @@ pub struct SiteResponse {
     pub id: i64,
     pub name: String,
     pub url: String,
-    pub is_up: i64,
+    pub status: SiteStatus,
     pub last_checked_at: Option<DateTime<Utc>>,
     pub last_response_time_ms: Option<i64>,
 }

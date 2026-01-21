@@ -2,7 +2,7 @@ mod api;
 
 use crate::api::auth::require_api_key;
 use crate::config::AppConfig;
-use crate::models::SiteRow;
+use crate::models::{SiteRow, SiteStatus};
 use crate::state::AppState;
 use axum::Router;
 use axum::middleware;
@@ -34,15 +34,15 @@ pub fn test_app(pool: SqlitePool) -> Router {
         .with_state(state)
 }
 
-pub async fn insert_test_site(pool: &SqlitePool, is_up: i64) -> SiteRow {
+pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow {
     pub const TEST_SITE_EXPECTED_STATUS: i64 = 200;
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO sites (name, url, expected_status, is_up) VALUES (?, ?, ?, ?) RETURNING id",
+        "INSERT INTO sites (name, url, expected_status, status) VALUES (?, ?, ?, ?) RETURNING id",
     )
     .bind(TEST_SITE_NAME)
     .bind(TEST_SITE_URL)
     .bind(TEST_SITE_EXPECTED_STATUS)
-    .bind(is_up)
+    .bind(&status)
     .fetch_one(pool)
     .await
     .unwrap();
@@ -52,6 +52,6 @@ pub async fn insert_test_site(pool: &SqlitePool, is_up: i64) -> SiteRow {
         url: TEST_SITE_URL.to_string(),
         expected_status: TEST_SITE_EXPECTED_STATUS,
         expected_text: None,
-        is_up,
+        status,
     }
 }

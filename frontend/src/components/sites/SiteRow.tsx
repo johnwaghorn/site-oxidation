@@ -20,7 +20,7 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
                 {site.url}
             </td>
             <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                <StatusBadge isUp={site.is_up === 1} />
+                <StatusBadge status={site.status} />
             </td>
             <td style={{ padding: '12px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
                 {site.last_response_time_ms != null ? `${site.last_response_time_ms}ms` : '-'}

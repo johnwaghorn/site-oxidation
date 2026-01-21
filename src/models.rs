@@ -1,3 +1,25 @@
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type, ToSchema)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum SiteStatus {
+    Pending,
+    Up,
+    Down,
+}
+
+impl SiteStatus {
+    pub fn is_up(&self) -> bool {
+        matches!(self, SiteStatus::Up)
+    }
+
+    pub fn is_down(&self) -> bool {
+        matches!(self, SiteStatus::Down)
+    }
+}
+
 #[derive(sqlx::FromRow)]
 pub struct SiteRow {
     pub id: i64,
@@ -5,5 +27,5 @@ pub struct SiteRow {
     pub url: String,
     pub expected_status: i64,
     pub expected_text: Option<String>,
-    pub is_up: i64,
+    pub status: SiteStatus,
 }

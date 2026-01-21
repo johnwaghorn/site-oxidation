@@ -1,5 +1,5 @@
 use crate::config::{CANARY_TIMEOUT_SECS, CANARY_URL};
-use crate::models::SiteRow;
+use crate::models::{SiteRow, SiteStatus};
 use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::{Client, StatusCode};
@@ -12,14 +12,15 @@ pub struct CheckExpectation {
 }
 
 pub struct ProbeResult {
-    pub is_up: bool,
+    pub status: SiteStatus,
     pub status_code: Option<StatusCode>,
     pub latency_ms: Option<u128>,
-    pub expected_response: bool,
     pub error_message: Option<String>,
 }
 
-pub const MAX_CONCURRENT_CHECKS: usize = 10;
+const MAX_CONCURRENT_CHECKS: usize = 10;
+const RETRY_COUNT: u32 = 2;
+const RETRY_DELAY_MS: u64 = 3000;
 
 pub async fn check_all_sites(client: &Client, pool: &SqlitePool) {
     if client
@@ -34,7 +35,7 @@ pub async fn check_all_sites(client: &Client, pool: &SqlitePool) {
     }
     tracing::info!("Checking all sites");
     let sites = sqlx::query_as::<_, SiteRow>(
-        "SELECT id, name, url, expected_status, expected_text, is_up FROM sites",
+        "SELECT id, name, url, expected_status, expected_text, status FROM sites",
     )
     .fetch_all(pool)
     .await
@@ -58,7 +59,24 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, site: SiteRow) {
         expected_status: u16::try_from(site.expected_status).unwrap_or(200),
         expected_text: site.expected_text.clone(),
     };
-    let probe_result = probe_site(client, &site.url, &check).await;
+    let mut probe_result = probe_site(client, &site.url, &check).await;
+    if probe_result.status.is_down() && !site.status.is_down() {
+        for attempt in 1..=RETRY_COUNT {
+            tracing::info!(
+                "Site '{}' probe failed, retry {}/{} after {}ms",
+                site.name,
+                attempt,
+                RETRY_COUNT,
+                RETRY_DELAY_MS
+            );
+            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
+            probe_result = probe_site(client, &site.url, &check).await;
+            if probe_result.status.is_up() {
+                tracing::info!("Site '{}' recovered on retry {}", site.name, attempt);
+                break;
+            }
+        }
+    }
     update_site_status(pool, &site, &probe_result).await;
 }
 
@@ -71,9 +89,9 @@ pub async fn probe_site(client: &Client, url: &str, check: &CheckExpectation) ->
         .await
     {
         Ok(res) => {
-            let status = res.status();
+            let status_code = res.status();
             let latency_ms = start.elapsed().as_millis();
-            let status_matches = status.as_u16() == check.expected_status;
+            let status_matches = status_code.as_u16() == check.expected_status;
             let text_matches = if let Some(expected_text) = &check.expected_text {
                 match res.text().await {
                     Ok(body) => body.contains(expected_text),
@@ -82,49 +100,67 @@ pub async fn probe_site(client: &Client, url: &str, check: &CheckExpectation) ->
             } else {
                 true
             };
-            let expected_response = status_matches && text_matches;
+            let is_up = status_matches && text_matches;
             ProbeResult {
-                is_up: status.is_success(),
-                status_code: Some(status),
+                status: if is_up {
+                    SiteStatus::Up
+                } else {
+                    SiteStatus::Down
+                },
+                status_code: Some(status_code),
                 latency_ms: Some(latency_ms),
-                expected_response,
                 error_message: None,
             }
         }
         Err(e) => ProbeResult {
-            is_up: false,
+            status: SiteStatus::Down,
             status_code: None,
             latency_ms: None,
-            expected_response: false,
             error_message: Some(e.to_string().chars().take(500).collect()),
         },
     }
 }
 
-pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, status: &ProbeResult) {
+pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &ProbeResult) {
     sqlx::query(
-        "UPDATE sites SET is_up = ?, last_checked_at = ?, last_response_time_ms = ?, expected_response = ? WHERE id = ?"
+        "UPDATE sites SET status = ?, last_checked_at = ?, last_response_time_ms = ? WHERE id = ?",
     )
-        .bind(i64::from(status.is_up))
-        .bind(Utc::now())
-        .bind(status.latency_ms.map(|ms| i64::try_from(ms).unwrap_or(i64::MAX)))
-        .bind(i64::from(status.expected_response))
-        .bind(site.id)
-        .execute(pool)
-        .await
-        .map_err(|e| tracing::error!("Failed to update site status for site {}: {}", site.id, e))
-        .ok();
-    if site.is_up == 1 && !status.is_up {
+    .bind(&result.status)
+    .bind(Utc::now())
+    .bind(
+        result
+            .latency_ms
+            .map(|ms| i64::try_from(ms).unwrap_or(i64::MAX)),
+    )
+    .bind(site.id)
+    .execute(pool)
+    .await
+    .map_err(|e| tracing::error!("Failed to update site status for site {}: {}", site.id, e))
+    .ok();
+    if !site.status.is_down() && result.status.is_down() {
+        tracing::warn!(
+            "Site '{}' is DOWN (status: {}) - {}",
+            site.name,
+            result
+                .status_code
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "N/A".to_string()),
+            result
+                .error_message
+                .as_deref()
+                .unwrap_or("no error message")
+        );
         sqlx::query("INSERT INTO outages (site_id, http_status, error_message) VALUES (?, ?, ?)")
             .bind(site.id)
-            .bind(status.status_code.map(|c| i64::from(c.as_u16())))
-            .bind(&status.error_message)
+            .bind(result.status_code.map(|c| i64::from(c.as_u16())))
+            .bind(&result.error_message)
             .execute(pool)
             .await
             .map_err(|e| tracing::error!("Failed to insert outage for site {}: {}", site.id, e))
             .ok();
     }
-    if site.is_up == 0 && status.is_up {
+    if site.status.is_down() && result.status.is_up() {
+        tracing::info!("Site '{}' is back UP", site.name);
         sqlx::query("UPDATE outages SET ended_at = ? WHERE site_id = ? AND ended_at IS NULL")
             .bind(Utc::now())
             .bind(site.id)
@@ -143,29 +179,28 @@ mod tests {
 
     fn mock_site_down_result() -> ProbeResult {
         ProbeResult {
-            is_up: false,
+            status: SiteStatus::Down,
             status_code: Some(StatusCode::INTERNAL_SERVER_ERROR),
             latency_ms: Some(500),
-            expected_response: false,
             error_message: Some(String::from("Server is cooked")),
         }
     }
 
     fn mock_site_up_result() -> ProbeResult {
         ProbeResult {
-            is_up: true,
+            status: SiteStatus::Up,
             status_code: Some(StatusCode::OK),
             latency_ms: Some(100),
-            expected_response: true,
             error_message: None,
         }
     }
+
     #[sqlx::test(migrations = "./migrations")]
-    async fn test_outage_created_when_site_is_down(pool: sqlx::SqlitePool) {
-        let inserted_available_site = insert_test_site(&pool, 1).await;
-        let mock_down_result = mock_site_down_result();
-        update_site_status(&pool, &inserted_available_site, &mock_down_result).await;
-        let count: (i64,) = sqlx::query_as("SELECT  COUNT(*) FROM outages WHERE site_id = 1")
+    async fn test_outage_created_when_site_goes_down(pool: SqlitePool) {
+        let site = insert_test_site(&pool, SiteStatus::Up).await;
+        update_site_status(&pool, &site, &mock_site_down_result()).await;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages WHERE site_id = ?")
+            .bind(site.id)
             .fetch_one(&pool)
             .await
             .unwrap();
@@ -173,18 +208,19 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "./migrations")]
-    async fn test_outage_closed_when_site_recovers(pool: sqlx::SqlitePool) {
-        let inserted_down_site = insert_test_site(&pool, 0).await;
+    async fn test_outage_closed_when_site_recovers(pool: SqlitePool) {
+        let site = insert_test_site(&pool, SiteStatus::Down).await;
         sqlx::query("INSERT INTO outages (site_id, http_status, error_message) VALUES (?, ?, ?)")
-            .bind(inserted_down_site.id)
+            .bind(site.id)
             .bind(500)
             .bind(String::from("Server cooked"))
             .execute(&pool)
             .await
             .unwrap();
-        update_site_status(&pool, &inserted_down_site, &mock_site_up_result()).await;
+        update_site_status(&pool, &site, &mock_site_up_result()).await;
         let outage_ended: Option<String> =
-            sqlx::query_scalar("SELECT ended_at FROM outages WHERE site_id = 1")
+            sqlx::query_scalar("SELECT ended_at FROM outages WHERE site_id = ?")
+                .bind(site.id)
                 .fetch_one(&pool)
                 .await
                 .unwrap();
@@ -193,12 +229,24 @@ mod tests {
 
     #[sqlx::test(migrations = "./migrations")]
     async fn test_no_duplicate_outage_when_already_down(pool: SqlitePool) {
-        let inserted_down_site = insert_test_site(&pool, 0).await; // already down
-        update_site_status(&pool, &inserted_down_site, &mock_site_down_result()).await;
+        let site = insert_test_site(&pool, SiteStatus::Down).await;
+        update_site_status(&pool, &site, &mock_site_down_result()).await;
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages")
             .fetch_one(&pool)
             .await
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_outage_created_when_pending_site_goes_down(pool: SqlitePool) {
+        let site = insert_test_site(&pool, SiteStatus::Pending).await;
+        update_site_status(&pool, &site, &mock_site_down_result()).await;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages WHERE site_id = ?")
+            .bind(site.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(count.0, 1);
     }
 }

@@ -105,13 +105,12 @@ export interface components {
             data: {
                 /** Format: int64 */
                 id: number;
-                /** Format: int64 */
-                is_up: number;
                 /** Format: date-time */
                 last_checked_at?: string | null;
                 /** Format: int64 */
                 last_response_time_ms?: number | null;
                 name: string;
+                status: components["schemas"]["SiteStatus"];
                 url: string;
             }[];
             /** Format: int32 */
@@ -132,15 +131,16 @@ export interface components {
         SiteResponse: {
             /** Format: int64 */
             id: number;
-            /** Format: int64 */
-            is_up: number;
             /** Format: date-time */
             last_checked_at?: string | null;
             /** Format: int64 */
             last_response_time_ms?: number | null;
             name: string;
+            status: components["schemas"]["SiteStatus"];
             url: string;
         };
+        /** @enum {string} */
+        SiteStatus: "pending" | "up" | "down";
         /** @example https://waghorn.tech */
         SiteUrl: string;
     };
@@ -176,13 +176,12 @@ export interface operations {
                         data: {
                             /** Format: int64 */
                             id: number;
-                            /** Format: int64 */
-                            is_up: number;
                             /** Format: date-time */
                             last_checked_at?: string | null;
                             /** Format: int64 */
                             last_response_time_ms?: number | null;
                             name: string;
+                            status: components["schemas"]["SiteStatus"];
                             url: string;
                         }[];
                         /** Format: int32 */
