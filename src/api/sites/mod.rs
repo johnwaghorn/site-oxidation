@@ -36,6 +36,8 @@ pub struct SiteResponse {
     pub id: i64,
     pub name: String,
     pub url: String,
+    pub expected_status: i64,
+    pub expected_text: Option<String>,
     pub status: SiteStatus,
     pub last_checked_at: Option<DateTime<Utc>>,
     pub last_response_time_ms: Option<i64>,

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { components } from '../../generated/schema'
 import { StatusBadge } from '../ui/StatusBadge'
 
@@ -15,7 +16,11 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
 
     return (
         <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-            <td style={{ padding: '12px 8px', fontWeight: 500 }}>{site.name}</td>
+            <td style={{ padding: '12px 8px', fontWeight: 500 }}>
+                <Link to={`/sites/${site.id}`}>
+                    {site.name}
+                </Link>
+            </td>
             <td style={{ padding: '12px 8px', color: '#6b7280', fontSize: '14px' }}>
                 {site.url}
             </td>

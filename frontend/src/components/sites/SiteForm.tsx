@@ -6,20 +6,28 @@ type SitePayload = components['schemas']['SitePayload']
 interface SiteFormProps {
     onSubmit: (site: SitePayload) => void
     isLoading?: boolean
+    mode?: 'create' | 'edit'
+    initialData?: SitePayload
 }
 
-export function SiteForm({ onSubmit, isLoading }: SiteFormProps) {
-    const [name, setName] = useState('')
-    const [url, setUrl] = useState('')
-    const [expectedStatus, setExpectedStatus] = useState(200)
+export function SiteForm({ onSubmit, isLoading, mode = 'create', initialData }: SiteFormProps) {
+    const [name, setName] = useState(initialData?.name ?? '')
+    const [url, setUrl] = useState(initialData?.url ?? '')
+    const [expectedStatus, setExpectedStatus] = useState(initialData?.expected_status ?? 200)
+    const [expectedText, setExpectedText] = useState(initialData?.expected_text ?? '')
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
-        onSubmit({ name, url, expected_status: expectedStatus })
-        setName('')
-        setUrl('')
-        setExpectedStatus(200)
+        onSubmit({ name, url, expected_status: expectedStatus, expected_text: expectedText || null })
+        if (mode === 'create') {
+            setName('')
+            setUrl('')
+            setExpectedStatus(200)
+            setExpectedText('')
+        }
     }
+
+    const isEdit = mode === 'edit'
 
     return (
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
@@ -50,8 +58,15 @@ export function SiteForm({ onSubmit, isLoading }: SiteFormProps) {
                 max={599}
                 style={{ padding: '8px', width: '100px' }}
             />
+            <input
+                type="text"
+                placeholder="Expected text (optional)"
+                value={expectedText}
+                onChange={e => setExpectedText(e.target.value)}
+                style={{ padding: '8px', flex: 1 }}
+            />
             <button type="submit" disabled={isLoading} style={{ padding: '8px 16px' }}>
-                {isLoading ? 'Adding...' : 'Add Site'}
+                {isLoading ? (isEdit ? 'Saving...' : 'Adding...') : (isEdit ? 'Save' : 'Add Site')}
             </button>
         </form>
     )

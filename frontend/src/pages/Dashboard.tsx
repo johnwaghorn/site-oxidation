@@ -15,8 +15,8 @@ export function Dashboard() {
     const totalPages = data ? Math.ceil(data.total / data.per_page) : 0
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
-            <h1 style={{ marginBottom: '24px' }}>Site Monitor</h1>
+        <div style={{ maxWidth: '1200px', padding: '24px' }}>
+            <h1 style={{ marginBottom: '24px' }}>Site Oxidation</h1>
 
             <SiteForm
                 onSubmit={site => createSite.mutate(site)}

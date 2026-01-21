@@ -125,7 +125,7 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
     sqlx::query(
         "UPDATE sites SET status = ?, last_checked_at = ?, last_response_time_ms = ? WHERE id = ?",
     )
-    .bind(&result.status)
+    .bind(result.status)
     .bind(Utc::now())
     .bind(
         result

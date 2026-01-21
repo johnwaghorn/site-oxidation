@@ -104,6 +104,9 @@ export interface components {
         PaginatedResponse_SiteResponse: {
             data: {
                 /** Format: int64 */
+                expected_status: number;
+                expected_text?: string | null;
+                /** Format: int64 */
                 id: number;
                 /** Format: date-time */
                 last_checked_at?: string | null;
@@ -129,6 +132,9 @@ export interface components {
             url: components["schemas"]["SiteUrl"];
         };
         SiteResponse: {
+            /** Format: int64 */
+            expected_status: number;
+            expected_text?: string | null;
             /** Format: int64 */
             id: number;
             /** Format: date-time */
@@ -174,6 +180,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: {
+                            /** Format: int64 */
+                            expected_status: number;
+                            expected_text?: string | null;
                             /** Format: int64 */
                             id: number;
                             /** Format: date-time */
