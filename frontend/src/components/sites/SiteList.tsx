@@ -5,7 +5,7 @@ type SiteResponse = components['schemas']['SiteResponse']
 
 interface SiteListProps {
     sites: SiteResponse[]
-    onDelete?: (id:number) => void
+    onDelete?: (site: SiteResponse) => void
 }
 
 export function SiteList({sites, onDelete}: SiteListProps){

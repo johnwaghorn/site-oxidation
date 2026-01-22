@@ -6,7 +6,7 @@ type SiteResponse = components['schemas']['SiteResponse']
 
 interface SiteRowProps {
     site: SiteResponse
-    onDelete?: (id: number) => void
+    onDelete?: (site: SiteResponse) => void
 }
 
 export function SiteRow({ site, onDelete }: SiteRowProps) {
@@ -36,7 +36,7 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
             {onDelete && (
                 <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                     <button
-                        onClick={() => onDelete(site.id)}
+                        onClick={() => onDelete(site)}
                         style={{ color: '#991b1b', background: 'none', border: 'none', cursor: 'pointer' }}
                     >
                         Delete
