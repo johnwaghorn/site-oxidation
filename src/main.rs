@@ -25,7 +25,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let config = AppConfig::from_env();
     let port = config.server_port;
-    let check_interval = config.check_interval_secs;
+    let probe_interval = config.probe_interval_secs;
     let pool = db::init_db(&config.database_path)
         .await
         .expect("Could not initialize database");
@@ -39,11 +39,12 @@ async fn main() {
         .build()
         .expect("Failed to create HTTP client");
     let checker_pool = pool.clone();
+    let checker_config = config.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(check_interval));
+        let mut interval = tokio::time::interval(Duration::from_secs(probe_interval));
         loop {
             interval.tick().await;
-            check_all_sites(&client, &checker_pool).await;
+            check_all_sites(&client, &checker_pool, &checker_config).await;
         }
     });
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));

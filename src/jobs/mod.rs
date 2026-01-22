@@ -1,3 +1,3 @@
-mod site_monitor_job;
+mod site_probe_job;
 
-pub use site_monitor_job::check_all_sites;
+pub use site_probe_job::check_all_sites;

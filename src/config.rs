@@ -5,7 +5,10 @@ pub struct AppConfig {
     pub api_key: String,
     pub database_path: String,
     pub server_port: u16,
-    pub check_interval_secs: u64,
+    pub probe_interval_secs: u64,
+    pub probe_timeout_secs: u64,
+    pub probe_retry_count: u32,
+    pub probe_retry_delay_ms: u64,
 }
 
 impl AppConfig {
@@ -18,13 +21,29 @@ impl AppConfig {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(8080),
-            check_interval_secs: env::var("CHECK_INTERVAL_SECS")
+            probe_interval_secs: env::var("PROBE_INTERVAL_SECS")
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(60),
+            probe_timeout_secs: env::var("PROBE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(30),
+            probe_retry_count: env::var("PROBE_RETRY_COUNT")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(2),
+            probe_retry_delay_ms: env::var("PROBE_RETRY_DELAY_MS")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(3000),
         }
     }
 }
 
+// Canary check config
 pub const CANARY_URL: &str = "https://www.google.com";
 pub const CANARY_TIMEOUT_SECS: u64 = 3;
+
+// Probe config
+pub const PROBE_MAX_CONCURRENT_CHECKS: usize = 20;

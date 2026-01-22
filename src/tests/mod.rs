@@ -17,7 +17,10 @@ pub fn test_config() -> AppConfig {
         api_key: TEST_API_KEY.to_string(),
         database_path: ":memory:".to_string(),
         server_port: 8080,
-        check_interval_secs: 60,
+        probe_interval_secs: 60,
+        probe_timeout_secs: 30,
+        probe_retry_count: 2,
+        probe_retry_delay_ms: 3000,
     }
 }
 

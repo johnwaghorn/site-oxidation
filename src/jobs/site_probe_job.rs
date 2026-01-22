@@ -1,4 +1,4 @@
-use crate::config::{CANARY_TIMEOUT_SECS, CANARY_URL};
+use crate::config::{AppConfig, CANARY_TIMEOUT_SECS, CANARY_URL, PROBE_MAX_CONCURRENT_CHECKS};
 use crate::models::{SiteRow, SiteStatus};
 use chrono::Utc;
 use futures::stream::{self, StreamExt};
@@ -18,11 +18,7 @@ pub struct ProbeResult {
     pub error_message: Option<String>,
 }
 
-const MAX_CONCURRENT_CHECKS: usize = 10;
-const RETRY_COUNT: u32 = 2;
-const RETRY_DELAY_MS: u64 = 3000;
-
-pub async fn check_all_sites(client: &Client, pool: &SqlitePool) {
+pub async fn check_all_sites(client: &Client, pool: &SqlitePool, config: &AppConfig) {
     if client
         .head(CANARY_URL)
         .timeout(Duration::from_secs(CANARY_TIMEOUT_SECS))
@@ -46,31 +42,31 @@ pub async fn check_all_sites(client: &Client, pool: &SqlitePool) {
     }
     let site_count = sites.len();
     stream::iter(sites)
-        .map(|site| check_single_site(client, pool, site))
-        .buffer_unordered(MAX_CONCURRENT_CHECKS)
+        .map(|site| check_single_site(client, pool, config, site))
+        .buffer_unordered(PROBE_MAX_CONCURRENT_CHECKS)
         .collect::<Vec<()>>()
         .await;
     tracing::info!("Finished checking {} sites", site_count);
 }
 
-async fn check_single_site(client: &Client, pool: &SqlitePool, site: SiteRow) {
+async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfig, site: SiteRow) {
     tracing::info!("Checking site {}", site.name);
     let check = CheckExpectation {
         expected_status: u16::try_from(site.expected_status).unwrap_or(200),
         expected_text: site.expected_text.clone(),
     };
-    let mut probe_result = probe_site(client, &site.url, &check).await;
+    let mut probe_result = probe_site(client, &site.url, &check, config.probe_timeout_secs).await;
     if probe_result.status.is_down() && !site.status.is_down() {
-        for attempt in 1..=RETRY_COUNT {
+        for attempt in 1..=config.probe_retry_count {
             tracing::info!(
                 "Site '{}' probe failed, retry {}/{} after {}ms",
                 site.name,
                 attempt,
-                RETRY_COUNT,
-                RETRY_DELAY_MS
+                config.probe_retry_count,
+                config.probe_retry_delay_ms
             );
-            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
-            probe_result = probe_site(client, &site.url, &check).await;
+            tokio::time::sleep(Duration::from_millis(config.probe_retry_delay_ms)).await;
+            probe_result = probe_site(client, &site.url, &check, config.probe_timeout_secs).await;
             if probe_result.status.is_up() {
                 tracing::info!("Site '{}' recovered on retry {}", site.name, attempt);
                 break;
@@ -80,11 +76,11 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, site: SiteRow) {
     update_site_status(pool, &site, &probe_result).await;
 }
 
-pub async fn probe_site(client: &Client, url: &str, check: &CheckExpectation) -> ProbeResult {
+pub async fn probe_site(client: &Client, url: &str, check: &CheckExpectation, timeout_secs: u64) -> ProbeResult {
     let start = std::time::Instant::now();
     match client
         .get(url)
-        .timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(timeout_secs))
         .send()
         .await
     {
