@@ -11,13 +11,13 @@ use sqlx::SqlitePool;
 pub const TEST_API_KEY: &str = "test-secret";
 pub const TEST_SITE_NAME: &str = "Waghorn Technology Ltd";
 pub const TEST_SITE_URL: &str = "https://waghorn.tech";
+pub const TEST_PROBE_INTERVAL_SECONDS: i64 = 60;
 
 pub fn test_config() -> AppConfig {
     AppConfig {
         api_key: TEST_API_KEY.to_string(),
         database_path: ":memory:".to_string(),
         server_port: 8080,
-        probe_interval_secs: 60,
         probe_timeout_secs: 30,
         probe_retry_count: 2,
         probe_retry_delay_ms: 3000,
@@ -56,5 +56,6 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
         expected_status: TEST_SITE_EXPECTED_STATUS,
         expected_text: None,
         status,
+        probe_interval_seconds: TEST_PROBE_INTERVAL_SECONDS,
     }
 }

@@ -25,7 +25,6 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let config = AppConfig::from_env();
     let port = config.server_port;
-    let probe_interval = config.probe_interval_secs;
     let pool = db::init_db(&config.database_path)
         .await
         .expect("Could not initialize database");
@@ -41,7 +40,7 @@ async fn main() {
     let checker_pool = pool.clone();
     let checker_config = config.clone();
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(probe_interval));
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
         loop {
             interval.tick().await;
             check_all_sites(&client, &checker_pool, &checker_config).await;

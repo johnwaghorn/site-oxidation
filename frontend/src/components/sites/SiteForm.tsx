@@ -15,10 +15,11 @@ export function SiteForm({ onSubmit, isLoading, mode = 'create', initialData }: 
     const [url, setUrl] = useState(initialData?.url ?? '')
     const [expectedStatus, setExpectedStatus] = useState(initialData?.expected_status ?? 200)
     const [expectedText, setExpectedText] = useState(initialData?.expected_text ?? '')
+    const [probeInterval, setProbeInterval] = useState(initialData?.probe_interval_seconds ?? 60)
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
-        onSubmit({ name, url, expected_status: expectedStatus, expected_text: expectedText || null })
+        onSubmit({ name, url, expected_status: expectedStatus, expected_text: expectedText || null, probe_interval_seconds: probeInterval  })
         if (mode === 'create') {
             setName('')
             setUrl('')
@@ -65,6 +66,17 @@ export function SiteForm({ onSubmit, isLoading, mode = 'create', initialData }: 
                 onChange={e => setExpectedText(e.target.value)}
                 style={{ padding: '8px', flex: 1 }}
             />
+            <select
+                value={probeInterval}
+                onChange={e => setProbeInterval(Number(e.target.value))}
+                style={{ padding: '8px' }}
+            >
+                <option value={60}>1 minute</option>
+                <option value={300}>5 minutes</option>
+                <option value={600}>10 minutes</option>
+                <option value={1800}>30 minutes</option>
+                <option value={3600}>1 hour</option>
+            </select>
             <button type="submit" disabled={isLoading} style={{ padding: '8px 16px' }}>
                 {isLoading ? (isEdit ? 'Saving...' : 'Adding...') : (isEdit ? 'Save' : 'Add Site')}
             </button>

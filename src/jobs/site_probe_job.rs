@@ -29,15 +29,19 @@ pub async fn check_all_sites(client: &Client, pool: &SqlitePool, config: &AppCon
         tracing::warn!("Canary check failed. Skipping sites check. Network issue?");
         return;
     }
-    tracing::info!("Checking all sites");
     let sites = sqlx::query_as::<_, SiteRow>(
-        "SELECT id, name, url, expected_status, expected_text, status FROM sites",
+        r#"
+            SELECT id, name, url, expected_status, expected_text, status, probe_interval_seconds
+            FROM sites
+            WHERE last_checked_at IS NULL
+                OR datetime(last_checked_at, '+' || COALESCE(probe_interval_seconds, 60) || ' seconds') <= datetime('now')
+            "#,
     )
     .fetch_all(pool)
     .await
     .unwrap_or_default();
     if sites.is_empty() {
-        tracing::info!("No sites found");
+        tracing::info!("No sites due for a probe");
         return;
     }
     let site_count = sites.len();
@@ -50,7 +54,11 @@ pub async fn check_all_sites(client: &Client, pool: &SqlitePool, config: &AppCon
 }
 
 async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfig, site: SiteRow) {
-    tracing::info!("Checking site {}", site.name);
+    tracing::info!(
+        "Checking site {} (interval: {}s)",
+        site.name,
+        site.probe_interval_seconds
+    );
     let check = CheckExpectation {
         expected_status: u16::try_from(site.expected_status).unwrap_or(200),
         expected_text: site.expected_text.clone(),
@@ -76,7 +84,12 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfi
     update_site_status(pool, &site, &probe_result).await;
 }
 
-pub async fn probe_site(client: &Client, url: &str, check: &CheckExpectation, timeout_secs: u64) -> ProbeResult {
+pub async fn probe_site(
+    client: &Client,
+    url: &str,
+    check: &CheckExpectation,
+    timeout_secs: u64,
+) -> ProbeResult {
     let start = std::time::Instant::now();
     match client
         .get(url)

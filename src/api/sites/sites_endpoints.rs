@@ -25,7 +25,8 @@ pub async fn list_sites(
     State(pool): State<SqlitePool>,
     Query(params): Query<PaginationParams>,
 ) -> Result<Json<PaginatedResponse<SiteResponse>>, ApiErrorResponse> {
-    let sites = sqlx::query_as::<_, SiteResponse>("SELECT id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms FROM sites LIMIT ? OFFSET ?")
+    let sites = sqlx::query_as::<_, SiteResponse>(
+        "SELECT id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms, probe_interval_seconds FROM sites LIMIT ? OFFSET ?")
         .bind(params.per_page())
         .bind(params.offset())
         .fetch_all(&pool)
@@ -70,7 +71,8 @@ pub async fn get_site(
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> Result<Json<SiteResponse>, ApiErrorResponse> {
-    sqlx::query_as::<_, SiteResponse>("SELECT id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms FROM sites WHERE id = ?")
+    sqlx::query_as::<_, SiteResponse>(
+        "SELECT id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms, probe_interval_seconds FROM sites WHERE id = ?")
         .bind(id)
         .fetch_optional(&pool)
         .await
@@ -113,7 +115,8 @@ pub async fn get_site_outages(
             ApiErrorResponse::internal("Failed to fetch site")
         })?
         .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
-    let outages = sqlx::query_as::<_, OutageResponse>("SELECT id, site_id, http_status, started_at, ended_at, error_message FROM outages WHERE site_id = ? LIMIT ? OFFSET ?")
+    let outages = sqlx::query_as::<_, OutageResponse>(
+        "SELECT id, site_id, http_status, started_at, ended_at, error_message FROM outages WHERE site_id = ? LIMIT ? OFFSET ?")
         .bind(id)
         .bind(params.per_page())
         .bind(params.offset())
@@ -157,11 +160,13 @@ pub async fn create_site(
     State(pool): State<SqlitePool>,
     Json(payload): Json<SitePayload>,
 ) -> Result<(StatusCode, Json<SiteResponse>), ApiErrorResponse> {
-    let result = sqlx::query_as::<_, SiteResponse>("INSERT INTO sites (name, url, expected_status, expected_text) VALUES (?, ?, ?, ?) RETURNING id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms")
+    let result = sqlx::query_as::<_, SiteResponse>(
+        "INSERT INTO sites (name, url, expected_status, expected_text, probe_interval_seconds) VALUES (?, ?, ?, ?, ?) RETURNING id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms, probe_interval_seconds")
         .bind(payload.name.as_str())
         .bind(payload.url.as_str())
         .bind(payload.expected_status.as_i64())
         .bind(payload.expected_text.as_ref().map(ExpectedText::as_str))
+        .bind(payload.probe_interval_seconds.as_i64())
         .fetch_one(&pool)
         .await
         .map_err(|e| {
@@ -192,11 +197,13 @@ pub async fn update_site(
     Path(id): Path<i64>,
     Json(payload): Json<SitePayload>,
 ) -> Result<Json<SiteResponse>, ApiErrorResponse> {
-    sqlx::query_as::<_, SiteResponse>("UPDATE sites SET name=?, url=?, expected_status=?, expected_text=? WHERE id = ? RETURNING id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms")
+    sqlx::query_as::<_, SiteResponse>(
+        "UPDATE sites SET name=?, url=?, expected_status=?, expected_text=?, probe_interval_seconds=? WHERE id = ? RETURNING id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms, probe_interval_seconds")
         .bind(payload.name.as_str())
         .bind(payload.url.as_str())
         .bind(payload.expected_status.as_i64())
         .bind(payload.expected_text.as_ref().map(ExpectedText::as_str))
+        .bind(payload.probe_interval_seconds.as_i64())
         .bind(id)
         .fetch_optional(&pool)
         .await

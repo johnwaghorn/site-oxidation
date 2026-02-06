@@ -84,7 +84,7 @@ impl<'de> Deserialize<'de> for ExpectedStatus {
     {
         let status = i64::deserialize(deserializer)?;
         if !(100..=599).contains(&status) {
-            return Err(D::Error::custom("status code is invalid"));
+            return Err(D::Error::custom("status code must be between 100 and 599"));
         }
         Ok(ExpectedStatus(status))
     }
@@ -117,6 +117,35 @@ impl<'de> Deserialize<'de> for ExpectedText {
     }
 }
 
+#[derive(Debug, Clone, ToSchema)]
+#[schema(value_type = i64, example = 60)]
+pub struct CheckInterval(i64);
+impl CheckInterval {
+    pub fn as_i64(&self) -> i64 {
+        self.0
+    }
+}
+
+impl Default for CheckInterval {
+    fn default() -> Self {
+        Self(60)
+    }
+}
+
+impl<'de> Deserialize<'de> for CheckInterval {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let check_interval = i64::deserialize(deserializer)?;
+        if !(60..=3600).contains(&check_interval) {
+            return Err(D::Error::custom(
+                "check interval must be between 60 and 3600",
+            ));
+        }
+        Ok(CheckInterval(check_interval))
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,6 +208,24 @@ mod tests {
     fn test_expected_text_too_long_rejected() {
         let long_text = "a".repeat(501);
         let result: Result<ExpectedText, _> = serde_json::from_value(json!(long_text));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_interval() {
+        let check_interval: CheckInterval = serde_json::from_value(json!(60)).unwrap();
+        assert_eq!(check_interval.as_i64(), 60);
+    }
+
+    #[test]
+    fn test_check_interval_below_60_rejected() {
+        let result: Result<CheckInterval, _> = serde_json::from_value(json!(59));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_interval_above_3600_rejected() {
+        let result: Result<CheckInterval, _> = serde_json::from_value(json!(3601));
         assert!(result.is_err());
     }
 }

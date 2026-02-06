@@ -1,6 +1,8 @@
 use crate::models::SiteStatus;
 use crate::tests::api::test_auth_header;
-use crate::tests::{TEST_SITE_NAME, TEST_SITE_URL, insert_test_site, test_app};
+use crate::tests::{
+    TEST_PROBE_INTERVAL_SECONDS, TEST_SITE_NAME, TEST_SITE_URL, insert_test_site, test_app,
+};
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -34,8 +36,8 @@ async fn test_create_site(pool: SqlitePool) {
     let app = test_app(pool);
     let (auth_header_name, auth_header_value) = test_auth_header();
     let payload = format!(
-        r#"{{"name":"{}","url":"{}"}}"#,
-        TEST_SITE_NAME, TEST_SITE_URL
+        r#"{{"name":"{}","url":"{}", "probe_interval_seconds":{}}}"#,
+        TEST_SITE_NAME, TEST_SITE_URL, TEST_PROBE_INTERVAL_SECONDS
     );
     let response = app
         .oneshot(

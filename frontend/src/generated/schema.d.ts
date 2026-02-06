@@ -62,6 +62,11 @@ export interface components {
         };
         /**
          * Format: int64
+         * @example 60
+         */
+        CheckInterval: number;
+        /**
+         * Format: int64
          * @example 200
          */
         ExpectedStatus: number;
@@ -113,6 +118,8 @@ export interface components {
                 /** Format: int64 */
                 last_response_time_ms?: number | null;
                 name: string;
+                /** Format: int64 */
+                probe_interval_seconds: number;
                 status: components["schemas"]["SiteStatus"];
                 url: string;
             }[];
@@ -129,6 +136,7 @@ export interface components {
             expected_status?: components["schemas"]["ExpectedStatus"];
             expected_text?: null | components["schemas"]["ExpectedText"];
             name: components["schemas"]["SiteName"];
+            probe_interval_seconds?: components["schemas"]["CheckInterval"];
             url: components["schemas"]["SiteUrl"];
         };
         SiteResponse: {
@@ -142,6 +150,8 @@ export interface components {
             /** Format: int64 */
             last_response_time_ms?: number | null;
             name: string;
+            /** Format: int64 */
+            probe_interval_seconds: number;
             status: components["schemas"]["SiteStatus"];
             url: string;
         };
@@ -190,6 +200,8 @@ export interface operations {
                             /** Format: int64 */
                             last_response_time_ms?: number | null;
                             name: string;
+                            /** Format: int64 */
+                            probe_interval_seconds: number;
                             status: components["schemas"]["SiteStatus"];
                             url: string;
                         }[];

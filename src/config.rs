@@ -5,7 +5,6 @@ pub struct AppConfig {
     pub api_key: String,
     pub database_path: String,
     pub server_port: u16,
-    pub probe_interval_secs: u64,
     pub probe_timeout_secs: u64,
     pub probe_retry_count: u32,
     pub probe_retry_delay_ms: u64,
@@ -21,10 +20,6 @@ impl AppConfig {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(8080),
-            probe_interval_secs: env::var("PROBE_INTERVAL_SECS")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(60),
             probe_timeout_secs: env::var("PROBE_TIMEOUT_SECS")
                 .ok()
                 .and_then(|p| p.parse().ok())

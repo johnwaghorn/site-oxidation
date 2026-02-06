@@ -28,4 +28,5 @@ pub struct SiteRow {
     pub expected_status: i64,
     pub expected_text: Option<String>,
     pub status: SiteStatus,
+    pub probe_interval_seconds: i64,
 }

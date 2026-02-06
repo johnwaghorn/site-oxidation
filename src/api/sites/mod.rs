@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use sites_endpoints::{
     create_site, delete_site, get_site, get_site_outages, list_sites, update_site,
 };
-use sites_validators::{ExpectedStatus, ExpectedText, SiteName, SiteUrl};
+use sites_validators::{CheckInterval, ExpectedStatus, ExpectedText, SiteName, SiteUrl};
 use utoipa::{OpenApi, ToSchema};
 
 #[derive(OpenApi)]
@@ -41,6 +41,7 @@ pub struct SiteResponse {
     pub status: SiteStatus,
     pub last_checked_at: Option<DateTime<Utc>>,
     pub last_response_time_ms: Option<i64>,
+    pub probe_interval_seconds: i64,
 }
 
 #[derive(Serialize, sqlx::FromRow, ToSchema)]
@@ -60,6 +61,8 @@ pub struct SitePayload {
     #[serde(default)]
     pub expected_status: ExpectedStatus,
     pub expected_text: Option<ExpectedText>,
+    #[serde(default)]
+    pub probe_interval_seconds: CheckInterval,
 }
 
 pub fn routes() -> Router<AppState> {

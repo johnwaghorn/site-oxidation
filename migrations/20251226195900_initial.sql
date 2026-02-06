@@ -7,6 +7,7 @@ CREATE TABLE sites (
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'up', 'down')),
     last_checked_at DATETIME,
     last_response_time_ms INTEGER,
+    probe_interval_seconds INTEGER NOT NULL DEFAULT 60 CHECK ( probe_interval_seconds BETWEEN 60 AND 3600),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
