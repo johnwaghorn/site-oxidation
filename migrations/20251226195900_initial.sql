@@ -20,4 +20,4 @@ CREATE TABLE outages (
     ended_at DATETIME
 );
 
-CREATE INDEX idx_outages_site_id ON outages(site_id);
+CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
