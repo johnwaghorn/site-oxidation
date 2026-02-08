@@ -21,6 +21,7 @@ pub fn test_config() -> AppConfig {
         probe_timeout_secs: 30,
         probe_retry_count: 2,
         probe_retry_delay_ms: 3000,
+        allow_private_ips: true,
     }
 }
 

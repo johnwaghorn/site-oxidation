@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub probe_timeout_secs: u64,
     pub probe_retry_count: u32,
     pub probe_retry_delay_ms: u64,
+    pub allow_private_ips: bool,
 }
 
 impl AppConfig {
@@ -32,6 +33,10 @@ impl AppConfig {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3000),
+            allow_private_ips: env::var("ALLOW_PRIVATE_IPS")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(false),
         }
     }
 }

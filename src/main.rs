@@ -3,6 +3,7 @@ mod config;
 mod db;
 mod jobs;
 mod models;
+mod net;
 mod state;
 #[cfg(test)]
 mod tests;

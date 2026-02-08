@@ -47,6 +47,16 @@ impl ApiErrorResponse {
             },
         }
     }
+
+    pub fn validation(message: &str) -> Self {
+        Self {
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+            body: ApiError {
+                error: "validation_error".to_string(),
+                message: message.to_string(),
+            },
+        }
+    }
 }
 
 impl IntoResponse for ApiErrorResponse {
