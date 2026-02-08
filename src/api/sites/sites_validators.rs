@@ -162,83 +162,62 @@ mod tests {
     use super::*;
     use rstest::rstest;
     use serde_json::json;
-    #[test]
-    fn test_site_name() {
-        let site_name: SiteName = serde_json::from_value(json!("Waghorn Technology Ltd")).unwrap();
-        assert_eq!(site_name.as_str(), "Waghorn Technology Ltd");
-    }
-    #[test]
-    fn test_site_name_too_long_rejected() {
-        let long_name = "a".repeat(101);
-        let result: Result<SiteName, _> = serde_json::from_value(json!(long_name));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_site_name_empty_rejected() {
-        let result: Result<SiteName, _> = serde_json::from_value(json!(""));
-        assert!(result.is_err());
+    
+    #[rstest]
+    #[case("Waghorn Technology Ltd", true)]
+    #[case("A", true)]
+    #[case(&"a".repeat(100), true)]
+    #[case("", false)]
+    #[case(&"a".repeat(101), false)]
+    fn test_site_name(#[case] name: &str, #[case] valid: bool) {
+        let result: Result<SiteName, _> = serde_json::from_value(json!(name));
+        assert_eq!(result.is_ok(), valid);
     }
 
-    #[test]
-    fn test_site_url() {
-        let url: SiteUrl = serde_json::from_value(json!("https://waghorn.tech")).unwrap();
-        assert_eq!(url.as_str(), "https://waghorn.tech");
+    #[rstest]
+    #[case("https://waghorn.tech", true)]
+    #[case("waghorn.tech", false)]
+    #[case("ftp://waghorn.tech", false)]
+    #[case("http", false)]
+    #[case(&"a".repeat(2001), false)]
+    fn test_site_url(#[case] url: &str, #[case] valid: bool) {
+        let result: Result<SiteUrl, _> = serde_json::from_value(json!(url));
+        assert_eq!(result.is_ok(), valid);
     }
 
-    #[test]
-    fn test_site_url_missing_protocol_rejected() {
-        let result: Result<SiteUrl, _> = serde_json::from_value(json!("waghorn.tech"));
-        assert!(result.is_err());
+    #[rstest]
+    #[case(200, true)]
+    #[case(100, true)]
+    #[case(599, true)]
+    #[case(99, false)]
+    #[case(600, false)]
+    #[case(0, false)]
+    fn test_expected_status(#[case] status: i64, #[case] valid: bool) {
+        let result: Result<ExpectedStatus, _> = serde_json::from_value(json!(status));
+        assert_eq!(result.is_ok(), valid);
     }
 
-    #[test]
-    fn test_expected_status() {
-        let status: ExpectedStatus = serde_json::from_value(json!(200)).unwrap();
-        assert_eq!(status.as_i64(), 200);
+    #[rstest]
+    #[case("Waghorn Technology", true)]
+    #[case("a", true)]
+    #[case(&"a".repeat(500), true)]
+    #[case("", false)]
+    #[case(&"a".repeat(501), false)]
+    fn test_expected_text(#[case] text: &str, #[case] valid: bool) {
+        let result: Result<ExpectedText, _> = serde_json::from_value(json!(text));
+        assert_eq!(result.is_ok(), valid);
     }
 
-    #[test]
-    fn test_expected_status_below_100_rejected() {
-        let result: Result<ExpectedStatus, _> = serde_json::from_value(json!(99));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_expected_status_above_599_rejected() {
-        let result: Result<ExpectedStatus, _> = serde_json::from_value(json!(600));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_expected_text_valid() {
-        let text: ExpectedText = serde_json::from_value(json!("Waghorn Technology")).unwrap();
-        assert_eq!(text.as_str(), "Waghorn Technology");
-    }
-
-    #[test]
-    fn test_expected_text_too_long_rejected() {
-        let long_text = "a".repeat(501);
-        let result: Result<ExpectedText, _> = serde_json::from_value(json!(long_text));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_check_interval() {
-        let check_interval: CheckInterval = serde_json::from_value(json!(60)).unwrap();
-        assert_eq!(check_interval.as_i64(), 60);
-    }
-
-    #[test]
-    fn test_check_interval_below_60_rejected() {
-        let result: Result<CheckInterval, _> = serde_json::from_value(json!(59));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_check_interval_above_3600_rejected() {
-        let result: Result<CheckInterval, _> = serde_json::from_value(json!(3601));
-        assert!(result.is_err());
+    #[rstest]
+    #[case(60, true)]
+    #[case(300, true)]
+    #[case(3600, true)]
+    #[case(59, false)]
+    #[case(3601, false)]
+    #[case(0, false)]
+    fn test_check_interval(#[case] interval: i64, #[case] valid: bool) {
+        let result: Result<CheckInterval, _> = serde_json::from_value(json!(interval));
+        assert_eq!(result.is_ok(), valid);
     }
 
     #[rstest]
