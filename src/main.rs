@@ -8,6 +8,7 @@ mod state;
 #[cfg(test)]
 mod tests;
 
+use crate::net::SafeResolver;
 use api::ApiDoc;
 use api::auth::require_api_key;
 use api::health;
@@ -16,6 +17,7 @@ use config::AppConfig;
 use jobs::check_all_sites;
 use reqwest::Client;
 use state::AppState;
+use std::sync::Arc;
 use std::time::Duration;
 use tower_http::services::{ServeDir, ServeFile};
 use utoipa::OpenApi;
@@ -36,6 +38,9 @@ async fn main() {
     let client = Client::builder()
         .user_agent("SiteOxidation/1.0 (+https://github.com/johnwaghorn/site-oxidation)")
         .redirect(reqwest::redirect::Policy::none())
+        .dns_resolver(Arc::new(SafeResolver {
+            allow_private: config.allow_private_ips,
+        }))
         .build()
         .expect("Failed to create HTTP client");
     let checker_pool = pool.clone();

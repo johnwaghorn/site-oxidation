@@ -1,9 +1,29 @@
-use std::net::IpAddr;
+use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+use std::net::{IpAddr, SocketAddr};
 
 pub fn is_private_ip(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => v4.is_loopback() || v4.is_private() || v4.is_link_local(),
         IpAddr::V6(v6) => v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00,
+    }
+}
+
+pub struct SafeResolver {
+    pub allow_private: bool,
+}
+
+impl Resolve for SafeResolver {
+    fn resolve(&self, name: Name) -> Resolving {
+        let allow_private = self.allow_private;
+        Box::pin(async move {
+            // Port 0: we only need IP resolution, not a specific port
+            let addrs: Vec<SocketAddr> =
+                tokio::net::lookup_host((name.as_str(), 0)).await?.collect();
+            if !allow_private && addrs.iter().any(|a| is_private_ip(&a.ip())) {
+                return Err("resolved to private IP".into());
+            }
+            Ok(Box::new(addrs.into_iter()) as Addrs)
+        })
     }
 }
 

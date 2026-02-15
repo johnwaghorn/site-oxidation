@@ -162,7 +162,7 @@ mod tests {
     use super::*;
     use rstest::rstest;
     use serde_json::json;
-    
+
     #[rstest]
     #[case("Waghorn Technology Ltd", true)]
     #[case("A", true)]
