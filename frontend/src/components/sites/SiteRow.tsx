@@ -22,7 +22,9 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
                 </Link>
             </td>
             <td style={{ padding: '12px 8px', color: '#6b7280', fontSize: '14px' }}>
-                {site.url}
+                <a href={site.url} target="_blank" rel="noopener noreferrer">
+                    {site.url}
+                </a>
             </td>
             <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                 <StatusBadge status={site.status} />
