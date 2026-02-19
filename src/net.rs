@@ -4,7 +4,14 @@ use std::net::{IpAddr, SocketAddr};
 pub fn is_private_ip(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => v4.is_loopback() || v4.is_private() || v4.is_link_local(),
-        IpAddr::V6(v6) => v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00,
+        IpAddr::V6(v6) => {
+            v6.is_loopback()
+                || (v6.segments()[0] & 0xfe00) == 0xfc00
+                || v6
+                    .to_ipv4_mapped()
+                    .or_else(|| v6.to_ipv4())
+                    .is_some_and(|v4| v4.is_loopback() || v4.is_private() || v4.is_link_local())
+        }
     }
 }
 
@@ -51,6 +58,16 @@ mod tests {
     #[case("fc00::1", true)]
     #[case("2001:4860:4860::8888", false)]
     #[case("2606:4700:4700::1111", false)]
+    #[case("::ffff:127.0.0.1", true)]
+    #[case("::ffff:10.0.0.1", true)]
+    #[case("::ffff:192.168.1.1", true)]
+    #[case("::ffff:169.254.1.1", true)]
+    #[case("::ffff:8.8.8.8", false)]
+    #[case("::127.0.0.1", true)]
+    #[case("::10.0.0.1", true)]
+    #[case("::192.168.1.1", true)]
+    #[case("::169.254.1.1", true)]
+    #[case("::8.8.8.8", false)]
     fn test_is_private_ip(#[case] ip: &str, #[case] expected: bool) {
         assert_eq!(is_private_ip(&ip.parse::<IpAddr>().unwrap()), expected);
     }

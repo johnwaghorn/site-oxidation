@@ -1,3 +1,6 @@
+// utoipa's OpenApi derive macro triggers this lint in generated code
+#![allow(clippy::needless_for_each)]
+
 mod sites_endpoints;
 mod sites_validators;
 

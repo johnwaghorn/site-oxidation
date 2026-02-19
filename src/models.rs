@@ -11,11 +11,11 @@ pub enum SiteStatus {
 }
 
 impl SiteStatus {
-    pub fn is_up(&self) -> bool {
+    pub fn is_up(self) -> bool {
         matches!(self, SiteStatus::Up)
     }
 
-    pub fn is_down(&self) -> bool {
+    pub fn is_down(self) -> bool {
         matches!(self, SiteStatus::Down)
     }
 }

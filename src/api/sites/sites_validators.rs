@@ -42,7 +42,7 @@ impl SiteUrl {
     }
     pub fn has_private_ip(&self) -> bool {
         let url = Url::parse(&self.0).ok();
-        match url.as_ref().and_then(|u| u.host()) {
+        match url.as_ref().and_then(Url::host) {
             Some(Host::Ipv4(ip)) => is_private_ip(&IpAddr::V4(ip)),
             Some(Host::Ipv6(ip)) => is_private_ip(&IpAddr::V6(ip)),
             _ => false,

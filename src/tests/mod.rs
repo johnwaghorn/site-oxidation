@@ -13,7 +13,7 @@ pub const TEST_SITE_NAME: &str = "Waghorn Technology Ltd";
 pub const TEST_SITE_URL: &str = "https://waghorn.tech";
 pub const TEST_PROBE_INTERVAL_SECONDS: i64 = 60;
 
-pub fn test_config() -> AppConfig {
+pub fn test_config_with_allow_private_ips(allow_private_ips: bool) -> AppConfig {
     AppConfig {
         api_key: TEST_API_KEY.to_string(),
         database_path: ":memory:".to_string(),
@@ -21,14 +21,14 @@ pub fn test_config() -> AppConfig {
         probe_timeout_secs: 30,
         probe_retry_count: 2,
         probe_retry_delay_ms: 3000,
-        allow_private_ips: true,
+        allow_private_ips,
     }
 }
 
-pub fn test_app(pool: SqlitePool) -> Router {
+pub fn test_app_with_allow_private_ips(pool: SqlitePool, allow_private_ips: bool) -> Router {
     let state = AppState {
         pool,
-        config: test_config(),
+        config: test_config_with_allow_private_ips(allow_private_ips),
     };
     crate::api::routes()
         .layer(middleware::from_fn_with_state(
@@ -36,6 +36,10 @@ pub fn test_app(pool: SqlitePool) -> Router {
             require_api_key,
         ))
         .with_state(state)
+}
+
+pub fn test_app(pool: SqlitePool) -> Router {
+    test_app_with_allow_private_ips(pool, true)
 }
 
 pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow {

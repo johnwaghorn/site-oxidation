@@ -2,6 +2,7 @@ use crate::models::SiteStatus;
 use crate::tests::api::test_auth_header;
 use crate::tests::{
     TEST_PROBE_INTERVAL_SECONDS, TEST_SITE_NAME, TEST_SITE_URL, insert_test_site, test_app,
+    test_app_with_allow_private_ips,
 };
 use axum::{
     body::Body,
@@ -71,6 +72,100 @@ async fn test_create_site_invalid_payload_returns_422(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_site_private_ip_rejected_when_private_ips_disabled(pool: SqlitePool) {
+    let app = test_app_with_allow_private_ips(pool, false);
+    let (auth_header_name, auth_header_value) = test_auth_header();
+    let payload = format!(
+        r#"{{"name":"{}","url":"http://127.0.0.1:8080", "probe_interval_seconds":{}}}"#,
+        TEST_SITE_NAME, TEST_PROBE_INTERVAL_SECONDS
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header(auth_header_name, auth_header_value)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_site_private_ip_allowed_when_private_ips_enabled(pool: SqlitePool) {
+    let app = test_app_with_allow_private_ips(pool, true);
+    let (auth_header_name, auth_header_value) = test_auth_header();
+    let payload = format!(
+        r#"{{"name":"{}","url":"http://127.0.0.1:8080", "probe_interval_seconds":{}}}"#,
+        TEST_SITE_NAME, TEST_PROBE_INTERVAL_SECONDS
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header(auth_header_name, auth_header_value)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_update_site_private_ip_rejected_when_private_ips_disabled(pool: SqlitePool) {
+    let app = test_app_with_allow_private_ips(pool.clone(), false);
+    let (auth_header_name, auth_header_value) = test_auth_header();
+    insert_test_site(&pool, SiteStatus::Up).await;
+    let payload = format!(
+        r#"{{"name":"{}","url":"http://127.0.0.1:8080", "probe_interval_seconds":{}}}"#,
+        TEST_SITE_NAME, TEST_PROBE_INTERVAL_SECONDS
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/sites/1")
+                .header(auth_header_name, auth_header_value)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_update_site_private_ip_allowed_when_private_ips_enabled(pool: SqlitePool) {
+    let app = test_app_with_allow_private_ips(pool.clone(), true);
+    let (auth_header_name, auth_header_value) = test_auth_header();
+    insert_test_site(&pool, SiteStatus::Up).await;
+    let payload = format!(
+        r#"{{"name":"{}","url":"http://127.0.0.1:8080", "probe_interval_seconds":{}}}"#,
+        TEST_SITE_NAME, TEST_PROBE_INTERVAL_SECONDS
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/sites/1")
+                .header(auth_header_name, auth_header_value)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[sqlx::test(migrations = "./migrations")]

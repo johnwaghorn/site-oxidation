@@ -1,3 +1,6 @@
+// utoipa's OpenApi derive macro triggers this lint in generated code
+#![allow(clippy::needless_for_each)]
+
 pub(crate) mod auth;
 pub mod errors;
 mod healthcheck;

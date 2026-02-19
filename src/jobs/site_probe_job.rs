@@ -1,9 +1,11 @@
 use crate::config::{AppConfig, CANARY_TIMEOUT_SECS, CANARY_URL, PROBE_MAX_CONCURRENT_CHECKS};
 use crate::models::{SiteRow, SiteStatus};
+use crate::net::is_private_ip;
 use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::{Client, StatusCode};
 use sqlx::SqlitePool;
+use std::net::IpAddr;
 use std::time::Duration;
 
 pub struct CheckExpectation {
@@ -30,12 +32,12 @@ pub async fn check_all_sites(client: &Client, pool: &SqlitePool, config: &AppCon
         return;
     }
     let sites = sqlx::query_as::<_, SiteRow>(
-        r#"
+        r"
             SELECT id, name, url, expected_status, expected_text, status, probe_interval_seconds
             FROM sites
             WHERE last_checked_at IS NULL
                 OR datetime(last_checked_at, '+' || COALESCE(probe_interval_seconds, 60) || ' seconds') <= datetime('now')
-            "#,
+            ",
     )
     .fetch_all(pool)
     .await
@@ -63,7 +65,14 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfi
         expected_status: u16::try_from(site.expected_status).unwrap_or(200),
         expected_text: site.expected_text.clone(),
     };
-    let mut probe_result = probe_site(client, &site.url, &check, config.probe_timeout_secs).await;
+    let mut probe_result = probe_site(
+        client,
+        &site.url,
+        &check,
+        config.probe_timeout_secs,
+        config.allow_private_ips,
+    )
+    .await;
     if probe_result.status.is_down() && !site.status.is_down() {
         for attempt in 1..=config.probe_retry_count {
             tracing::info!(
@@ -74,7 +83,14 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfi
                 config.probe_retry_delay_ms
             );
             tokio::time::sleep(Duration::from_millis(config.probe_retry_delay_ms)).await;
-            probe_result = probe_site(client, &site.url, &check, config.probe_timeout_secs).await;
+            probe_result = probe_site(
+                client,
+                &site.url,
+                &check,
+                config.probe_timeout_secs,
+                config.allow_private_ips,
+            )
+            .await;
             if probe_result.status.is_up() {
                 tracing::info!("Site '{}' recovered on retry {}", site.name, attempt);
                 break;
@@ -89,7 +105,23 @@ pub async fn probe_site(
     url: &str,
     check: &CheckExpectation,
     timeout_secs: u64,
+    allow_private_ips: bool,
 ) -> ProbeResult {
+    if !allow_private_ips && let Ok(parsed) = reqwest::Url::parse(url) {
+        let is_private = match parsed.host() {
+            Some(url::Host::Ipv4(ip)) => is_private_ip(&IpAddr::V4(ip)),
+            Some(url::Host::Ipv6(ip)) => is_private_ip(&IpAddr::V6(ip)),
+            _ => false,
+        };
+        if is_private {
+            return ProbeResult {
+                status: SiteStatus::Down,
+                status_code: None,
+                latency_ms: None,
+                error_message: Some("blocked: URL host is private IP literal".to_string()),
+            };
+        }
+    }
     let start = std::time::Instant::now();
     match client
         .get(url)
@@ -152,8 +184,7 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
             site.name,
             result
                 .status_code
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| "N/A".to_string()),
+                .map_or_else(|| "N/A".to_string(), |c| c.to_string()),
             result
                 .error_message
                 .as_deref()
@@ -183,8 +214,13 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::net::SafeResolver;
     use crate::tests::insert_test_site;
     use sqlx::SqlitePool;
+    use std::sync::Arc;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+    use tokio::task::JoinHandle;
 
     fn mock_site_down_result() -> ProbeResult {
         ProbeResult {
@@ -202,6 +238,98 @@ mod tests {
             latency_ms: Some(100),
             error_message: None,
         }
+    }
+
+    async fn start_local_http_server() -> (u16, JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = tokio::spawn(async move {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                let mut buf = [0u8; 2048];
+                let _ = socket.read(&mut buf).await;
+                let response =
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+                let _ = socket.write_all(response).await;
+            }
+        });
+        (port, handle)
+    }
+
+    #[tokio::test]
+    async fn test_probe_site_blocks_literal_private_ip_when_private_ips_disabled() {
+        let client = Client::new();
+        let check = CheckExpectation {
+            expected_status: 200,
+            expected_text: None,
+        };
+        let result = probe_site(&client, "http://127.0.0.1:1", &check, 1, false).await;
+        assert!(result.status.is_down());
+        assert_eq!(
+            result.error_message.as_deref(),
+            Some("blocked: URL host is private IP literal")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_probe_site_allows_literal_private_ip_when_private_ips_enabled() {
+        let (port, server_handle) = start_local_http_server().await;
+        let client = Client::new();
+        let check = CheckExpectation {
+            expected_status: 200,
+            expected_text: None,
+        };
+        let url = format!("http://127.0.0.1:{port}");
+        let result = probe_site(&client, &url, &check, 1, true).await;
+        assert!(result.status.is_up());
+        assert_eq!(result.status_code, Some(StatusCode::OK));
+        server_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_probe_site_blocks_hostname_that_resolves_to_private_ip() {
+        let (port, server_handle) = start_local_http_server().await;
+        let client = Client::builder()
+            .dns_resolver(Arc::new(SafeResolver {
+                allow_private: false,
+            }))
+            .build()
+            .unwrap();
+        let check = CheckExpectation {
+            expected_status: 200,
+            expected_text: None,
+        };
+        let url = format!("http://localhost:{port}");
+        let result = probe_site(&client, &url, &check, 1, false).await;
+        assert!(result.status.is_down());
+        assert!(
+            result.error_message.is_some(),
+            "expected request failure, got no error message"
+        );
+        assert_ne!(
+            result.error_message.as_deref(),
+            Some("blocked: URL host is private IP literal")
+        );
+        server_handle.abort();
+    }
+
+    #[tokio::test]
+    async fn test_probe_site_allows_hostname_resolving_to_private_ip_when_private_ips_enabled() {
+        let (port, _server_handle) = start_local_http_server().await;
+        let client = Client::builder()
+            .dns_resolver(Arc::new(SafeResolver {
+                allow_private: true,
+            }))
+            .build()
+            .unwrap();
+        let check = CheckExpectation {
+            expected_status: 200,
+            expected_text: None,
+        };
+        let url = format!("http://localhost:{port}");
+        let result = probe_site(&client, &url, &check, 1, true).await;
+        assert!(result.status.is_up());
+        assert_eq!(result.status_code, Some(StatusCode::OK));
+        _server_handle.await.unwrap();
     }
 
     #[sqlx::test(migrations = "./migrations")]
