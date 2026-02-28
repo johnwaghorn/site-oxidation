@@ -32,6 +32,16 @@
 **/values.dev.yaml
 **/.claude
 **/.scratch
+**/.idea
+**/.pre-commit-config.yaml
+**/target
+**/static
+**/*.rs.bk
+**/*.tsbuildinfo
+**/*.log
 LICENSE
 README.md
+docs
+scripts
 **/data
+identifier.sqlite
