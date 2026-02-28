@@ -1,5 +1,27 @@
 # Development Guide
 
+## Prerequisites
+
+| Tool | Version | Install |
+|------|---------|---------|
+| Rust | 1.85+ (edition 2024) | [rustup.rs](https://rustup.rs/) |
+| Node | 24+ | [nvm](https://github.com/nvm-sh/nvm) (see `frontend/.nvmrc`) |
+| cargo-binstall | latest | `cargo install cargo-binstall` |
+| prek | latest | `cargo binstall prek` |
+
+## Initial Setup
+
+```bash
+# Build backend dependencies
+cargo build
+
+# Install frontend dependencies
+cd frontend && npm install
+
+# Install git hooks
+prek install
+```
+
 ## Running Locally
 
 - Start the backend: `cargo run`
@@ -16,9 +38,18 @@
 
 The frontend uses generated TypeScript types from the backend's OpenAPI spec.
 
-- Make sure the backend is running first: `cargo run`
-- From the frontend directory, run: `npm run generate-api-schema`
-- This fetches the schema from `http://localhost:8080/api/docs/openapi.json` and writes types to `src/generated/schema.d.ts`
+There is a convenience script that starts the backend, generates the types, and stops the backend:
+
+```bash
+./scripts/generate-schema.sh
+```
+
+Or manually:
+
+1. Start the backend: `cargo run`
+2. From the frontend directory: `npm run generate-api-schema`
+
+This fetches the schema from `http://localhost:8080/api/docs/openapi.json` and writes types to `frontend/src/generated/schema.d.ts`.
 
 ## Building the Frontend
 
@@ -43,6 +74,14 @@ The frontend uses generated TypeScript types from the backend's OpenAPI spec.
 - Run with output: `cargo test -- --nocapture`
 
 ## Formatting and Linting
+
+A convenience script runs all checks (the same checks that run on commit via prek):
+
+```bash
+./scripts/lint.sh
+```
+
+Individual commands:
 
 - Format Rust code: `cargo fmt`
 - Check formatting without modifying: `cargo fmt --check`

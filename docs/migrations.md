@@ -10,7 +10,7 @@ SQLx embeds migrations at **compile time** via the `sqlx::migrate!()` macro. Thi
 
 SQLx accepts two formats:
 
-| Format | Example | 
+| Format | Example |
 |--------|---------|
 | Timestamp | `20251226195900_initial.sql` |
 | Versioned (double underscore) | `V001__initial.sql` |

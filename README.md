@@ -4,10 +4,12 @@ A simple uptime monitor that detects when your sites start to rust.
 
 ## Requirements
 
-| Tool | Version              | Configured in                                                                               |
-|------|----------------------|---------------------------------------------------------------------------------------------|
-| Rust | 1.85+ (edition 2024) | [Cargo.toml](Cargo.toml), [Dockerfile](Dockerfile)                                          |
-| Node | 24+                  | [.nvmrc](frontend/.nvmrc), [package.json](frontend/package.json), [Dockerfile](Dockerfile) |
+| Tool | Version | Install | Configured in |
+|------|---------|---------|---------------|
+| Rust | 1.85+ (edition 2024) | [rustup.rs](https://rustup.rs/) | [Cargo.toml](Cargo.toml), [Dockerfile](Dockerfile) |
+| Node | 24+ | [nvm](https://github.com/nvm-sh/nvm) | [.nvmrc](frontend/.nvmrc), [package.json](frontend/package.json), [Dockerfile](Dockerfile) |
+| cargo-binstall | latest | `cargo install cargo-binstall` | — |
+| prek | latest | `cargo binstall prek` | [.pre-commit-config.yaml](.pre-commit-config.yaml) |
 
 ## Development
 
@@ -20,14 +22,3 @@ Files must be named `{YYYYMMDDHHmmss}_name.sql` (e.g., `20251226195900_initial.s
 Single-underscore prefixes like `001_init.sql` will not work.
 
 See [docs/migrations.md](docs/migrations.md).
-
-## TODO
-
-- tech stack watch - cves
-- notifications on outage, cves
-- import/export sites to csv
-- expand FE
-- redo "auth" or remove it
-
-
-
