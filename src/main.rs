@@ -46,15 +46,6 @@ async fn main() -> Result<()> {
         }))
         .build()
         .context("Failed to build 'reqwest' client")?;
-    let checker_pool = pool.clone();
-    let checker_config = config.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(10));
-        loop {
-            interval.tick().await;
-            check_all_sites(&client, &checker_pool, &checker_config).await;
-        }
-    });
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));
     let app = Router::new()
         .route("/api/health", get(health))
@@ -73,6 +64,15 @@ async fn main() -> Result<()> {
         .await
         .with_context(|| format!("Failed to bind server listener on {addr}"))?;
     tracing::info!("Server started on {}", addr);
+    let checker_pool = pool.clone();
+    let checker_config = config.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
+        loop {
+            interval.tick().await;
+            check_all_sites(&client, &checker_pool, &checker_config).await;
+        }
+    });
     axum::serve(listener, app)
         .await
         .context("Axum server terminated with an error")?;
