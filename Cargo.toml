@@ -18,6 +18,7 @@ utoipa-swagger-ui = { version = "9", features = ["axum"] }
 futures = "0.3.31"
 url = "2.5.8"
 anyhow = "1.0.102"
+thiserror = "2.0.18"
 
 [dev-dependencies]
 http-body-util = "0.1.3"

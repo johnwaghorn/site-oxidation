@@ -1,5 +1,12 @@
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use std::net::{IpAddr, SocketAddr};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+enum ResolverError {
+    #[error("resolved to private IP")]
+    PrivateIpBlocked,
+}
 
 pub fn is_private_ip(ip: &IpAddr) -> bool {
     match ip {
@@ -27,7 +34,7 @@ impl Resolve for SafeResolver {
             let addrs: Vec<SocketAddr> =
                 tokio::net::lookup_host((name.as_str(), 0)).await?.collect();
             if !allow_private && addrs.iter().any(|a| is_private_ip(&a.ip())) {
-                return Err("resolved to private IP".into());
+                return Err(ResolverError::PrivateIpBlocked.into());
             }
             Ok(Box::new(addrs.into_iter()) as Addrs)
         })
