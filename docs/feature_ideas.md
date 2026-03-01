@@ -15,3 +15,8 @@ Allow users to import and export a users sites
 ## Site outage graph
 
 Uptime percentage graph, inspired by: mrshu.github.io/github-statuses/
+
+## Admin audit log
+
+Track admin actions, 90 days retention, entries must be lightweight, 100k rows before querying without
+pagination gets slow. `created_at` for time-range queries and pruning.

@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use std::env;
 
 #[derive(Clone)]
@@ -12,32 +13,55 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn from_env() -> Self {
-        Self {
-            api_key: env::var("API_KEY").expect("API_KEY must be set"),
-            database_path: env::var("DATABASE_PATH")
-                .unwrap_or_else(|_| "./data/site-oxidation.db".to_string()),
-            server_port: env::var("PORT")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(8080),
-            probe_timeout_secs: env::var("PROBE_TIMEOUT_SECS")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(30),
-            probe_retry_count: env::var("PROBE_RETRY_COUNT")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(2),
-            probe_retry_delay_ms: env::var("PROBE_RETRY_DELAY_MS")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(3000),
-            allow_private_ips: env::var("ALLOW_PRIVATE_IPS")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(false),
-        }
+    pub fn from_env() -> Result<Self> {
+        let api_key = env::var("API_KEY").context("Please set API_KEY")?;
+        let database_path = match env::var("DATABASE_PATH") {
+            Ok(v) => v,
+            Err(env::VarError::NotPresent) => "./data/site-oxidation.db".to_string(),
+            Err(env::VarError::NotUnicode(_)) => {
+                anyhow::bail!("DATABASE_PATH must be valid UTF-8");
+            }
+        };
+        let server_port = match env::var("PORT") {
+            Ok(v) => v
+                .parse::<u16>()
+                .with_context(|| format!("Invalid PORT value: {v}"))?,
+            Err(_) => 8080,
+        };
+        let probe_timeout_secs = match env::var("PROBE_TIMEOUT_SECS") {
+            Ok(v) => v
+                .parse::<u64>()
+                .with_context(|| format!("Invalid PROBE_TIMEOUT_SECS value: {v}"))?,
+            Err(_) => 30,
+        };
+        let probe_retry_count = match env::var("PROBE_RETRY_COUNT") {
+            Ok(v) => v
+                .parse::<u32>()
+                .with_context(|| format!("Invalid PROBE_RETRY_COUNT value: {v}"))?,
+            Err(_) => 2,
+        };
+        let probe_retry_delay_ms = match env::var("PROBE_RETRY_DELAY_MS") {
+            Ok(v) => v
+                .parse::<u64>()
+                .with_context(|| format!("Invalid PROBE_RETRY_DELAY_MS value: {v}"))?,
+            Err(_) => 3000,
+        };
+        let allow_private_ips = match env::var("ALLOW_PRIVATE_IPS") {
+            Ok(v) => v
+                .parse::<bool>()
+                .with_context(|| format!("Invalid ALLOW_PRIVATE_IPS value: {v}"))?,
+            Err(_) => false,
+        };
+
+        Ok(Self {
+            api_key,
+            database_path,
+            server_port,
+            probe_timeout_secs,
+            probe_retry_count,
+            probe_retry_delay_ms,
+            allow_private_ips,
+        })
     }
 }
 

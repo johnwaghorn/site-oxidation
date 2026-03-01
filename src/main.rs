@@ -9,6 +9,7 @@ mod state;
 mod tests;
 
 use crate::net::SafeResolver;
+use anyhow::{Context, Result};
 use api::ApiDoc;
 use api::auth::require_api_key;
 use api::health;
@@ -24,13 +25,15 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let config = AppConfig::from_env();
-    let port = config.server_port;
-    let pool = db::init_db(&config.database_path)
-        .await
-        .expect("Could not initialize database");
+    let config = AppConfig::from_env().context("Failed to load app config from env")?;
+    let pool = db::init_db(&config.database_path).await.with_context(|| {
+        format!(
+            "Failed to initialise db connection with {}",
+            config.database_path
+        )
+    })?;
     let state = AppState {
         pool: pool.clone(),
         config: config.clone(),
@@ -42,7 +45,7 @@ async fn main() {
             allow_private: config.allow_private_ips,
         }))
         .build()
-        .expect("Failed to create HTTP client");
+        .context("Failed to build 'reqwest' client")?;
     let checker_pool = pool.clone();
     let checker_config = config.clone();
     tokio::spawn(async move {
@@ -65,17 +68,13 @@ async fn main() {
         .merge(SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()))
         .fallback_service(static_service)
         .with_state(state);
-    let addr: &str = &format!("0.0.0.0:{port}");
-    let listener = match tokio::net::TcpListener::bind(addr).await {
-        Ok(listener) => listener,
-        Err(e) => {
-            tracing::error!("Failed to bind to {addr}: {e}");
-            std::process::exit(1);
-        }
-    };
-    tracing::info!("Server started on port {port}");
-    if let Err(e) = axum::serve(listener, app).await {
-        tracing::error!("Server error: {e}");
-        std::process::exit(1);
-    }
+    let addr = format!("0.0.0.0:{}", config.server_port);
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .with_context(|| format!("Failed to bind server listener on {addr}"))?;
+    tracing::info!("Server started on {}", addr);
+    axum::serve(listener, app)
+        .await
+        .context("Axum server terminated with an error")?;
+    Ok(())
 }
