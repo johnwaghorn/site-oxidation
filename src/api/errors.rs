@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
+use std::fmt::Display;
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -15,6 +16,14 @@ pub struct ApiError {
 pub struct ApiErrorResponse {
     status: StatusCode,
     body: ApiError,
+}
+
+pub fn internal_err<E>(msg: &str, e: E) -> ApiErrorResponse
+where
+    E: Display,
+{
+    tracing::error!("{msg}: {e}");
+    ApiErrorResponse::internal(msg)
 }
 
 impl ApiErrorResponse {

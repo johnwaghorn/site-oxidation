@@ -1,5 +1,5 @@
 use super::{ApiError, ExpectedText, OutageResponse, SitePayload, SiteResponse};
-use crate::api::errors::ApiErrorResponse;
+use crate::api::errors::{ApiErrorResponse, internal_err};
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::state::AppState;
 use axum::{
@@ -31,17 +31,11 @@ pub async fn list_sites(
         .bind(params.offset())
         .fetch_all(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch sites from database: {}", e);
-            ApiErrorResponse::internal("Failed to fetch sites")
-        })?;
+        .map_err(|e| internal_err("Failed to fetch sites", e))?;
     let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sites")
         .fetch_one(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to get site total from database: {}", e);
-            ApiErrorResponse::internal("Failed to get site count")
-        })?;
+        .map_err(|e| internal_err("Failed to get site count", e))?;
     let response = PaginatedResponse {
         data: sites,
         page: params.page(),
@@ -71,16 +65,13 @@ pub async fn get_site(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<SiteResponse>, ApiErrorResponse> {
-    sqlx::query_as::<_, SiteResponse>(
+    let site = sqlx::query_as::<_, SiteResponse>(
         "SELECT id, name, url, expected_status, expected_text, status, last_checked_at, last_response_time_ms, probe_interval_seconds FROM sites WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch site from database: {}", e);
-            ApiErrorResponse::internal("Failed to fetch site")
-        })?
-        .ok_or_else(|| ApiErrorResponse::not_found("Site"))
+        .map_err(|e| internal_err("Failed to fetch site", e))?;
+    site.ok_or_else(|| ApiErrorResponse::not_found("Site"))
         .map(Json)
 }
 
@@ -110,10 +101,7 @@ pub async fn get_site_outages(
         .bind(id)
         .fetch_optional(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch site from database: {}", e);
-            ApiErrorResponse::internal("Failed to fetch site")
-        })?
+        .map_err(|e| internal_err("Failed to fetch site", e))?
         .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
     let outages = sqlx::query_as::<_, OutageResponse>(
         "SELECT id, site_id, http_status, started_at, ended_at, error_message FROM outages WHERE site_id = ? LIMIT ? OFFSET ?")
@@ -122,18 +110,12 @@ pub async fn get_site_outages(
         .bind(params.offset())
         .fetch_all(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch site outages from database: {}", e);
-            ApiErrorResponse::internal("Failed to fetch outages")
-        })?;
+        .map_err(|e| internal_err("Failed to fetch outages", e))?;
     let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages WHERE site_id = ?")
         .bind(id)
         .fetch_one(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch total for outages from database: {}", e);
-            ApiErrorResponse::internal("Failed to get outage count")
-        })?;
+        .map_err(|e| internal_err("Failed to get outage count", e))?;
     let response = PaginatedResponse {
         data: outages,
         page: params.page(),
@@ -174,10 +156,7 @@ pub async fn create_site(
         .bind(payload.probe_interval_seconds.as_i64())
         .fetch_one(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to create site: {}", e);
-            ApiErrorResponse::internal("Failed to create site")
-        })?;
+        .map_err(|e| internal_err("Failed to create site", e))?;
     Ok((StatusCode::CREATED, Json(result)))
 }
 
@@ -217,10 +196,7 @@ pub async fn update_site(
         .bind(id)
         .fetch_optional(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to update site: {}", e);
-            ApiErrorResponse::internal("Failed to update site")
-        })?
+        .map_err(|e| internal_err("Failed to update site", e))?
         .ok_or_else(|| ApiErrorResponse::not_found("Site"))
         .map(Json)
 }
@@ -251,10 +227,7 @@ pub async fn delete_site(
         .bind(id)
         .execute(&state.pool)
         .await
-        .map_err(|e| {
-            tracing::error!("Failed to delete site: {}", e);
-            ApiErrorResponse::internal("Failed to delete site")
-        })?;
+        .map_err(|e| internal_err("Failed to delete site", e))?;
     if result.rows_affected() == 0 {
         return Err(ApiErrorResponse::not_found("Site"));
     }
