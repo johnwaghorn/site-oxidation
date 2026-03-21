@@ -9,7 +9,4 @@ services:
     environment:
       - API_KEY=${API_KEY:-changeme}
     volumes:
-      - site-data:/app/data
-
-volumes:
-  site-data:
+      - ./data:/app/data
