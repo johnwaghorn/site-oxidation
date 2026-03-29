@@ -1,12 +1,14 @@
 // utoipa's OpenApi derive macro triggers this lint in generated code
 #![allow(clippy::needless_for_each)]
 
+mod sites_access;
 mod sites_endpoints;
+mod sites_queries;
 mod sites_validators;
 
 use super::errors::ApiError;
 use super::pagination::PaginatedResponse;
-use crate::models::SiteStatus;
+use crate::models::site::SiteStatus;
 use crate::state::AppState;
 use axum::{Router, routing::get};
 use chrono::{DateTime, Utc};
@@ -45,6 +47,7 @@ pub struct SiteResponse {
     pub last_checked_at: Option<DateTime<Utc>>,
     pub last_response_time_ms: Option<i64>,
     pub probe_interval_seconds: i64,
+    pub team_id: Option<i64>,
 }
 
 #[derive(Serialize, sqlx::FromRow, ToSchema)]
@@ -66,9 +69,10 @@ pub struct SitePayload {
     pub expected_text: Option<ExpectedText>,
     #[serde(default)]
     pub probe_interval_seconds: CheckInterval,
+    pub team_id: Option<i64>,
 }
 
-pub fn routes() -> Router<AppState> {
+pub fn site_routes() -> Router<AppState> {
     Router::new()
         .route("/sites", get(list_sites).post(create_site))
         .route(

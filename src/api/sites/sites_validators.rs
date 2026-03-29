@@ -1,4 +1,4 @@
-use crate::net::is_private_ip;
+use crate::security::ip::is_private_ip;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::net::IpAddr;

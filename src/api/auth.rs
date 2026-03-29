@@ -1,21 +1,215 @@
-use crate::api::errors::ApiErrorResponse;
-use crate::state::AppState;
-use axum::extract::State;
-use axum::{body::Body, http::Request, middleware::Next, response::Response};
+use axum::extract::ConnectInfo;
+use axum::http::StatusCode;
+use axum::routing::{get, post};
+use axum::{Json, Router, extract::State};
+use serde::Serialize;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use utoipa::{OpenApi, ToSchema};
 
-pub async fn require_api_key(
-    State(state): State<AppState>,
-    request: Request<Body>,
-    next: Next,
-) -> Result<Response, ApiErrorResponse> {
-    let auth_header = request
-        .headers()
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok());
-    match auth_header {
-        Some(header) if header == format!("Bearer {}", state.config.api_key) => {
-            Ok(next.run(request).await)
-        }
-        _ => Err(ApiErrorResponse::unauthorized()),
+use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
+use crate::api::extractors::RequireAuth;
+use crate::auth_backend::{AuthSession, Credentials};
+use crate::models::user::UserRole;
+use crate::security::password::{
+    validate_password_bounds, validate_password_changed, validate_password_not_username,
+};
+use crate::security::rate_limit::LoginRateLimiter;
+use crate::state::AppState;
+use password_auth::{generate_hash, verify_password};
+use serde::Deserialize;
+use sqlx::SqlitePool;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(login, logout, me, change_password),
+    components(schemas(
+        crate::auth_backend::Credentials,
+        LoginSuccess,
+        MeSuccess,
+        ChangePasswordRequest,
+        ChangePasswordSuccess,
+        ApiError,
+    )),
+    tags(
+        (name = "auth", description = "Authentication"),
+    ),
+)]
+pub struct AuthApiDoc;
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LoginSuccess {
+    pub username: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct MeSuccess {
+    pub username: String,
+    pub role: UserRole,
+    pub must_change_password: bool,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ChangePasswordSuccess {
+    pub success: bool,
+}
+
+pub fn auth_routes() -> Router<AppState> {
+    Router::new()
+        .route("/auth/login", post(login))
+        .route("/auth/logout", post(logout))
+        .route("/auth/me", get(me))
+        .route("/auth/change-password", post(change_password))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    request_body = crate::auth_backend::Credentials,
+    responses(
+        (status = 200, description = "Login successful", body = LoginSuccess),
+        (status = 401, description = "Invalid credentials", body = ApiError),
+        (status = 429, description = "Too many login attempts", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "auth",
+)]
+pub async fn login(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(limiter): State<Arc<LoginRateLimiter>>,
+    mut auth_session: AuthSession,
+    Json(creds): Json<Credentials>,
+) -> Result<Json<LoginSuccess>, ApiErrorResponse> {
+    let key = format!("{}:{}", addr.ip(), creds.username.to_lowercase());
+    if limiter.is_blocked(&key) {
+        return Err(ApiErrorResponse::too_many_requests(
+            "Too many login attempts, try again later",
+        ));
     }
+    let user = auth_session
+        .authenticate(creds)
+        .await
+        .map_err(|e| internal_err("Authentication failed", e))?;
+    let user = if let Some(user) = user {
+        limiter.clear(&key);
+        user
+    } else {
+        let now_blocked = limiter.record_failure(&key);
+        if now_blocked {
+            tracing::warn!("Login rate limit reached for {}", addr.ip());
+        }
+        return Err(ApiErrorResponse::unauthorized());
+    };
+    auth_session
+        .login(&user)
+        .await
+        .map_err(|e| internal_err("Session login failed", e))?;
+    Ok(Json(LoginSuccess {
+        username: user.username,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    responses(
+        (status = 200, description = "Logout successful"),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "auth",
+    security(("session_cookie" = [])),
+)]
+pub async fn logout(mut auth_session: AuthSession) -> Result<StatusCode, ApiErrorResponse> {
+    auth_session
+        .logout()
+        .await
+        .map_err(|e| internal_err("Session logout failed", e))?;
+    Ok(StatusCode::OK)
+}
+
+#[utoipa::path(
+    get,
+    path = "/auth/me",
+    responses(
+        (status = 200, description = "Current user info", body = MeSuccess),
+        (status = 401, description = "Not authenticated", body = ApiError),
+    ),
+    tag = "auth",
+    security(("session_cookie" = [])),
+)]
+pub async fn me(auth_session: AuthSession) -> Result<Json<MeSuccess>, ApiErrorResponse> {
+    let user = auth_session
+        .user
+        .ok_or_else(ApiErrorResponse::unauthorized)?;
+    Ok(Json(MeSuccess {
+        username: user.username,
+        role: user.role,
+        must_change_password: user.must_change_password,
+    }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/auth/change-password",
+    request_body = ChangePasswordRequest,
+    responses(
+        (status = 200, description = "Password changed", body = ChangePasswordSuccess),
+        (status = 401, description = "Invalid current password", body = ApiError),
+        (status = 422, description = "Password validation failed", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "auth",
+    security(("session_cookie" = [])),
+)]
+pub async fn change_password(
+    RequireAuth(user): RequireAuth,
+    State(pool): State<SqlitePool>,
+    mut auth_session: AuthSession,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> Result<Json<ChangePasswordSuccess>, ApiErrorResponse> {
+    validate_password_bounds(&payload.new_password)?;
+    validate_password_not_username(&payload.new_password, &user.username)?;
+    validate_password_changed(&payload.new_password, &payload.current_password)?;
+    let current_password = payload.current_password;
+    let stored_hash = user.password.clone();
+    let is_valid = tokio::task::spawn_blocking(move || {
+        verify_password(&current_password, &stored_hash).is_ok()
+    })
+    .await
+    .map_err(|e| internal_err("Failed to verify current password", e))?;
+    if !is_valid {
+        return Err(ApiErrorResponse::unauthorized());
+    }
+    let new_password = payload.new_password;
+    let new_hash = tokio::task::spawn_blocking(move || generate_hash(&new_password))
+        .await
+        .map_err(|e| internal_err("Failed to hash new password", e))?;
+    sqlx::query(super::auth_queries::UPDATE_PASSWORD)
+        .bind(&new_hash)
+        .bind(user.id)
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            internal_err(
+                &format!("Failed to update password for user {}", user.id),
+                e,
+            )
+        })?;
+    let updated_user =
+        sqlx::query_as::<_, crate::models::user::User>(super::auth_queries::SELECT_USER_BY_ID)
+            .bind(user.id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to re-fetch user after password change", e))?;
+    auth_session
+        .login(&updated_user)
+        .await
+        .map_err(|e| internal_err("Failed to refresh session after password change", e))?;
+    Ok(Json(ChangePasswordSuccess { success: true }))
 }

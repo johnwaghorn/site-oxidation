@@ -55,7 +55,9 @@ impl PaginationParams {
     }
 
     pub fn offset(&self) -> u32 {
-        (self.page() - 1) * self.per_page()
+        self.page()
+            .saturating_sub(1)
+            .saturating_mul(self.per_page())
     }
 }
 

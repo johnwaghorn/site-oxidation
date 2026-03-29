@@ -4,8 +4,8 @@ use sqlx::sqlite::{
 };
 use std::path::Path;
 
-pub async fn init_db(database_path: &str) -> Result<SqlitePool> {
-    if let Some(parent) = Path::new(database_path).parent() {
+pub async fn init_db(database_path: &Path) -> Result<SqlitePool> {
+    if let Some(parent) = database_path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
     }
@@ -19,7 +19,12 @@ pub async fn init_db(database_path: &str) -> Result<SqlitePool> {
         .max_connections(5)
         .connect_with(options)
         .await
-        .with_context(|| format!("Failed to connect SQLite DB at path: {database_path}"))?;
+        .with_context(|| {
+            format!(
+                "Failed to connect SQLite DB at path: {}",
+                database_path.display()
+            )
+        })?;
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await

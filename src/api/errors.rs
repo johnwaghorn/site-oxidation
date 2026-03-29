@@ -31,7 +31,7 @@ impl ApiErrorResponse {
         Self {
             status: StatusCode::NOT_FOUND,
             body: ApiError {
-                error: "not_found".to_string(),
+                error: "not_found".to_owned(),
                 message: format!("{resource} not found"),
             },
         }
@@ -41,8 +41,8 @@ impl ApiErrorResponse {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             body: ApiError {
-                error: "internal_error".to_string(),
-                message: message.to_string(),
+                error: "internal_error".to_owned(),
+                message: message.to_owned(),
             },
         }
     }
@@ -51,8 +51,38 @@ impl ApiErrorResponse {
         Self {
             status: StatusCode::UNAUTHORIZED,
             body: ApiError {
-                error: "unauthorized".to_string(),
-                message: "Invalid or missing API key".to_string(),
+                error: "unauthorized".to_owned(),
+                message: "Authentication required".to_owned(),
+            },
+        }
+    }
+
+    pub fn forbidden(message: &str) -> Self {
+        Self {
+            status: StatusCode::FORBIDDEN,
+            body: ApiError {
+                error: "forbidden".to_owned(),
+                message: message.to_owned(),
+            },
+        }
+    }
+
+    pub fn conflict(message: &str) -> Self {
+        Self {
+            status: StatusCode::CONFLICT,
+            body: ApiError {
+                error: "conflict".to_owned(),
+                message: message.to_owned(),
+            },
+        }
+    }
+
+    pub fn too_many_requests(message: &str) -> Self {
+        Self {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            body: ApiError {
+                error: "too_many_requests".to_owned(),
+                message: message.to_owned(),
             },
         }
     }
@@ -61,8 +91,8 @@ impl ApiErrorResponse {
         Self {
             status: StatusCode::UNPROCESSABLE_ENTITY,
             body: ApiError {
-                error: "validation_error".to_string(),
-                message: message.to_string(),
+                error: "validation_error".to_owned(),
+                message: message.to_owned(),
             },
         }
     }
