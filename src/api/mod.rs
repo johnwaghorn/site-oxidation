@@ -1,14 +1,17 @@
 // utoipa's OpenApi derive macro triggers this lint in generated code
 #![allow(clippy::needless_for_each)]
 
+pub(crate) mod admin;
 pub(crate) mod auth;
+mod auth_queries;
 pub mod errors;
-mod healthcheck;
+pub(crate) mod extractors;
+pub(crate) mod healthcheck;
 mod pagination;
-mod sites;
-
-pub use healthcheck::health;
-pub use sites::{SitesApiDoc, routes};
+pub(crate) mod setup;
+mod setup_queries;
+pub(crate) mod sites;
+pub use sites::SitesApiDoc;
 
 use utoipa::OpenApi;
 
@@ -16,6 +19,9 @@ use utoipa::OpenApi;
 #[openapi(
     nest(
           (path = "/api", api = SitesApiDoc),
+          (path = "/api", api = admin::AdminApiDoc),
+          (path = "/api", api = auth::AuthApiDoc),
+          (path = "/api", api = setup::SetupApiDoc),
     ),
     info(
         title = "Site Oxidation API",
@@ -32,10 +38,12 @@ impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         let components = openapi.components.get_or_insert_with(Default::default);
         components.add_security_scheme(
-            "bearer_auth",
-            utoipa::openapi::security::SecurityScheme::Http(utoipa::openapi::security::Http::new(
-                utoipa::openapi::security::HttpAuthScheme::Bearer,
-            )),
+            "session_cookie",
+            utoipa::openapi::security::SecurityScheme::ApiKey(
+                utoipa::openapi::security::ApiKey::Cookie(
+                    utoipa::openapi::security::ApiKeyValue::new("id"),
+                ),
+            ),
         );
     }
 }

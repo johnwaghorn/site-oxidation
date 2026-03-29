@@ -1,6 +1,4 @@
 FROM node:24-alpine AS frontend
-ARG VITE_API_KEY
-ENV VITE_API_KEY=$VITE_API_KEY
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci

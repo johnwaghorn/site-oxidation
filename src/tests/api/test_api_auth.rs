@@ -1,6 +1,7 @@
-use crate::tests::api::test_auth_header;
-use crate::tests::test_app;
-
+use crate::tests::{
+    TEST_NEW_PASSWORD, TEST_PASSWORD, WRONG_PASSWORD, build_change_password_request,
+    build_login_request, insert_test_user, login_and_get_cookie, test_app,
+};
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -9,34 +10,68 @@ use sqlx::SqlitePool;
 use tower::ServiceExt;
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_api_auth_invalid_key_returns_401(pool: SqlitePool) {
+async fn test_password_change_clears_must_change_and_keeps_session(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", true).await;
     let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/sites")
-                .header("Authorization", "Bearer completely_wrong_key")
+                .header("cookie", &cookie)
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED)
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let response = app
+        .clone()
+        .oneshot(build_change_password_request(
+            &cookie,
+            TEST_PASSWORD,
+            TEST_NEW_PASSWORD,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_api_auth_valid_request_returns_200(pool: SqlitePool) {
+async fn test_password_change_with_wrong_current_password_fails(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);
-    let (header_name, header_value) = test_auth_header();
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/sites")
-                .header(header_name, header_value)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(build_change_password_request(
+            &cookie,
+            WRONG_PASSWORD,
+            TEST_NEW_PASSWORD,
+        ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK)
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_login_with_invalid_credentials_fails(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let response = app
+        .oneshot(build_login_request("admin", WRONG_PASSWORD))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

@@ -1,8 +1,11 @@
 use axum::extract::State;
-use axum::{Json, http::StatusCode};
+use axum::routing::get;
+use axum::{Json, Router, http::StatusCode};
 use serde::Serialize;
 use sqlx::SqlitePool;
 use std::time::Instant;
+
+use crate::state::AppState;
 
 #[derive(Serialize)]
 pub struct HealthcheckResponse {
@@ -22,6 +25,10 @@ pub struct ComponentHealth {
     latency_ms: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+}
+
+pub fn health_routes() -> Router<AppState> {
+    Router::new().route("/health", get(health))
 }
 
 pub async fn health(State(pool): State<SqlitePool>) -> (StatusCode, Json<HealthcheckResponse>) {

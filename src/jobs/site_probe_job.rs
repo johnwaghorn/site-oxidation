@@ -1,6 +1,6 @@
-use crate::config::{AppConfig, CANARY_TIMEOUT_SECS, CANARY_URL, PROBE_MAX_CONCURRENT_CHECKS};
-use crate::models::{SiteRow, SiteStatus};
-use crate::net::is_private_ip;
+use crate::config::AppConfig;
+use crate::models::site::{SiteRow, SiteStatus};
+use crate::security::ip::is_private_ip;
 use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::{Client, StatusCode};
@@ -22,8 +22,8 @@ pub struct ProbeResult {
 
 pub async fn check_all_sites(client: &Client, pool: &SqlitePool, config: &AppConfig) {
     if client
-        .head(CANARY_URL)
-        .timeout(Duration::from_secs(CANARY_TIMEOUT_SECS))
+        .head(&config.canary_url)
+        .timeout(Duration::from_secs(config.canary_timeout_secs))
         .send()
         .await
         .is_err()
@@ -49,7 +49,7 @@ pub async fn check_all_sites(client: &Client, pool: &SqlitePool, config: &AppCon
     let site_count = sites.len();
     stream::iter(sites)
         .map(|site| check_single_site(client, pool, config, site))
-        .buffer_unordered(PROBE_MAX_CONCURRENT_CHECKS)
+        .buffer_unordered(config.probe_max_concurrent_checks)
         .collect::<Vec<()>>()
         .await;
     tracing::info!("Finished checking {} sites", site_count);
@@ -118,7 +118,7 @@ pub async fn probe_site(
                 status: SiteStatus::Down,
                 status_code: None,
                 latency_ms: None,
-                error_message: Some("blocked: URL host is private IP literal".to_string()),
+                error_message: Some("blocked: URL host is private IP literal".to_owned()),
             };
         }
     }
@@ -184,7 +184,7 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
             site.name,
             result
                 .status_code
-                .map_or_else(|| "N/A".to_string(), |c| c.to_string()),
+                .map_or_else(|| "N/A".to_owned(), |c| c.to_string()),
             result
                 .error_message
                 .as_deref()
