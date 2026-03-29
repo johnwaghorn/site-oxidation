@@ -38,7 +38,8 @@ prek install
 
 The frontend uses generated TypeScript types from the backend's OpenAPI spec.
 
-There is a convenience script that starts the backend, generates the types, and stops the backend:
+There is a convenience script that starts the backend, generates the types,
+and stops the backend:
 
 ```bash
 ./scripts/generate-schema.sh
@@ -49,7 +50,8 @@ Or manually:
 1. Start the backend: `cargo run`
 2. From the frontend directory: `npm run generate-api-schema`
 
-This fetches the schema from `http://localhost:8080/api/docs/openapi.json` and writes types to `frontend/src/generated/schema.d.ts`.
+This fetches the schema from `http://localhost:8080/api/docs/openapi.json` and
+writes types to `frontend/src/generated/schema.d.ts`.
 
 ## Building the Frontend
 
@@ -68,22 +70,21 @@ This fetches the schema from `http://localhost:8080/api/docs/openapi.json` and w
 - Stop containers: `docker compose down`
 - Stop and remove volumes (deletes data): `docker compose down -v`
 
-## Running Tests
+## Backend tests
 
 - Run all tests: `cargo test`
-- Run with output: `cargo test -- --nocapture`
 
 ## Formatting and Linting
 
-A convenience script runs all checks (the same checks that run on commit via prek):
+A convenience script runs all check, for both frontend and backend (the same
+checks that run on commit via prek):
 
 ```bash
-./scripts/lint.sh
+./scripts/lint_full.sh
 ```
 
-Individual commands:
+Useful commands:
 
 - Format Rust code: `cargo fmt`
-- Check formatting without modifying: `cargo fmt --check`
 - Lint Rust code: `cargo clippy --all -- -W clippy::all -W clippy::pedantic`
 - Lint frontend: `cd frontend && npm run lint`
