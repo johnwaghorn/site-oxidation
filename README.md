@@ -21,4 +21,4 @@ Files must be named `{YYYYMMDDHHmmss}_name.sql` (e.g., `20251226195900_initial.s
 
 Single-underscore prefixes like `001_init.sql` will not work.
 
-See [docs/migrations.md](docs/migrations.md).
+See [docs/backend/migrations.md](docs/backend/migrations.md).
