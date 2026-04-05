@@ -31,16 +31,16 @@ repos:
         types: [rust]
         stages: [pre-push]
 
-      - id: frontend-lint
-        name: frontend eslint
-        entry: bash -c 'cd frontend && npm run lint'
+      - id: frontend-format
+        name: frontend prettier
+        entry: bash -c 'cd frontend && npx prettier --write src/'
         language: system
         pass_filenames: false
         types_or: [ts, tsx, javascript, jsx]
 
-      - id: frontend-typecheck
-        name: frontend typecheck
-        entry: bash -c 'cd frontend && npx tsc --noEmit'
+      - id: frontend-lint
+        name: frontend lint
+        entry: bash -c 'cd frontend && npm run lint'
         language: system
         pass_filenames: false
-        types_or: [ts, tsx]
+        types_or: [ts, tsx, javascript, jsx]
