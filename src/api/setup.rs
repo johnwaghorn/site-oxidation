@@ -10,6 +10,7 @@ use tokio::task;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
+use crate::config::AppConfig;
 use crate::security::ip::is_private_ip;
 use crate::state::AppState;
 
@@ -73,8 +74,9 @@ pub async fn status(State(pool): State<SqlitePool>) -> Result<Json<SetupStatus>,
 pub async fn bootstrap(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(pool): State<SqlitePool>,
+    State(config): State<AppConfig>,
 ) -> Result<(StatusCode, Json<BootstrapResponse>), ApiErrorResponse> {
-    if !is_private_ip(&addr.ip()) {
+    if config.bootstrap_require_private_ip && !is_private_ip(&addr.ip()) {
         return Err(ApiErrorResponse::forbidden(
             "Bootstrap restricted to local/private network",
         ));

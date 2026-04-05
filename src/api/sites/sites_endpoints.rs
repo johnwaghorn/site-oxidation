@@ -175,7 +175,7 @@ pub async fn create_site(
     Json(payload): Json<SitePayload>,
 ) -> Result<(StatusCode, Json<SiteResponse>), ApiErrorResponse> {
     let team_id = resolve_team_id(&state.pool, &user, payload.team_id).await?;
-    if !state.config.allow_private_ips && payload.url.has_private_ip() {
+    if !state.config.probe_allow_private_ips && payload.url.has_private_ip() {
         return Err(ApiErrorResponse::validation(
             "Private/internal IP addresses are not allowed",
         ));
@@ -222,7 +222,7 @@ pub async fn update_site(
 ) -> Result<Json<SiteResponse>, ApiErrorResponse> {
     ensure_site_access(&state.pool, id, &user).await?;
     let team_id = resolve_team_id(&state.pool, &user, payload.team_id).await?;
-    if !state.config.allow_private_ips && payload.url.has_private_ip() {
+    if !state.config.probe_allow_private_ips && payload.url.has_private_ip() {
         return Err(ApiErrorResponse::validation(
             "Private/internal IP addresses are not allowed",
         ));

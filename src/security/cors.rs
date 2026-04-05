@@ -8,7 +8,7 @@ pub fn cors_layer(config: &AppConfig) -> Result<CorsLayer> {
         Some(ref origin) => {
             let header_value = origin
                 .parse::<axum::http::HeaderValue>()
-                .with_context(|| format!("Invalid ALLOWED_ORIGIN: {origin}"))?;
+                .with_context(|| format!("Invalid CORS_ALLOWED_ORIGIN: {origin}"))?;
             Ok(CorsLayer::new()
                 .allow_origin(header_value)
                 .allow_methods([

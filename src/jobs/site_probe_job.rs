@@ -70,7 +70,7 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfi
         &site.url,
         &check,
         config.probe_timeout_secs,
-        config.allow_private_ips,
+        config.probe_allow_private_ips,
     )
     .await;
     if probe_result.status.is_down() && !site.status.is_down() {
@@ -88,7 +88,7 @@ async fn check_single_site(client: &Client, pool: &SqlitePool, config: &AppConfi
                 &site.url,
                 &check,
                 config.probe_timeout_secs,
-                config.allow_private_ips,
+                config.probe_allow_private_ips,
             )
             .await;
             if probe_result.status.is_up() {

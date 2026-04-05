@@ -9,23 +9,24 @@ use time::Duration as TimeDuration;
 use tower_sessions::cookie::{Key, SameSite};
 use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 
-pub fn test_config(allow_private_ips: bool) -> AppConfig {
+pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
     AppConfig {
+        allowed_origin: None,
+        bootstrap_require_private_ip: true,
+        canary_timeout_secs: 3,
+        canary_url: "https://www.google.com".to_owned(),
+        cookie_secure: false,
         data_dir: std::path::PathBuf::from(":memory:"),
         database_path: std::path::PathBuf::from(":memory:"),
-        session_key_path: std::path::PathBuf::from(":memory:/session.key"),
-        server_port: 8080,
-        probe_timeout_secs: 30,
+        enable_swagger_ui: false,
+        probe_allow_private_ips,
+        probe_max_concurrent_checks: 20,
         probe_retry_count: 2,
         probe_retry_delay_ms: 3000,
-        allow_private_ips,
-        cookie_secure: false,
-        allowed_origin: None,
-        enable_swagger_ui: false,
-        user_agent: "SiteOxidation/test".to_string(),
-        canary_url: "https://www.google.com".to_string(),
-        canary_timeout_secs: 3,
-        probe_max_concurrent_checks: 20,
+        probe_timeout_secs: 30,
+        probe_user_agent: "SiteOxidation/test".to_owned(),
+        server_port: 8080,
+        session_key_path: std::path::PathBuf::from(":memory:/session.key"),
     }
 }
 

@@ -84,10 +84,10 @@ async fn main() -> Result<()> {
         admin_limiter,
     };
     let client = Client::builder()
-        .user_agent(&config.user_agent)
+        .user_agent(&config.probe_user_agent)
         .redirect(reqwest::redirect::Policy::none())
         .dns_resolver(Arc::new(SafeResolver {
-            allow_private: config.allow_private_ips,
+            allow_private: config.probe_allow_private_ips,
         }))
         .build()
         .context("Failed to build 'reqwest' client")?;
