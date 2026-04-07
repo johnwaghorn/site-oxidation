@@ -7,11 +7,25 @@ import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { UserMenu } from "../components/ui/UserMenu";
+import { pageWrapper, headerRow, pageTitle } from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
 
-export function Dashboard() {
+interface DashboardProps {
+  username: string | null;
+  role: "admin" | "user" | null;
+  onLogout: () => void;
+  onChangePassword: () => void;
+}
+
+export function Dashboard({
+  username,
+  role,
+  onLogout,
+  onChangePassword,
+}: DashboardProps) {
   const { page, goToPage } = usePagination();
   const { data, isLoading, error } = useSites(page);
   const createSite = useCreateSite();
@@ -21,8 +35,16 @@ export function Dashboard() {
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
 
   return (
-    <div style={{ maxWidth: "1200px", padding: "24px" }}>
-      <h1 style={{ marginBottom: "24px" }}>Site Oxidation</h1>
+    <div style={pageWrapper}>
+      <div style={headerRow}>
+        <h1 style={pageTitle}>Site Oxidation</h1>
+        <UserMenu
+          username={username ?? ""}
+          isAdmin={role === "admin"}
+          onChangePassword={onChangePassword}
+          onLogout={onLogout}
+        />
+      </div>
 
       <SiteForm
         onSubmit={(site) => createSite.mutate(site)}

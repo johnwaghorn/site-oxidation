@@ -76,9 +76,12 @@ pub async fn bootstrap(
     State(pool): State<SqlitePool>,
     State(config): State<AppConfig>,
 ) -> Result<(StatusCode, Json<BootstrapResponse>), ApiErrorResponse> {
-    if config.bootstrap_require_private_ip && !is_private_ip(&addr.ip()) {
+    let client_ip = addr.ip();
+    let is_trusted = is_private_ip(&client_ip) || config.bootstrap_trusted_ips.contains(&client_ip);
+    tracing::info!("Bootstrap attempt from IP: {client_ip} (trusted: {is_trusted})");
+    if config.bootstrap_require_private_ip && !is_trusted {
         return Err(ApiErrorResponse::forbidden(
-            "Bootstrap restricted to local/private network",
+            "Bootstrap restricted to local/private network or trusted IPs",
         ));
     }
     let mut conn = pool

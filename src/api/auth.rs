@@ -86,11 +86,13 @@ pub async fn login(
     mut auth_session: AuthSession,
     Json(creds): Json<Credentials>,
 ) -> Result<Json<LoginSuccess>, ApiErrorResponse> {
+    let attempted_username = creds.username.clone();
     let key = format!("{}:{}", addr.ip(), creds.username.to_lowercase());
     if limiter.is_blocked(&key) {
-        return Err(ApiErrorResponse::too_many_requests(
-            "Too many login attempts, try again later",
-        ));
+        return Err(ApiErrorResponse::too_many_requests(&format!(
+            "Too many login attempts. Please wait {} seconds before trying again.",
+            limiter.window_secs()
+        )));
     }
     let user = auth_session
         .authenticate(creds)
@@ -100,9 +102,18 @@ pub async fn login(
         limiter.clear(&key);
         user
     } else {
+        tracing::warn!(
+            "Failed login attempt for '{}' from {}",
+            attempted_username,
+            addr.ip()
+        );
         let now_blocked = limiter.record_failure(&key);
         if now_blocked {
-            tracing::warn!("Login rate limit reached for {}", addr.ip());
+            tracing::warn!(
+                "Login rate limit reached for {} (blocked for {}s)",
+                addr.ip(),
+                limiter.window_secs()
+            );
         }
         return Err(ApiErrorResponse::unauthorized());
     };
@@ -110,6 +121,7 @@ pub async fn login(
         .login(&user)
         .await
         .map_err(|e| internal_err("Session login failed", e))?;
+    tracing::info!("User '{}' logged in from {}", user.username, addr.ip());
     Ok(Json(LoginSuccess {
         username: user.username,
     }))

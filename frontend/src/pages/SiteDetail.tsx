@@ -6,6 +6,19 @@ import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import {
+  pageWrapper,
+  pageTitle,
+  backLink,
+  section,
+  mutedText,
+  table,
+  tableHeaderRow,
+  tableRow,
+  tableCell,
+  tableCellLeft,
+  tableCellCenter,
+} from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type OutageResponse = components["schemas"]["OutageResponse"];
@@ -35,16 +48,8 @@ export function SiteDetail() {
   if (!site) return <ErrorMessage error={new Error("Site not found")} />;
 
   return (
-    <div style={{ maxWidth: "1200px", padding: "24px" }}>
-      <Link
-        to="/"
-        style={{
-          color: "#6b7280",
-          textDecoration: "none",
-          marginBottom: "16px",
-          display: "inline-block",
-        }}
-      >
+    <div style={pageWrapper}>
+      <Link to="/" style={backLink}>
         &larr; Back to Dashboard
       </Link>
 
@@ -56,11 +61,11 @@ export function SiteDetail() {
           marginBottom: "24px",
         }}
       >
-        <h1 style={{ margin: 0 }}>{site.name}</h1>
+        <h1 style={pageTitle}>{site.name}</h1>
         <StatusBadge status={site.status} />
       </div>
 
-      <section style={{ marginBottom: "32px" }}>
+      <section style={section}>
         <h2>Edit Site</h2>
         <SiteForm
           key={`${site.id}-${site.name}-${site.url}`}
@@ -85,21 +90,13 @@ export function SiteDetail() {
           <LoadingSpinner />
         ) : outagesData && outagesData.data.length > 0 ? (
           <>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={table}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                  <th style={{ padding: "12px 8px", textAlign: "left" }}>
-                    Started
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "left" }}>
-                    Ended
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "center" }}>
-                    HTTP Status
-                  </th>
-                  <th style={{ padding: "12px 8px", textAlign: "left" }}>
-                    Error
-                  </th>
+                <tr style={tableHeaderRow}>
+                  <th style={tableCellLeft}>Started</th>
+                  <th style={tableCellLeft}>Ended</th>
+                  <th style={tableCellCenter}>HTTP Status</th>
+                  <th style={tableCellLeft}>Error</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,7 +112,7 @@ export function SiteDetail() {
             />
           </>
         ) : (
-          <p style={{ color: "#6b7280" }}>No outages recorded</p>
+          <p style={mutedText}>No outages recorded</p>
         )}
       </section>
     </div>
@@ -129,11 +126,11 @@ function OutageRow({ outage }: { outage: OutageResponse }) {
     : "Ongoing";
 
   return (
-    <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-      <td style={{ padding: "12px 8px" }}>{started}</td>
+    <tr style={tableRow}>
+      <td style={tableCell}>{started}</td>
       <td
         style={{
-          padding: "12px 8px",
+          ...tableCell,
           color: outage.ended_at ? undefined : "#dc2626",
         }}
       >
@@ -141,14 +138,13 @@ function OutageRow({ outage }: { outage: OutageResponse }) {
       </td>
       <td
         style={{
-          padding: "12px 8px",
-          textAlign: "center",
+          ...tableCellCenter,
           fontFamily: "monospace",
         }}
       >
         {outage.http_status ?? "-"}
       </td>
-      <td style={{ padding: "12px 8px", color: "#6b7280", fontSize: "14px" }}>
+      <td style={{ ...tableCell, ...mutedText, fontSize: "14px" }}>
         {outage.error_message ?? "-"}
       </td>
     </tr>

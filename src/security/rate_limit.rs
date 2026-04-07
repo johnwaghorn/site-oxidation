@@ -16,6 +16,10 @@ impl LoginRateLimiter {
         }
     }
 
+    pub fn window_secs(&self) -> u64 {
+        self.window.as_secs()
+    }
+
     pub fn is_blocked(&self, key: &str) -> bool {
         if let Some(entry) = self.attempts.get(key) {
             let (count, started_at) = *entry;

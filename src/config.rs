@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub struct AppConfig {
     pub allowed_origin: Option<String>,
     pub bootstrap_require_private_ip: bool,
+    pub bootstrap_trusted_ips: Vec<std::net::IpAddr>,
     pub canary_timeout_secs: u64,
     pub canary_url: String,
     pub cookie_secure: bool,
@@ -32,6 +33,17 @@ impl AppConfig {
                 .parse::<bool>()
                 .with_context(|| format!("Invalid BOOTSTRAP_REQUIRE_PRIVATE_IP value: {v}"))?,
             Err(_) => true,
+        };
+        let bootstrap_trusted_ips = match env::var("BOOTSTRAP_TRUSTED_IPS") {
+            Ok(v) => v
+                .split(',')
+                .map(|s| {
+                    s.trim()
+                        .parse::<std::net::IpAddr>()
+                        .with_context(|| format!("Invalid IP in BOOTSTRAP_TRUSTED_IPS: {s}"))
+                })
+                .collect::<Result<Vec<_>>>()?,
+            Err(_) => Vec::new(),
         };
         let canary_timeout_secs = match env::var("CANARY_TIMEOUT_SECS") {
             Ok(v) => v
@@ -113,6 +125,7 @@ impl AppConfig {
         Ok(Self {
             allowed_origin,
             bootstrap_require_private_ip,
+            bootstrap_trusted_ips,
             canary_timeout_secs,
             canary_url,
             cookie_secure,

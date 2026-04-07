@@ -1,4 +1,12 @@
 import type { components } from "../../generated/schema";
+import {
+  table,
+  tableHeaderRow,
+  tableCellLeft,
+  tableCellCenter,
+  tableCellRight,
+  tableCell,
+} from "../../lib/styles";
 import { SiteRow } from "./SiteRow.tsx";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
@@ -13,17 +21,15 @@ export function SiteList({ sites, onDelete }: SiteListProps) {
     return <p>No sites configured. Add one!</p>;
   }
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <table style={table}>
       <thead>
-        <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-          <th style={{ textAlign: "left", padding: "12px 8px" }}>Name</th>
-          <th style={{ textAlign: "left", padding: "12px 8px" }}>URL</th>
-          <th style={{ textAlign: "center", padding: "12px 8px" }}>Status</th>
-          <th style={{ textAlign: "right", padding: "12px 8px" }}>Latency</th>
-          <th style={{ textAlign: "right", padding: "12px 8px" }}>
-            Last Checked
-          </th>
-          {onDelete && <th style={{ padding: "12px 8px" }}></th>}
+        <tr style={tableHeaderRow}>
+          <th style={tableCellLeft}>Name</th>
+          <th style={tableCellLeft}>URL</th>
+          <th style={tableCellCenter}>Status</th>
+          <th style={tableCellRight}>Latency</th>
+          <th style={tableCellRight}>Last Checked</th>
+          {onDelete && <th style={tableCell}></th>}
         </tr>
       </thead>
       <tbody>

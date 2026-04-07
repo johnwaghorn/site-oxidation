@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { inlineForm, compactInput } from "../../lib/styles";
 import type { components } from "../../generated/schema";
 
 type SitePayload = components["schemas"]["SitePayload"];
@@ -48,10 +49,7 @@ export function SiteForm({
   const isEdit = mode === "edit";
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "flex", gap: "8px", marginBottom: "24px" }}
-    >
+    <form onSubmit={handleSubmit} style={inlineForm}>
       <input
         type="text"
         placeholder="Site name"
@@ -60,7 +58,7 @@ export function SiteForm({
         required
         minLength={1}
         maxLength={100}
-        style={{ padding: "8px", flex: 1 }}
+        style={{ ...compactInput, flex: 1 }}
       />
       <input
         type="url"
@@ -68,7 +66,7 @@ export function SiteForm({
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         required
-        style={{ padding: "8px", flex: 2 }}
+        style={{ ...compactInput, flex: 2 }}
       />
       <input
         type="number"
@@ -77,19 +75,19 @@ export function SiteForm({
         onChange={(e) => setExpectedStatus(Number(e.target.value))}
         min={100}
         max={599}
-        style={{ padding: "8px", width: "100px" }}
+        style={{ ...compactInput, width: "100px" }}
       />
       <input
         type="text"
         placeholder="Expected text (optional)"
         value={expectedText}
         onChange={(e) => setExpectedText(e.target.value)}
-        style={{ padding: "8px", flex: 1 }}
+        style={{ ...compactInput, flex: 1 }}
       />
       <select
         value={probeInterval}
         onChange={(e) => setProbeInterval(Number(e.target.value))}
-        style={{ padding: "8px" }}
+        style={compactInput}
       >
         <option value={60}>1 minute</option>
         <option value={300}>5 minutes</option>
@@ -97,11 +95,7 @@ export function SiteForm({
         <option value={1800}>30 minutes</option>
         <option value={3600}>1 hour</option>
       </select>
-      <button
-        type="submit"
-        disabled={isLoading}
-        style={{ padding: "8px 16px" }}
-      >
+      <button type="submit" disabled={isLoading} style={compactInput}>
         {isLoading
           ? isEdit
             ? "Saving..."
