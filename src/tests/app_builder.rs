@@ -13,6 +13,7 @@ pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
     AppConfig {
         allowed_origin: None,
         bootstrap_require_private_ip: true,
+        bootstrap_trusted_ips: Vec::new(),
         canary_timeout_secs: 3,
         canary_url: "https://www.google.com".to_owned(),
         cookie_secure: false,
