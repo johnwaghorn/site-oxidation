@@ -20,3 +20,7 @@ Uptime percentage graph, inspired by: mrshu.github.io/github-statuses/
 
 Track admin actions, 90 days retention, entries must be lightweight, 100k rows before querying without
 pagination gets slow. `created_at` for time-range queries and pruning.
+
+## Cert expiry
+
+RAG colours for status

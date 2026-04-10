@@ -1,49 +1,34 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import type { components } from "./generated/schema";
-import { api } from "./lib/api";
 import { Dashboard } from "./pages/Dashboard";
 import { SiteDetail } from "./pages/SiteDetail";
 import { Login } from "./pages/Login";
 import { Setup } from "./pages/Setup";
 import { ChangePassword } from "./pages/ChangePassword";
+import { AdminTeams } from "./pages/AdminTeams";
 import { useAuth } from "./hooks/useAuth";
+import { useSetupStatus } from "./hooks/useSetup";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { centeredFullScreen } from "./lib/styles";
-
-type SetupStatus = components["schemas"]["SetupStatus"];
 
 function App() {
   const {
     isAuthenticated,
-    isLoading,
+    isLoading: authLoading,
     logout,
     username,
     role,
     mustChangePassword,
     refresh,
   } = useAuth();
-  const [setupRequired, setSetupRequired] = useState<boolean | null>(null);
+  const {
+    setupRequired,
+    isLoading: setupLoading,
+    refresh: refreshSetup,
+  } = useSetupStatus();
   const [changingPassword, setChangingPassword] = useState(false);
 
-  useEffect(() => {
-    async function loeadSetupStatus() {
-      try {
-        const { data, response } = await api.GET("/api/setup/status");
-        if (!response.ok) {
-          setSetupRequired(false);
-          return;
-        }
-        const status: SetupStatus = data ?? { setup_required: false };
-        setSetupRequired(Boolean(status.setup_required));
-      } catch {
-        setSetupRequired(false);
-      }
-    }
-    void loeadSetupStatus();
-  }, []);
-
-  if (isLoading || setupRequired === null) {
+  if (authLoading || setupLoading) {
     return (
       <div style={centeredFullScreen}>
         <LoadingSpinner />
@@ -52,7 +37,7 @@ function App() {
   }
 
   if (setupRequired) {
-    return <Setup onSetupComplete={() => setSetupRequired(false)} />;
+    return <Setup onSetupComplete={refreshSetup} />;
   }
 
   if (!isAuthenticated) {
@@ -88,6 +73,9 @@ function App() {
           }
         />
         <Route path="/sites/:id" element={<SiteDetail />} />
+        {role === "admin" && (
+          <Route path="/admin/teams" element={<AdminTeams />} />
+        )}
       </Routes>
     </BrowserRouter>
   );

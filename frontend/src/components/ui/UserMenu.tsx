@@ -60,7 +60,7 @@ export function UserMenu({
             <button
               onClick={() => {
                 setIsOpen(false);
-                window.location.href = "/admin/users";
+                window.location.href = "/admin/teams";
               }}
               style={menuItemStyle}
             >

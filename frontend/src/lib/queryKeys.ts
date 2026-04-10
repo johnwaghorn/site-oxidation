@@ -6,4 +6,7 @@ export const queryKeys = {
   site: (id: number) => ["sites", id] as const,
   outages: (siteId: number, page: number, perPage: number) =>
     ["sites", siteId, "outages", { page, perPage }] as const,
+  setupStatus: ["setup", "status"] as const,
+  adminTeams: ["admin", "teams"] as const,
+  adminUsers: ["admin", "users"] as const,
 };
