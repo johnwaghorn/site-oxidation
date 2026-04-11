@@ -11,7 +11,7 @@ export function useOutages(siteId: number, page = 1, perPage = 20) {
           query: { page, per_page: perPage },
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     enabled: siteId > 0,

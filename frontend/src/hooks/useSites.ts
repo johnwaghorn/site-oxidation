@@ -12,7 +12,7 @@ export function useSites(page = 1, perPage = 20) {
       const { data, error } = await api.GET("/api/sites", {
         params: { query: { page, per_page: perPage } },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     refetchInterval: 30_000,
@@ -26,7 +26,7 @@ export function useSite(id: number) {
       const { data, error } = await api.GET("/api/sites/{id}", {
         params: { path: { id } },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     enabled: id > 0,
@@ -38,7 +38,7 @@ export function useCreateSite() {
   return useMutation({
     mutationFn: async (site: SitePayload) => {
       const { data, error } = await api.POST("/api/sites", { body: site });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     onSuccess: () => {
@@ -55,7 +55,7 @@ export function useUpdateSite() {
         params: { path: { id } },
         body: site,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     onSuccess: (_, { id }) => {
@@ -72,7 +72,7 @@ export function useDeleteSite() {
       const { error } = await api.DELETE("/api/sites/{id}", {
         params: { path: { id } },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sitesAll });
@@ -87,7 +87,7 @@ export function useOutages(siteId: number, page = 1, perPage = 20) {
       const { data, error } = await api.GET("/api/sites/{id}/outages", {
         params: { path: { id: siteId }, query: { page, per_page: perPage } },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     enabled: siteId > 0,

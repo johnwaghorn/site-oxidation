@@ -40,7 +40,7 @@ export function useBootstrap() {
   return useMutation({
     mutationFn: async (): Promise<BootstrapResponse> => {
       const { data, error } = await api.POST("/api/setup/bootstrap");
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
   });

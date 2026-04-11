@@ -9,7 +9,7 @@ type AuthUser = components["schemas"]["MeSuccess"];
 async function fetchMe(): Promise<AuthUser | null> {
   const { data, error, response } = await api.GET("/api/auth/me");
   if (response.status === 401) return null;
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data ?? null;
 }
 

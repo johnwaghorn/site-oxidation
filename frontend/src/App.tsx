@@ -6,6 +6,7 @@ import { Login } from "./pages/Login";
 import { Setup } from "./pages/Setup";
 import { ChangePassword } from "./pages/ChangePassword";
 import { AdminTeams } from "./pages/AdminTeams";
+import { AdminUsers } from "./pages/AdminUsers";
 import { useAuth } from "./hooks/useAuth";
 import { useSetupStatus } from "./hooks/useSetup";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
@@ -74,7 +75,10 @@ function App() {
         />
         <Route path="/sites/:id" element={<SiteDetail />} />
         {role === "admin" && (
-          <Route path="/admin/teams" element={<AdminTeams />} />
+          <>
+            <Route path="/admin/teams" element={<AdminTeams />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+          </>
         )}
       </Routes>
     </BrowserRouter>

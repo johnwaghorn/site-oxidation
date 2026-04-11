@@ -6,13 +6,16 @@ import type { components } from "../generated/schema";
 type CreateTeamRequest = components["schemas"]["CreateTeamRequest"];
 type UpdateTeamRequest = components["schemas"]["UpdateTeamRequest"];
 type AddMemberRequest = components["schemas"]["AddMemberRequest"];
+type CreateUserRequest = components["schemas"]["CreateUserRequest"];
+type UpdateUserRequest = components["schemas"]["UpdateUserRequest"];
+type ResetPasswordRequest = components["schemas"]["ResetPasswordRequest"];
 
 export function useAdminTeams() {
   return useQuery({
     queryKey: queryKeys.adminTeams,
     queryFn: async () => {
       const { data, error } = await api.GET("/api/admin/teams");
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
   });
@@ -23,7 +26,7 @@ export function useAdminUsers() {
     queryKey: queryKeys.adminUsers,
     queryFn: async () => {
       const { data, error } = await api.GET("/api/admin/users");
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
   });
@@ -36,7 +39,7 @@ export function useCreateTeam() {
       const { data, error } = await api.POST("/api/admin/teams", {
         body: team,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     onSuccess: async () => {
@@ -59,7 +62,7 @@ export function useUpdateTeam() {
         params: { path: { id } },
         body: team,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     onSuccess: async () => {
@@ -75,7 +78,7 @@ export function useDeleteTeam() {
       const { error } = await api.DELETE("/api/admin/teams/{id}", {
         params: { path: { id } },
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
@@ -97,7 +100,7 @@ export function useAddTeamMember() {
         params: { path: { id: teamId } },
         body: member,
       });
-      if (error) throw error;
+      if (error) throw new Error(error.message);
       return data!;
     },
     onSuccess: async () => {
@@ -123,10 +126,75 @@ export function useRemoveTeamMember() {
           params: { path: { id: teamId, user_id: userId } },
         },
       );
-      if (error) throw error;
+      if (error) throw new Error(error.message);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (user: CreateUserRequest) => {
+      const { data, error } = await api.POST("/api/admin/users", {
+        body: user,
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      user,
+    }: {
+      id: number;
+      user: UpdateUserRequest;
+    }) => {
+      const { data, error } = await api.PATCH("/api/admin/users/{id}", {
+        params: { path: { id } },
+        body: user,
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
+  });
+}
+
+export function useResetPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: ResetPasswordRequest;
+    }) => {
+      const { data, error } = await api.POST(
+        "/api/admin/users/{id}/reset-password",
+        {
+          params: { path: { id } },
+          body: payload,
+        },
+      );
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
     },
   });
