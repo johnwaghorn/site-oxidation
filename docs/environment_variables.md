@@ -62,7 +62,7 @@ If the frontend is served from a different origin to the API, set this to
 the frontend's origin. When unset, only same-origin requests are allowed
 (the default for a self-hosted app where the API serves the frontend).
 
-- **Default:** *(unset — same-origin only)*
+- **Default:** *(unset - same-origin only)*
 - **Example:** `CORS_ALLOWED_ORIGIN=https://waghorn.tech`
 
 ## Swagger / OpenAPI

@@ -8,9 +8,12 @@ pub const LIST_USERS: &str = concat!(
     "  AND (?2 IS NULL OR EXISTS ( ",
     "       SELECT 1 FROM team_members tmf WHERE tmf.user_id = u.id AND tmf.team_id = ?2 ",
     "  )) ",
+    "  AND (?3 IS NULL OR NOT EXISTS ( ",
+    "       SELECT 1 FROM team_members tme WHERE tme.user_id = u.id AND tme.team_id = ?3 ",
+    "  )) ",
     "GROUP BY u.id ",
     "ORDER BY u.id ",
-    "LIMIT ?3 OFFSET ?4"
+    "LIMIT ?4 OFFSET ?5"
 );
 
 pub const COUNT_USERS: &str = concat!(
@@ -18,6 +21,9 @@ pub const COUNT_USERS: &str = concat!(
     "WHERE (?1 IS NULL OR u.username LIKE '%' || ?1 || '%') ",
     "  AND (?2 IS NULL OR EXISTS ( ",
     "       SELECT 1 FROM team_members tmf WHERE tmf.user_id = u.id AND tmf.team_id = ?2 ",
+    "  )) ",
+    "  AND (?3 IS NULL OR NOT EXISTS ( ",
+    "       SELECT 1 FROM team_members tme WHERE tme.user_id = u.id AND tme.team_id = ?3 ",
     "  ))"
 );
 

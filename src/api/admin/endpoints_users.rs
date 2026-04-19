@@ -23,6 +23,7 @@ pub(super) struct ListUsersQuery {
     per_page: Option<u32>,
     search: Option<String>,
     team_id: Option<i64>,
+    exclude_team_id: Option<i64>,
 }
 
 impl ListUsersQuery {
@@ -65,6 +66,7 @@ pub async fn list_users(
     let users = sqlx::query_as::<_, UserResponse>(queries_users::LIST_USERS)
         .bind(search.as_deref())
         .bind(params.team_id)
+        .bind(params.exclude_team_id)
         .bind(pagination.per_page())
         .bind(pagination.offset())
         .fetch_all(&pool)
@@ -73,6 +75,7 @@ pub async fn list_users(
     let total: i64 = sqlx::query_scalar(queries_users::COUNT_USERS)
         .bind(search.as_deref())
         .bind(params.team_id)
+        .bind(params.exclude_team_id)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count users", e))?;

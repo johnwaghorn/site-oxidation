@@ -867,6 +867,8 @@ export interface operations {
                 search?: string;
                 /** @description Restrict results to members of this team. */
                 team_id?: number;
+                /** @description Exclude members of this team from results. */
+                exclude_team_id?: number;
             };
             header?: never;
             path?: never;
