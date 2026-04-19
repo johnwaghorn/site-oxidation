@@ -20,6 +20,7 @@ use password_auth::{generate_hash, verify_password};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
+#[allow(clippy::needless_for_each)]
 #[derive(OpenApi)]
 #[openapi(
     paths(login, logout, me, change_password),
@@ -202,7 +203,7 @@ pub async fn change_password(
     let new_hash = tokio::task::spawn_blocking(move || generate_hash(&new_password))
         .await
         .map_err(|e| internal_err("Failed to hash new password", e))?;
-    sqlx::query(super::auth_queries::UPDATE_PASSWORD)
+    sqlx::query(super::queries_auth::UPDATE_PASSWORD)
         .bind(&new_hash)
         .bind(user.id)
         .execute(&pool)
@@ -214,7 +215,7 @@ pub async fn change_password(
             )
         })?;
     let updated_user =
-        sqlx::query_as::<_, crate::models::user::User>(super::auth_queries::SELECT_USER_BY_ID)
+        sqlx::query_as::<_, crate::models::user::User>(super::queries_auth::SELECT_USER_BY_ID)
             .bind(user.id)
             .fetch_one(&pool)
             .await

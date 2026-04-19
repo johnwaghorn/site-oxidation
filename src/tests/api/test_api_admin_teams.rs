@@ -14,7 +14,6 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
-
     let response = app
         .clone()
         .oneshot(
@@ -33,7 +32,6 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
     assert_eq!(body["name"], "Team Alpha");
     assert_eq!(body["member_count"], 0);
     assert_eq!(body["site_count"], 0);
-
     let response = app
         .oneshot(
             Request::builder()
@@ -46,7 +44,10 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    assert_eq!(body.as_array().unwrap().len(), 1);
+    assert_eq!(body["data"].as_array().unwrap().len(), 1);
+    assert_eq!(body["page"], 1);
+    assert_eq!(body["per_page"], 20);
+    assert_eq!(body["total"], 1);
 }
 
 #[sqlx::test(migrations = "./migrations")]

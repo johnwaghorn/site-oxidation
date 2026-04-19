@@ -9,6 +9,48 @@ use sqlx::SqlitePool;
 use tower::ServiceExt;
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_create_and_list_users(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"newuser","password":"temp-pass-123","role":"user"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["username"], "newuser");
+    assert_eq!(body["role"], "user");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["data"].as_array().unwrap().len(), 2);
+    assert_eq!(body["page"], 1);
+    assert_eq!(body["per_page"], 20);
+    assert_eq!(body["total"], 2);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_non_admin_gets_403(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
@@ -56,45 +98,6 @@ async fn test_unauthenticated_gets_401(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[sqlx::test(migrations = "./migrations")]
-async fn test_create_and_list_users(pool: SqlitePool) {
-    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    let app = test_app(pool);
-    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/admin/users")
-                .header("cookie", &cookie)
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{"username":"newuser","password":"temp-pass-123","role":"user"}"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::CREATED);
-    let body = parse_json_body(response).await;
-    assert_eq!(body["username"], "newuser");
-    assert_eq!(body["role"], "user");
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/admin/users")
-                .header("cookie", &cookie)
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = parse_json_body(response).await;
-    assert_eq!(body.as_array().unwrap().len(), 2);
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -214,6 +217,92 @@ async fn test_self_guards_block_deactivate_and_demote(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(demote_self.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_users_filters_by_team_id(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let alice_id = insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;
+    insert_test_user(&pool, "bob", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('engineering')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(alice_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users?team_id=1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let data = body["data"].as_array().unwrap();
+    assert_eq!(data.len(), 1);
+    assert_eq!(data[0]["username"], "alice");
+    assert_eq!(body["total"], 1);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_users_filters_by_search(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;
+    insert_test_user(&pool, "alastair", TEST_PASSWORD, "user", false).await;
+    insert_test_user(&pool, "bob", TEST_PASSWORD, "user", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users?search=al")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let data = body["data"].as_array().unwrap();
+    assert_eq!(data.len(), 2);
+    assert_eq!(body["total"], 2);
+    let names: Vec<&str> = data
+        .iter()
+        .map(|u| u["username"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"alice"));
+    assert!(names.contains(&"alastair"));
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_users_search_blank_is_ignored(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users?search=%20%20")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 2);
 }
 
 #[sqlx::test(migrations = "./migrations")]

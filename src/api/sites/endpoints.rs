@@ -1,10 +1,11 @@
-use super::sites_access::{ensure_site_access, resolve_team_id};
-use super::sites_queries::{
+use super::access::{ensure_site_access, resolve_team_id};
+use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, DELETE_SITE, INSERT_SITE, LIST_OUTAGES,
     LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN, SELECT_SITE_USER, UPDATE_SITE,
 };
-use super::{ApiError, ExpectedText, OutageResponse, SitePayload, SiteResponse};
-use crate::api::errors::{ApiErrorResponse, internal_err};
+use super::validators::ExpectedText;
+use super::{OutageResponse, SitePayload, SiteResponse};
+use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAppAccess;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::models::user::UserRole;

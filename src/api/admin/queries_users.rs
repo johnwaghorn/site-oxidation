@@ -1,0 +1,39 @@
+pub const LIST_USERS: &str = concat!(
+    "SELECT u.id, u.username, u.role, u.active, u.must_change_password, ",
+    "COALESCE(GROUP_CONCAT(t.name, ', '), '') AS team_names ",
+    "FROM users u ",
+    "LEFT JOIN team_members tm ON u.id = tm.user_id ",
+    "LEFT JOIN teams t ON tm.team_id = t.id ",
+    "WHERE (?1 IS NULL OR u.username LIKE '%' || ?1 || '%') ",
+    "  AND (?2 IS NULL OR EXISTS ( ",
+    "       SELECT 1 FROM team_members tmf WHERE tmf.user_id = u.id AND tmf.team_id = ?2 ",
+    "  )) ",
+    "GROUP BY u.id ",
+    "ORDER BY u.id ",
+    "LIMIT ?3 OFFSET ?4"
+);
+
+pub const COUNT_USERS: &str = concat!(
+    "SELECT COUNT(*) FROM users u ",
+    "WHERE (?1 IS NULL OR u.username LIKE '%' || ?1 || '%') ",
+    "  AND (?2 IS NULL OR EXISTS ( ",
+    "       SELECT 1 FROM team_members tmf WHERE tmf.user_id = u.id AND tmf.team_id = ?2 ",
+    "  ))"
+);
+
+pub const INSERT_USER: &str = concat!(
+    "INSERT INTO users (username, password, role, must_change_password) ",
+    "VALUES (?, ?, ?, 1) RETURNING id"
+);
+
+pub const UPDATE_USER: &str = "UPDATE users SET role = ?, active = ? WHERE id = ? RETURNING id";
+
+pub const RESET_PASSWORD: &str =
+    "UPDATE users SET password = ?, must_change_password = 1 WHERE id = ? RETURNING id";
+
+pub const COUNT_ACTIVE_ADMINS: &str =
+    "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1";
+
+pub const IS_ACTIVE_ADMIN: &str = "SELECT role = 'admin' AND active = 1 FROM users WHERE id = ?";
+
+pub const USER_EXISTS: &str = "SELECT COUNT(*) FROM users WHERE id = ?";
