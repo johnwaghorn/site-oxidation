@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { AdminNav } from "../components/ui/AdminNav";
 import {
@@ -74,6 +74,12 @@ export function AdminTeams() {
 
   const teamList = teams?.data ?? [];
   const totalPages = teams ? Math.ceil(teams.total / teams.per_page) : 0;
+
+  useEffect(() => {
+    if (teams && teams.data.length === 0 && teams.total > 0 && page > 1) {
+      goToPage(1);
+    }
+  }, [teams, page, goToPage]);
 
   return (
     <div style={pageWrapper}>
