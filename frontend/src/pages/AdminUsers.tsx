@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   useAdminUsers,
@@ -39,6 +39,12 @@ export function AdminUsers() {
   const resetPassword = useResetPassword();
 
   const totalPages = users ? Math.ceil(users.total / users.per_page) : 0;
+
+  useEffect(() => {
+    if (users && users.data.length === 0 && users.total > 0 && page > 1) {
+      goToPage(1);
+    }
+  }, [users, page, goToPage]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
