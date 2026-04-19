@@ -9,6 +9,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 #[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct PaginationParams {
     #[serde(default, deserialize_with = "deserialize_u32_params")]
     #[param(minimum = 1, maximum = 10000, default = 1, example = 1)]

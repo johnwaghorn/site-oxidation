@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { AdminNav } from "../components/ui/AdminNav";
 import {
@@ -10,9 +10,12 @@ import {
   useAddTeamMember,
   useRemoveTeamMember,
 } from "../hooks/useAdmin";
+import { usePagination } from "../hooks/usePagination";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { Pagination } from "../components/ui/Pagination";
 import {
   pageWrapper,
   backLink,
@@ -32,20 +35,17 @@ type TeamResponse = components["schemas"]["TeamResponse"];
 type UserResponse = components["schemas"]["UserResponse"];
 
 export function AdminTeams() {
-  const { data: teams, isLoading, error } = useAdminTeams();
-  const { data: users } = useAdminUsers();
+  const { page, perPage, goToPage } = usePagination();
+  const { data: teams, isLoading, error } = useAdminTeams(page, perPage);
   const createTeam = useCreateTeam();
   const updateTeam = useUpdateTeam();
   const deleteTeam = useDeleteTeam();
-  const addMember = useAddTeamMember();
-  const removeMember = useRemoveTeamMember();
 
   const [newTeamName, setNewTeamName] = useState("");
   const [editingTeam, setEditingTeam] = useState<TeamResponse | null>(null);
   const [editName, setEditName] = useState("");
   const [teamToDelete, setTeamToDelete] = useState<TeamResponse | null>(null);
   const [managingTeam, setManagingTeam] = useState<TeamResponse | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   const handleCreateTeam = (e: FormEvent) => {
     e.preventDefault();
@@ -72,30 +72,8 @@ export function AdminTeams() {
     setEditName(team.name);
   };
 
-  const teamMembers = (teamId: number): UserResponse[] => {
-    if (!users) return [];
-    return users.filter((u) =>
-      u.team_names.split(", ").some((t) => {
-        const team = teams?.find((tm) => tm.id === teamId);
-        return team && t === team.name;
-      }),
-    );
-  };
-
-  const nonMembers = (teamId: number): UserResponse[] => {
-    if (!users) return [];
-    const members = teamMembers(teamId);
-    const memberIds = new Set(members.map((m) => m.id));
-    return users.filter((u) => !memberIds.has(u.id));
-  };
-
-  const handleAddMember = () => {
-    if (!managingTeam || !selectedUserId) return;
-    addMember.mutate(
-      { teamId: managingTeam.id, member: { user_id: Number(selectedUserId) } },
-      { onSuccess: () => setSelectedUserId("") },
-    );
-  };
+  const teamList = teams?.data ?? [];
+  const totalPages = teams ? Math.ceil(teams.total / teams.per_page) : 0;
 
   return (
     <div style={pageWrapper}>
@@ -127,101 +105,95 @@ export function AdminTeams() {
         <LoadingSpinner />
       ) : error ? (
         <ErrorMessage error={error} />
-      ) : teams && teams.length > 0 ? (
-        <table style={table}>
-          <thead>
-            <tr style={tableHeaderRow}>
-              <th style={tableCellLeft}>Name</th>
-              <th style={tableCellCenter}>Members</th>
-              <th style={tableCellCenter}>Sites</th>
-              <th style={tableCellLeft}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {teams.map((team) => (
-              <tr key={team.id} style={tableRow}>
-                <td style={tableCellLeft}>
-                  {editingTeam?.id === team.id ? (
-                    <form
-                      onSubmit={handleRename}
-                      style={{ display: "flex", gap: "8px" }}
-                    >
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        required
-                        style={compactInput}
-                      />
-                      <button type="submit" style={compactInput}>
-                        Save
-                      </button>
+      ) : teamList.length > 0 ? (
+        <>
+          <table style={table}>
+            <thead>
+              <tr style={tableHeaderRow}>
+                <th style={tableCellLeft}>Name</th>
+                <th style={tableCellCenter}>Members</th>
+                <th style={tableCellCenter}>Sites</th>
+                <th style={tableCellLeft}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamList.map((team) => (
+                <tr key={team.id} style={tableRow}>
+                  <td style={tableCellLeft}>
+                    {editingTeam?.id === team.id ? (
+                      <form
+                        onSubmit={handleRename}
+                        style={{ display: "flex", gap: "8px" }}
+                      >
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          required
+                          style={compactInput}
+                        />
+                        <button type="submit" style={compactInput}>
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingTeam(null)}
+                          style={compactInput}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      team.name
+                    )}
+                  </td>
+                  <td style={tableCellCenter}>{team.member_count}</td>
+                  <td style={tableCellCenter}>{team.site_count}</td>
+                  <td style={tableCell}>
+                    <div style={{ display: "flex", gap: "8px" }}>
                       <button
-                        type="button"
-                        onClick={() => setEditingTeam(null)}
+                        onClick={() =>
+                          setManagingTeam(
+                            managingTeam?.id === team.id ? null : team,
+                          )
+                        }
                         style={compactInput}
                       >
-                        Cancel
+                        {managingTeam?.id === team.id ? "Close" : "Members"}
                       </button>
-                    </form>
-                  ) : (
-                    team.name
-                  )}
-                </td>
-                <td style={tableCellCenter}>{team.member_count}</td>
-                <td style={tableCellCenter}>{team.site_count}</td>
-                <td style={tableCell}>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      onClick={() =>
-                        setManagingTeam(
-                          managingTeam?.id === team.id ? null : team,
-                        )
-                      }
-                      style={compactInput}
-                    >
-                      {managingTeam?.id === team.id ? "Close" : "Members"}
-                    </button>
-                    <button
-                      onClick={() => startEditing(team)}
-                      style={compactInput}
-                    >
-                      Rename
-                    </button>
-                    <button
-                      onClick={() => setTeamToDelete(team)}
-                      style={{
-                        ...compactInput,
-                        color: "#dc2626",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  {managingTeam?.id === team.id && (
-                    <MemberPanel
-                      members={teamMembers(team.id)}
-                      nonMembers={nonMembers(team.id)}
-                      selectedUserId={selectedUserId}
-                      onSelectUser={setSelectedUserId}
-                      onAddMember={handleAddMember}
-                      onRemoveMember={(userId) =>
-                        removeMember.mutate({
-                          teamId: team.id,
-                          userId,
-                        })
-                      }
-                      isAdding={addMember.isPending}
-                    />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <button
+                        onClick={() => startEditing(team)}
+                        style={compactInput}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        onClick={() => setTeamToDelete(team)}
+                        style={{
+                          ...compactInput,
+                          color: "#dc2626",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    {managingTeam?.id === team.id && (
+                      <MemberPanel teamId={team.id} />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+          />
+        </>
       ) : (
         <p style={mutedText}>No teams yet. Create one above.</p>
       )}
@@ -244,24 +216,46 @@ export function AdminTeams() {
 }
 
 interface MemberPanelProps {
-  members: UserResponse[];
-  nonMembers: UserResponse[];
-  selectedUserId: string;
-  onSelectUser: (id: string) => void;
-  onAddMember: () => void;
-  onRemoveMember: (userId: number) => void;
-  isAdding: boolean;
+  teamId: number;
 }
 
-function MemberPanel({
-  members,
-  nonMembers,
-  selectedUserId,
-  onSelectUser,
-  onAddMember,
-  onRemoveMember,
-  isAdding,
-}: MemberPanelProps) {
+function MemberPanel({ teamId }: MemberPanelProps) {
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const debouncedSearch = useDebouncedValue(searchInput);
+
+  const { data: membersData } = useAdminUsers({
+    page: 1,
+    perPage: 100,
+    teamId,
+  });
+  const { data: candidatesData } = useAdminUsers({
+    page: 1,
+    perPage: 20,
+    search: debouncedSearch.trim() || undefined,
+  });
+
+  const addMember = useAddTeamMember();
+  const removeMember = useRemoveTeamMember();
+
+  const members = useMemo(() => membersData?.data ?? [], [membersData]);
+  const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members]);
+  const candidates =
+    candidatesData?.data.filter((u) => !memberIds.has(u.id)) ?? [];
+
+  const handleAddMember = () => {
+    if (!selectedUserId) return;
+    addMember.mutate(
+      { teamId, member: { user_id: Number(selectedUserId) } },
+      {
+        onSuccess: () => {
+          setSelectedUserId("");
+          setSearchInput("");
+        },
+      },
+    );
+  };
+
   return (
     <div
       style={{
@@ -274,7 +268,7 @@ function MemberPanel({
       <div style={{ marginBottom: "8px", fontWeight: 500 }}>Members</div>
       {members.length > 0 ? (
         <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0" }}>
-          {members.map((user) => (
+          {members.map((user: UserResponse) => (
             <li
               key={user.id}
               style={{
@@ -289,7 +283,7 @@ function MemberPanel({
                 <span style={mutedText}> ({user.role})</span>
               </span>
               <button
-                onClick={() => onRemoveMember(user.id)}
+                onClick={() => removeMember.mutate({ teamId, userId: user.id })}
                 style={{
                   color: "#dc2626",
                   background: "none",
@@ -308,29 +302,46 @@ function MemberPanel({
           No members yet
         </p>
       )}
-      {nonMembers.length > 0 && (
-        <div style={{ display: "flex", gap: "8px" }}>
-          <select
-            value={selectedUserId}
-            onChange={(e) => onSelectUser(e.target.value)}
-            style={{ ...compactInput, flex: 1 }}
-          >
-            <option value="">Select user...</option>
-            {nonMembers.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.username}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <input
+          type="text"
+          placeholder="Search users to add..."
+          value={searchInput}
+          onChange={(e) => {
+            setSearchInput(e.target.value);
+            setSelectedUserId("");
+          }}
+          style={compactInput}
+        />
+        {debouncedSearch.trim() && (
+          <div style={{ display: "flex", gap: "8px" }}>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              style={{ ...compactInput, flex: 1 }}
+            >
+              <option value="">
+                {candidates.length > 0
+                  ? `Select user (${candidates.length} match${candidates.length === 1 ? "" : "es"})`
+                  : "No matches"}
               </option>
-            ))}
-          </select>
-          <button
-            onClick={onAddMember}
-            disabled={!selectedUserId || isAdding}
-            style={compactInput}
-          >
-            Add
-          </button>
-        </div>
-      )}
+              {candidates.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleAddMember}
+              disabled={!selectedUserId || addMember.isPending}
+              style={compactInput}
+            >
+              Add
+            </button>
+          </div>
+        )}
+      </div>
+      {addMember.isError && <ErrorMessage error={addMember.error} />}
     </div>
   );
 }

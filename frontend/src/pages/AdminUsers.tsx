@@ -6,9 +6,11 @@ import {
   useUpdateUser,
   useResetPassword,
 } from "../hooks/useAdmin";
+import { usePagination } from "../hooks/usePagination";
 import { AdminNav } from "../components/ui/AdminNav";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
+import { Pagination } from "../components/ui/Pagination";
 import {
   pageWrapper,
   backLink,
@@ -30,10 +32,13 @@ type UserResponse = components["schemas"]["UserResponse"];
 type UserRole = components["schemas"]["UserRole"];
 
 export function AdminUsers() {
-  const { data: users, isLoading, error } = useAdminUsers();
+  const { page, perPage, goToPage } = usePagination();
+  const { data: users, isLoading, error } = useAdminUsers({ page, perPage });
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const resetPassword = useResetPassword();
+
+  const totalPages = users ? Math.ceil(users.total / users.per_page) : 0;
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
@@ -114,117 +119,130 @@ export function AdminUsers() {
           <LoadingSpinner />
         ) : error ? (
           <ErrorMessage error={error} />
-        ) : users && users.length > 0 ? (
-          <table style={table}>
-            <thead>
-              <tr style={tableHeaderRow}>
-                <th style={tableCellLeft}>Username</th>
-                <th style={tableCellCenter}>Role</th>
-                <th style={tableCellCenter}>Active</th>
-                <th style={tableCellLeft}>Teams</th>
-                <th style={tableCellLeft}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} style={tableRow}>
-                  <td style={{ ...tableCellLeft, fontWeight: 500 }}>
-                    {user.username}
-                    {user.must_change_password && (
-                      <span
-                        style={{
-                          ...mutedText,
-                          fontSize: "12px",
-                          marginLeft: "8px",
-                        }}
-                      >
-                        (must change password)
-                      </span>
-                    )}
-                  </td>
-                  <td style={tableCellCenter}>{user.role}</td>
-                  <td style={tableCellCenter}>{user.active ? "Yes" : "No"}</td>
-                  <td
-                    style={{ ...tableCellLeft, ...mutedText, fontSize: "14px" }}
-                  >
-                    {user.team_names || "None"}
-                  </td>
-                  <td style={tableCell}>
-                    <div
+        ) : users && users.data.length > 0 ? (
+          <>
+            <table style={table}>
+              <thead>
+                <tr style={tableHeaderRow}>
+                  <th style={tableCellLeft}>Username</th>
+                  <th style={tableCellCenter}>Role</th>
+                  <th style={tableCellCenter}>Active</th>
+                  <th style={tableCellLeft}>Teams</th>
+                  <th style={tableCellLeft}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.data.map((user) => (
+                  <tr key={user.id} style={tableRow}>
+                    <td style={{ ...tableCellLeft, fontWeight: 500 }}>
+                      {user.username}
+                      {user.must_change_password && (
+                        <span
+                          style={{
+                            ...mutedText,
+                            fontSize: "12px",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          (must change password)
+                        </span>
+                      )}
+                    </td>
+                    <td style={tableCellCenter}>{user.role}</td>
+                    <td style={tableCellCenter}>
+                      {user.active ? "Yes" : "No"}
+                    </td>
+                    <td
                       style={{
-                        display: "flex",
-                        gap: "8px",
-                        flexDirection: "column",
+                        ...tableCellLeft,
+                        ...mutedText,
+                        fontSize: "14px",
                       }}
                     >
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          style={compactInput}
-                        >
-                          {user.active ? "Deactivate" : "Activate"}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setResettingUserId(
-                              resettingUserId === user.id ? null : user.id,
-                            );
-                            setTempPassword("");
-                          }}
-                          style={compactInput}
-                        >
-                          {resettingUserId === user.id
-                            ? "Cancel"
-                            : "Reset Password"}
-                        </button>
-                      </div>
-                      {resettingUserId === user.id && (
+                      {user.team_names || "None"}
+                    </td>
+                    <td style={tableCell}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          flexDirection: "column",
+                        }}
+                      >
                         <div style={{ display: "flex", gap: "8px" }}>
-                          <input
-                            type="text"
-                            placeholder="Temporary password (12+ chars)"
-                            value={tempPassword}
-                            onChange={(e) => setTempPassword(e.target.value)}
-                            minLength={12}
-                            style={{ ...compactInput, flex: 1 }}
-                          />
                           <button
-                            onClick={() => handleResetPassword(user.id)}
-                            disabled={resetPassword.isPending}
+                            onClick={() => handleToggleActive(user)}
                             style={compactInput}
                           >
-                            Set
+                            {user.active ? "Deactivate" : "Activate"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setResettingUserId(
+                                resettingUserId === user.id ? null : user.id,
+                              );
+                              setTempPassword("");
+                            }}
+                            style={compactInput}
+                          >
+                            {resettingUserId === user.id
+                              ? "Cancel"
+                              : "Reset Password"}
                           </button>
                         </div>
+                        {resettingUserId === user.id && (
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <input
+                              type="text"
+                              placeholder="Temporary password (12+ chars)"
+                              value={tempPassword}
+                              onChange={(e) => setTempPassword(e.target.value)}
+                              minLength={12}
+                              style={{ ...compactInput, flex: 1 }}
+                            />
+                            <button
+                              onClick={() => handleResetPassword(user.id)}
+                              disabled={resetPassword.isPending}
+                              style={compactInput}
+                            >
+                              Set
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {updateUser.isError && (
+                        <p
+                          style={{
+                            ...errorBox,
+                            marginTop: "4px",
+                            fontSize: "12px",
+                          }}
+                        >
+                          {updateUser.error.message}
+                        </p>
                       )}
-                    </div>
-                    {updateUser.isError && (
-                      <p
-                        style={{
-                          ...errorBox,
-                          marginTop: "4px",
-                          fontSize: "12px",
-                        }}
-                      >
-                        {updateUser.error.message}
-                      </p>
-                    )}
-                    {resetPassword.isError && resettingUserId === user.id && (
-                      <p
-                        style={{
-                          ...errorBox,
-                          marginTop: "4px",
-                          fontSize: "12px",
-                        }}
-                      >
-                        {resetPassword.error.message}
-                      </p>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {resetPassword.isError && resettingUserId === user.id && (
+                        <p
+                          style={{
+                            ...errorBox,
+                            marginTop: "4px",
+                            fontSize: "12px",
+                          }}
+                        >
+                          {resetPassword.error.message}
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            />
+          </>
         ) : (
           <p style={mutedText}>No users found.</p>
         )}

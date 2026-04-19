@@ -1,6 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { queryKeys } from "../lib/queryKeys";
+import { queryKeys, type AdminUsersFilters } from "../lib/queryKeys";
 import type { components } from "../generated/schema";
 
 type CreateTeamRequest = components["schemas"]["CreateTeamRequest"];
@@ -10,25 +15,38 @@ type CreateUserRequest = components["schemas"]["CreateUserRequest"];
 type UpdateUserRequest = components["schemas"]["UpdateUserRequest"];
 type ResetPasswordRequest = components["schemas"]["ResetPasswordRequest"];
 
-export function useAdminTeams() {
+export function useAdminTeams(page = 1, perPage = 20) {
   return useQuery({
-    queryKey: queryKeys.adminTeams,
+    queryKey: queryKeys.adminTeams(page, perPage),
     queryFn: async () => {
-      const { data, error } = await api.GET("/api/admin/teams");
+      const { data, error } = await api.GET("/api/admin/teams", {
+        params: { query: { page, per_page: perPage } },
+      });
       if (error) throw new Error(error.message);
       return data!;
     },
+    placeholderData: keepPreviousData,
   });
 }
 
-export function useAdminUsers() {
+export function useAdminUsers(filters: AdminUsersFilters) {
   return useQuery({
-    queryKey: queryKeys.adminUsers,
+    queryKey: queryKeys.adminUsers(filters),
     queryFn: async () => {
-      const { data, error } = await api.GET("/api/admin/users");
+      const { data, error } = await api.GET("/api/admin/users", {
+        params: {
+          query: {
+            page: filters.page,
+            per_page: filters.perPage,
+            search: filters.search || undefined,
+            team_id: filters.teamId,
+          },
+        },
+      });
       if (error) throw new Error(error.message);
       return data!;
     },
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -43,7 +61,9 @@ export function useCreateTeam() {
       return data!;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
     },
   });
 }
@@ -66,7 +86,9 @@ export function useUpdateTeam() {
       return data!;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
     },
   });
 }
@@ -81,7 +103,9 @@ export function useDeleteTeam() {
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
     },
   });
 }
@@ -104,8 +128,12 @@ export function useAddTeamMember() {
       return data!;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminUsersAll,
+      });
     },
   });
 }
@@ -129,8 +157,12 @@ export function useRemoveTeamMember() {
       if (error) throw new Error(error.message);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminTeams });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminUsersAll,
+      });
     },
   });
 }
@@ -146,7 +178,9 @@ export function useCreateUser() {
       return data!;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminUsersAll,
+      });
     },
   });
 }
@@ -169,7 +203,9 @@ export function useUpdateUser() {
       return data!;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminUsersAll,
+      });
     },
   });
 }
@@ -195,7 +231,9 @@ export function useResetPassword() {
       return data!;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminUsersAll,
+      });
     },
   });
 }

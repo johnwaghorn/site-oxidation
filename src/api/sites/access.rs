@@ -1,6 +1,4 @@
-use super::sites_queries::{
-    CHECK_SITE_ACCESS_ADMIN, CHECK_SITE_ACCESS_USER, CHECK_TEAM_MEMBERSHIP,
-};
+use super::queries::{CHECK_SITE_ACCESS_ADMIN, CHECK_SITE_ACCESS_USER, CHECK_TEAM_MEMBERSHIP};
 use crate::api::errors::{ApiErrorResponse, internal_err};
 use crate::models::user::{User, UserRole};
 

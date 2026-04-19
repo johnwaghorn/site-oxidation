@@ -1,4 +1,5 @@
 use crate::models::site::{SiteRow, SiteStatus};
+use axum::Router;
 use password_auth::generate_hash;
 use sqlx::SqlitePool;
 
@@ -31,6 +32,16 @@ pub async fn insert_test_user(
     .fetch_one(pool)
     .await
     .unwrap()
+}
+
+pub async fn authenticated_admin_app(
+    pool: SqlitePool,
+    allow_private_ips: bool,
+) -> (Router, String) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = super::app_builder::test_app_with_private_ips(pool, allow_private_ips);
+    let cookie = super::auth_helpers::login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    (app, cookie)
 }
 
 pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow {

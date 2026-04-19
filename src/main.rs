@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
         Duration::from_secs(60),
     ));
     let admin_limiter = Arc::new(security::rate_limit::LoginRateLimiter::new(
-        10,
+        20,
         Duration::from_secs(60),
     ));
     let pruner_limiter = Arc::clone(&login_limiter);

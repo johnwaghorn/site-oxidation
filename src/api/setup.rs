@@ -14,6 +14,7 @@ use crate::config::AppConfig;
 use crate::security::ip::is_private_ip;
 use crate::state::AppState;
 
+#[allow(clippy::needless_for_each)]
 #[derive(OpenApi)]
 #[openapi(
     paths(status, bootstrap),
@@ -51,7 +52,7 @@ pub struct BootstrapResponse {
     tag = "setup",
 )]
 pub async fn status(State(pool): State<SqlitePool>) -> Result<Json<SetupStatus>, ApiErrorResponse> {
-    let count: i64 = sqlx::query_scalar(super::setup_queries::COUNT_USERS)
+    let count: i64 = sqlx::query_scalar(super::queries_setup::COUNT_USERS)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to check setup status", e))?;
@@ -107,7 +108,7 @@ pub async fn bootstrap(
 async fn do_bootstrap(
     conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
 ) -> Result<(StatusCode, Json<BootstrapResponse>), ApiErrorResponse> {
-    let count: i64 = sqlx::query_scalar(super::setup_queries::COUNT_USERS)
+    let count: i64 = sqlx::query_scalar(super::queries_setup::COUNT_USERS)
         .fetch_one(&mut **conn)
         .await
         .map_err(|e| internal_err("Failed to check user count during bootstrap", e))?;
@@ -119,7 +120,7 @@ async fn do_bootstrap(
     let hash = task::spawn_blocking(move || generate_hash(&password_for_hash))
         .await
         .map_err(|e| internal_err("Failed to hash bootstrap password", e))?;
-    sqlx::query(super::setup_queries::INSERT_ADMIN)
+    sqlx::query(super::queries_setup::INSERT_ADMIN)
         .bind(&hash)
         .execute(&mut **conn)
         .await

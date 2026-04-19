@@ -461,7 +461,12 @@ export type $defs = Record<string, never>;
 export interface operations {
     list_teams: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @example 1 */
+                page?: number;
+                /** @example 20 */
+                per_page?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -474,7 +479,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TeamResponse"][];
+                    "application/json": {
+                        data: {
+                            /** Format: int64 */
+                            id: number;
+                            /** Format: int64 */
+                            member_count: number;
+                            name: string;
+                            /** Format: int64 */
+                            site_count: number;
+                        }[];
+                        /** Format: int32 */
+                        page: number;
+                        /** Format: int32 */
+                        per_page: number;
+                        /** Format: int64 */
+                        total: number;
+                    };
                 };
             };
             /** @description Unauthorized */
@@ -837,7 +858,16 @@ export interface operations {
     };
     list_users: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @example 1 */
+                page?: number;
+                /** @example 20 */
+                per_page?: number;
+                /** @description Case-insensitive substring match against username. */
+                search?: string;
+                /** @description Restrict results to members of this team. */
+                team_id?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -850,7 +880,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResponse"][];
+                    "application/json": {
+                        data: {
+                            active: boolean;
+                            /** Format: int64 */
+                            id: number;
+                            must_change_password: boolean;
+                            role: components["schemas"]["UserRole"];
+                            team_names: string;
+                            username: string;
+                        }[];
+                        /** Format: int32 */
+                        page: number;
+                        /** Format: int32 */
+                        per_page: number;
+                        /** Format: int64 */
+                        total: number;
+                    };
                 };
             };
             /** @description Unauthorized */
@@ -1315,9 +1361,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @example 1 */
-                page?: number | null;
+                page?: number;
                 /** @example 20 */
-                per_page?: number | null;
+                per_page?: number;
             };
             header?: never;
             path?: never;
@@ -1631,9 +1677,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @example 1 */
-                page?: number | null;
+                page?: number;
                 /** @example 20 */
-                per_page?: number | null;
+                per_page?: number;
             };
             header?: never;
             path: {

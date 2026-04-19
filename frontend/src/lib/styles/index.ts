@@ -5,7 +5,7 @@ export {
   centeredFullScreen,
   section,
 } from "./layout";
-export { backLink } from "./navigation";
+export { backLink, tabsNav, activeTab, inactiveTab } from "./navigation";
 export { pageTitle, subtitle, mutedText } from "./typography";
 export { formColumn, formInput, inlineForm, compactInput } from "./forms";
 export {
