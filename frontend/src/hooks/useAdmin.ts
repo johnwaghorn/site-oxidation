@@ -5,8 +5,16 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { queryKeys, type AdminUsersFilters } from "../lib/queryKeys";
+import { queryKeys } from "../lib/queryKeys";
 import type { components } from "../generated/schema";
+
+export interface AdminUsersFilters {
+  page: number;
+  perPage: number;
+  search?: string;
+  teamId?: number;
+  excludeTeamId?: number;
+}
 
 type CreateTeamRequest = components["schemas"]["CreateTeamRequest"];
 type UpdateTeamRequest = components["schemas"]["UpdateTeamRequest"];
@@ -40,6 +48,7 @@ export function useAdminUsers(filters: AdminUsersFilters) {
             per_page: filters.perPage,
             search: filters.search || undefined,
             team_id: filters.teamId,
+            exclude_team_id: filters.excludeTeamId,
           },
         },
       });

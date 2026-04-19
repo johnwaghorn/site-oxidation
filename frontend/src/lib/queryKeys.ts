@@ -1,9 +1,4 @@
-export interface AdminUsersFilters {
-  page: number;
-  perPage: number;
-  search?: string;
-  teamId?: number;
-}
+import type { AdminUsersFilters } from "../hooks/useAdmin";
 
 export const queryKeys = {
   authMe: ["auth", "me"] as const,

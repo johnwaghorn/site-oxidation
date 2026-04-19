@@ -9,4 +9,6 @@ pub struct ListUsersParams {
     pub search: Option<String>,
     /// Restrict results to members of this team.
     pub team_id: Option<i64>,
+    /// Exclude members of this team from results.
+    pub exclude_team_id: Option<i64>,
 }

@@ -254,6 +254,45 @@ async fn test_list_users_filters_by_team_id(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_list_users_excludes_by_team_id(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let alice_id = insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;
+    insert_test_user(&pool, "bob", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('engineering')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(alice_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users?exclude_team_id=1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let data = body["data"].as_array().unwrap();
+    assert_eq!(body["total"], 2);
+    let names: Vec<&str> = data
+        .iter()
+        .map(|u| u["username"].as_str().unwrap())
+        .collect();
+    assert!(!names.contains(&"alice"));
+    assert!(names.contains(&"admin"));
+    assert!(names.contains(&"bob"));
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_list_users_filters_by_search(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { AdminNav } from "../components/ui/AdminNav";
 import {
@@ -229,25 +229,46 @@ function MemberPanel({ teamId }: MemberPanelProps) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const debouncedSearch = useDebouncedValue(searchInput);
+  const {
+    page: membersPage,
+    perPage: membersPerPage,
+    goToPage: goToMembersPage,
+  } = usePagination();
 
   const { data: membersData } = useAdminUsers({
-    page: 1,
-    perPage: 100,
+    page: membersPage,
+    perPage: membersPerPage,
     teamId,
   });
   const { data: candidatesData } = useAdminUsers({
     page: 1,
     perPage: 20,
     search: debouncedSearch.trim() || undefined,
+    excludeTeamId: teamId,
   });
 
   const addMember = useAddTeamMember();
   const removeMember = useRemoveTeamMember();
 
-  const members = useMemo(() => membersData?.data ?? [], [membersData]);
-  const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members]);
-  const candidates =
-    candidatesData?.data.filter((u) => !memberIds.has(u.id)) ?? [];
+  const members = membersData?.data ?? [];
+  const memberTotalPages = membersData
+    ? Math.ceil(membersData.total / membersData.per_page)
+    : 0;
+
+  useEffect(() => {
+    if (
+      membersData &&
+      membersData.data.length === 0 &&
+      membersData.total > 0 &&
+      membersPage > 1
+    ) {
+      goToMembersPage(1);
+    }
+  }, [membersData, membersPage, goToMembersPage]);
+
+  const candidates = candidatesData?.data ?? [];
+  const totalCandidates = candidatesData?.total ?? 0;
+  const hasMoreResults = totalCandidates > candidates.length;
 
   const handleAddMember = () => {
     if (!selectedUserId) return;
@@ -273,36 +294,45 @@ function MemberPanel({ teamId }: MemberPanelProps) {
     >
       <div style={{ marginBottom: "8px", fontWeight: 500 }}>Members</div>
       {members.length > 0 ? (
-        <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0" }}>
-          {members.map((user: UserResponse) => (
-            <li
-              key={user.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "4px 0",
-              }}
-            >
-              <span>
-                {user.username}
-                <span style={mutedText}> ({user.role})</span>
-              </span>
-              <button
-                onClick={() => removeMember.mutate({ teamId, userId: user.id })}
+        <>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0" }}>
+            {members.map((user: UserResponse) => (
+              <li
+                key={user.id}
                 style={{
-                  color: "#dc2626",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "12px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "4px 0",
                 }}
               >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+                <span>
+                  {user.username}
+                  <span style={mutedText}> ({user.role})</span>
+                </span>
+                <button
+                  onClick={() =>
+                    removeMember.mutate({ teamId, userId: user.id })
+                  }
+                  style={{
+                    color: "#dc2626",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                  }}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Pagination
+            page={membersPage}
+            totalPages={memberTotalPages}
+            onPageChange={goToMembersPage}
+          />
+        </>
       ) : (
         <p style={{ ...mutedText, margin: "0 0 12px 0", fontSize: "14px" }}>
           No members yet
@@ -345,6 +375,12 @@ function MemberPanel({ teamId }: MemberPanelProps) {
               Add
             </button>
           </div>
+        )}
+        {hasMoreResults && debouncedSearch.trim() && (
+          <p style={{ ...mutedText, fontSize: "12px", margin: 0 }}>
+            Showing {candidatesData?.data.length} of {totalCandidates} results.
+            Please refine your search
+          </p>
         )}
       </div>
       {addMember.isError && <ErrorMessage error={addMember.error} />}
