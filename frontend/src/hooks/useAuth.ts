@@ -36,6 +36,7 @@ export function useAuth() {
     username: user?.username ?? null,
     role: user?.role ?? null,
     mustChangePassword: user?.must_change_password ?? false,
+    teams: user?.teams ?? [],
     isLoading,
     logout,
     refresh,

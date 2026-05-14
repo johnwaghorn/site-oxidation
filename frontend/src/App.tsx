@@ -19,6 +19,7 @@ function App() {
     logout,
     username,
     role,
+    teams,
     mustChangePassword,
     refresh,
   } = useAuth();
@@ -68,6 +69,7 @@ function App() {
             <Dashboard
               username={username}
               role={role}
+              teams={teams}
               onLogout={logout}
               onChangePassword={() => setChangingPassword(true)}
             />

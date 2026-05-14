@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 
 use super::endpoints;
 use super::requests::ChangePasswordRequest;
-use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess};
+use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess, UserTeam};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -19,6 +19,7 @@ use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess};
         crate::auth_backend::Credentials,
         LoginSuccess,
         MeSuccess,
+        UserTeam,
         ChangePasswordRequest,
         ChangePasswordSuccess,
         ApiError,

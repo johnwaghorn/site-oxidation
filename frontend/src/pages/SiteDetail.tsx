@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useSite, useUpdateSite, useOutages } from "../hooks/useSites";
 import { usePagination } from "../hooks/usePagination";
+import { useAuth } from "../hooks/useAuth";
 import { SiteForm } from "../components/sites/SiteForm";
 import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -27,6 +28,7 @@ export function SiteDetail() {
   const { id } = useParams<{ id: string }>();
   const siteId = Number(id);
   const { page, goToPage } = usePagination();
+  const { role, teams } = useAuth();
 
   const {
     data: site,
@@ -71,6 +73,8 @@ export function SiteDetail() {
           key={`${site.id}-${site.name}-${site.url}`}
           mode="edit"
           initialData={site}
+          role={role}
+          teams={teams}
           onSubmit={(payload) =>
             updateSite.mutate({ id: siteId, site: payload })
           }

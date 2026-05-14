@@ -8,14 +8,22 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { UserMenu } from "../components/ui/UserMenu";
-import { pageWrapper, headerRow, pageTitle } from "../lib/styles";
+import {
+  pageWrapper,
+  headerRow,
+  pageTitle,
+  compactInput,
+  mutedText,
+} from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
+type UserTeam = components["schemas"]["UserTeam"];
 
 interface DashboardProps {
   username: string | null;
   role: "admin" | "user" | null;
+  teams: UserTeam[];
   onLogout: () => void;
   onChangePassword: () => void;
 }
@@ -23,6 +31,7 @@ interface DashboardProps {
 export function Dashboard({
   username,
   role,
+  teams,
   onLogout,
   onChangePassword,
 }: DashboardProps) {
@@ -31,8 +40,15 @@ export function Dashboard({
   const createSite = useCreateSite();
   const deleteSite = useDeleteSite();
   const [siteToDelete, setSiteToDelete] = useState<SiteResponse | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
+
+  const sites = data?.data ?? [];
+  const filteredSites = selectedTeamId
+    ? sites.filter((s) => s.team_id === selectedTeamId)
+    : sites;
+  const orphanedCount = sites.filter((s) => s.team_id == null).length;
 
   return (
     <div style={pageWrapper}>
@@ -49,6 +65,8 @@ export function Dashboard({
       <SiteForm
         onSubmit={(site) => createSite.mutate(site)}
         isLoading={createSite.isPending}
+        role={role}
+        teams={teams}
       />
 
       {createSite.isError && <ErrorMessage error={createSite.error} />}
@@ -59,8 +77,32 @@ export function Dashboard({
         <ErrorMessage error={error} />
       ) : data ? (
         <>
+          {role === "admin" && orphanedCount > 0 && (
+            <p style={mutedText}>
+              {orphanedCount} site{orphanedCount === 1 ? "" : "s"} with no team
+              assigned
+            </p>
+          )}
+          {role !== "admin" && teams.length > 1 && (
+            <select
+              value={selectedTeamId ?? ""}
+              onChange={(e) =>
+                setSelectedTeamId(
+                  e.target.value ? Number(e.target.value) : null,
+                )
+              }
+              style={compactInput}
+            >
+              <option value="">All teams</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
           <SiteList
-            sites={data.data}
+            sites={filteredSites}
             onDelete={(site) => setSiteToDelete(site)}
           />
           <Pagination

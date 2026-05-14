@@ -3,3 +3,11 @@ pub const UPDATE_PASSWORD: &str =
 
 pub const SELECT_USER_BY_ID: &str =
     "SELECT id, username, password, role, active, must_change_password FROM users WHERE id = ?";
+
+pub const SELECT_USER_TEAMS: &str = concat!(
+    "SELECT t.id, t.name ",
+    "FROM teams t ",
+    "JOIN team_members tm ON t.id = tm.team_id ",
+    "WHERE tm.user_id = ? ",
+    "ORDER BY t.name"
+);

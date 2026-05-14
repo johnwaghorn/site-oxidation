@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use super::requests::ChangePasswordRequest;
-use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess};
+use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess, UserTeam};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAuth;
 use crate::auth_backend::{AuthSession, Credentials};
@@ -99,18 +99,29 @@ pub async fn logout(mut auth_session: AuthSession) -> Result<StatusCode, ApiErro
     responses(
         (status = 200, description = "Current user info", body = MeSuccess),
         (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "auth",
     security(("session_cookie" = [])),
 )]
-pub async fn me(auth_session: AuthSession) -> Result<Json<MeSuccess>, ApiErrorResponse> {
+pub async fn me(
+    auth_session: AuthSession,
+    State(pool): State<SqlitePool>,
+) -> Result<Json<MeSuccess>, ApiErrorResponse> {
     let user = auth_session
         .user
         .ok_or_else(ApiErrorResponse::unauthorized)?;
+    let teams = sqlx::query_as::<_, UserTeam>(super::queries::SELECT_USER_TEAMS)
+        .bind(user.id)
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to fetch user teams", e))?;
     Ok(Json(MeSuccess {
+        id: user.id,
         username: user.username,
         role: user.role,
         must_change_password: user.must_change_password,
+        teams,
     }))
 }
 

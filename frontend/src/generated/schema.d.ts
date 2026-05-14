@@ -317,8 +317,11 @@ export interface components {
             username: string;
         };
         MeSuccess: {
+            /** Format: int64 */
+            id: number;
             must_change_password: boolean;
             role: components["schemas"]["UserRole"];
+            teams: components["schemas"]["UserTeam"][];
             username: string;
         };
         OutageResponse: {
@@ -450,6 +453,11 @@ export interface components {
         };
         /** @enum {string} */
         UserRole: "admin" | "user";
+        UserTeam: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1274,6 +1282,15 @@ export interface operations {
             };
             /** @description Not authenticated */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

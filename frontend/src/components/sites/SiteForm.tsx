@@ -3,12 +3,15 @@ import { inlineForm, compactInput } from "../../lib/styles";
 import type { components } from "../../generated/schema";
 
 type SitePayload = components["schemas"]["SitePayload"];
+type UserTeam = components["schemas"]["UserTeam"];
 
 interface SiteFormProps {
   onSubmit: (site: SitePayload) => void;
   isLoading?: boolean;
   mode?: "create" | "edit";
   initialData?: SitePayload;
+  role: "admin" | "user" | null;
+  teams: UserTeam[];
 }
 
 export function SiteForm({
@@ -16,6 +19,8 @@ export function SiteForm({
   isLoading,
   mode = "create",
   initialData,
+  role,
+  teams,
 }: SiteFormProps) {
   const [name, setName] = useState(initialData?.name ?? "");
   const [url, setUrl] = useState(initialData?.url ?? "");
@@ -28,6 +33,9 @@ export function SiteForm({
   const [probeInterval, setProbeInterval] = useState(
     initialData?.probe_interval_seconds ?? 60,
   );
+  const [teamId, setTeamId] = useState<number | null>(
+    initialData?.team_id ?? null,
+  );
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -37,16 +45,19 @@ export function SiteForm({
       expected_status: expectedStatus,
       expected_text: expectedText || null,
       probe_interval_seconds: probeInterval,
+      team_id: teamId,
     });
     if (mode === "create") {
       setName("");
       setUrl("");
       setExpectedStatus(200);
       setExpectedText("");
+      setTeamId(null);
     }
   };
 
   const isEdit = mode === "edit";
+  const isTeamRequired = role !== "admin";
 
   return (
     <form onSubmit={handleSubmit} style={inlineForm}>
@@ -95,6 +106,23 @@ export function SiteForm({
         <option value={1800}>30 minutes</option>
         <option value={3600}>1 hour</option>
       </select>
+      {teams.length > 0 && (
+        <select
+          value={teamId ?? ""}
+          onChange={(e) =>
+            setTeamId(e.target.value ? Number(e.target.value) : null)
+          }
+          required={isTeamRequired}
+          style={compactInput}
+        >
+          <option value="">{isTeamRequired ? "Select team" : "No team"}</option>
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      )}
       <button type="submit" disabled={isLoading} style={compactInput}>
         {isLoading
           ? isEdit
