@@ -7,8 +7,6 @@ pub mod errors;
 pub(crate) mod extractors;
 pub(crate) mod healthcheck;
 pub(crate) mod pagination;
-mod queries_auth;
-mod queries_setup;
 pub(crate) mod schema;
 pub(crate) mod setup;
 pub(crate) mod sites;

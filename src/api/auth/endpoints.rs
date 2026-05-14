@@ -1,73 +1,20 @@
-use axum::extract::ConnectInfo;
+use axum::Json;
+use axum::extract::{ConnectInfo, State};
 use axum::http::StatusCode;
-use axum::routing::{get, post};
-use axum::{Json, Router, extract::State};
-use serde::Serialize;
+use password_auth::{generate_hash, verify_password};
+use sqlx::SqlitePool;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use utoipa::{OpenApi, ToSchema};
 
+use super::requests::ChangePasswordRequest;
+use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAuth;
 use crate::auth_backend::{AuthSession, Credentials};
-use crate::models::user::UserRole;
 use crate::security::password::{
     validate_password_bounds, validate_password_changed, validate_password_not_username,
 };
 use crate::security::rate_limit::LoginRateLimiter;
-use crate::state::AppState;
-use password_auth::{generate_hash, verify_password};
-use serde::Deserialize;
-use sqlx::SqlitePool;
-
-#[allow(clippy::needless_for_each)]
-#[derive(OpenApi)]
-#[openapi(
-    paths(login, logout, me, change_password),
-    components(schemas(
-        crate::auth_backend::Credentials,
-        LoginSuccess,
-        MeSuccess,
-        ChangePasswordRequest,
-        ChangePasswordSuccess,
-        ApiError,
-    )),
-    tags(
-        (name = "auth", description = "Authentication"),
-    ),
-)]
-pub struct AuthApiDoc;
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct LoginSuccess {
-    pub username: String,
-}
-
-#[derive(Debug, Serialize, ToSchema)]
-pub struct MeSuccess {
-    pub username: String,
-    pub role: UserRole,
-    pub must_change_password: bool,
-}
-
-#[derive(Deserialize, ToSchema)]
-pub struct ChangePasswordRequest {
-    pub current_password: String,
-    pub new_password: String,
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct ChangePasswordSuccess {
-    pub success: bool,
-}
-
-pub fn auth_routes() -> Router<AppState> {
-    Router::new()
-        .route("/auth/login", post(login))
-        .route("/auth/logout", post(logout))
-        .route("/auth/me", get(me))
-        .route("/auth/change-password", post(change_password))
-}
 
 #[utoipa::path(
     post,
@@ -203,7 +150,7 @@ pub async fn change_password(
     let new_hash = tokio::task::spawn_blocking(move || generate_hash(&new_password))
         .await
         .map_err(|e| internal_err("Failed to hash new password", e))?;
-    sqlx::query(super::queries_auth::UPDATE_PASSWORD)
+    sqlx::query(super::queries::UPDATE_PASSWORD)
         .bind(&new_hash)
         .bind(user.id)
         .execute(&pool)
@@ -215,7 +162,7 @@ pub async fn change_password(
             )
         })?;
     let updated_user =
-        sqlx::query_as::<_, crate::models::user::User>(super::queries_auth::SELECT_USER_BY_ID)
+        sqlx::query_as::<_, crate::models::user::User>(super::queries::SELECT_USER_BY_ID)
             .bind(user.id)
             .fetch_one(&pool)
             .await

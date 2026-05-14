@@ -1,46 +1,16 @@
+use axum::Json;
 use axum::extract::{ConnectInfo, State};
 use axum::http::StatusCode;
-use axum::routing::{get, post};
-use axum::{Json, Router};
 use password_auth::generate_hash;
-use serde::Serialize;
 use sqlx::SqlitePool;
 use std::net::SocketAddr;
 use tokio::task;
-use utoipa::{OpenApi, ToSchema};
 
+use super::queries;
+use super::responses::{BootstrapResponse, SetupStatus};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::config::AppConfig;
 use crate::security::ip::is_private_ip;
-use crate::state::AppState;
-
-#[allow(clippy::needless_for_each)]
-#[derive(OpenApi)]
-#[openapi(
-    paths(status, bootstrap),
-    components(schemas(SetupStatus, BootstrapResponse, ApiError)),
-    tags(
-        (name = "setup", description = "First-run setup"),
-    ),
-)]
-pub struct SetupApiDoc;
-
-pub fn setup_routes() -> Router<AppState> {
-    Router::new()
-        .route("/setup/status", get(status))
-        .route("/setup/bootstrap", post(bootstrap))
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct SetupStatus {
-    pub setup_required: bool,
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct BootstrapResponse {
-    pub username: String,
-    pub password: String,
-}
 
 #[utoipa::path(
     get,
@@ -52,7 +22,7 @@ pub struct BootstrapResponse {
     tag = "setup",
 )]
 pub async fn status(State(pool): State<SqlitePool>) -> Result<Json<SetupStatus>, ApiErrorResponse> {
-    let count: i64 = sqlx::query_scalar(super::queries_setup::COUNT_USERS)
+    let count: i64 = sqlx::query_scalar(queries::COUNT_USERS)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to check setup status", e))?;
@@ -82,7 +52,7 @@ pub async fn bootstrap(
     tracing::info!("Bootstrap attempt from IP: {client_ip} (trusted: {is_trusted})");
     if config.bootstrap_require_private_ip && !is_trusted {
         return Err(ApiErrorResponse::forbidden(
-            "Bootstrap restricted to local/private network or trusted IPs",
+            "Bootstrap restricted to local/private network or trusted IPs. Check VPNs.",
         ));
     }
     let mut conn = pool
@@ -108,7 +78,7 @@ pub async fn bootstrap(
 async fn do_bootstrap(
     conn: &mut sqlx::pool::PoolConnection<sqlx::Sqlite>,
 ) -> Result<(StatusCode, Json<BootstrapResponse>), ApiErrorResponse> {
-    let count: i64 = sqlx::query_scalar(super::queries_setup::COUNT_USERS)
+    let count: i64 = sqlx::query_scalar(queries::COUNT_USERS)
         .fetch_one(&mut **conn)
         .await
         .map_err(|e| internal_err("Failed to check user count during bootstrap", e))?;
@@ -120,7 +90,7 @@ async fn do_bootstrap(
     let hash = task::spawn_blocking(move || generate_hash(&password_for_hash))
         .await
         .map_err(|e| internal_err("Failed to hash bootstrap password", e))?;
-    sqlx::query(super::queries_setup::INSERT_ADMIN)
+    sqlx::query(queries::INSERT_ADMIN)
         .bind(&hash)
         .execute(&mut **conn)
         .await

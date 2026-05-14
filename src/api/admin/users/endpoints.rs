@@ -6,10 +6,11 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::task;
 
-use super::{
-    CreateUserRequest, CreateUserResponse, ListUsersParams, ResetPasswordRequest, SuccessResponse,
-    UpdateUserRequest, UserResponse, queries_users,
-};
+use super::params::ListUsersParams;
+use super::queries;
+use super::requests::{CreateUserRequest, ResetPasswordRequest, UpdateUserRequest};
+use super::responses::{CreateUserResponse, UserResponse};
+use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
@@ -45,7 +46,7 @@ impl ListUsersQuery {
 
 #[utoipa::path(
     get,
-    path = "/admin/users",
+    path = "/users",
     params(PaginationParams, ListUsersParams),
     responses(
         (status = 200, description = "List all users", body = inline(PaginatedResponse<UserResponse>)),
@@ -63,7 +64,7 @@ pub async fn list_users(
 ) -> Result<Json<PaginatedResponse<UserResponse>>, ApiErrorResponse> {
     let pagination = params.pagination();
     let search = params.search();
-    let users = sqlx::query_as::<_, UserResponse>(queries_users::LIST_USERS)
+    let users = sqlx::query_as::<_, UserResponse>(queries::LIST_USERS)
         .bind(search.as_deref())
         .bind(params.team_id)
         .bind(params.exclude_team_id)
@@ -72,7 +73,7 @@ pub async fn list_users(
         .fetch_all(&pool)
         .await
         .map_err(|e| internal_err("Failed to list users", e))?;
-    let total: i64 = sqlx::query_scalar(queries_users::COUNT_USERS)
+    let total: i64 = sqlx::query_scalar(queries::COUNT_USERS)
         .bind(search.as_deref())
         .bind(params.team_id)
         .bind(params.exclude_team_id)
@@ -89,7 +90,7 @@ pub async fn list_users(
 
 #[utoipa::path(
     post,
-    path = "/admin/users",
+    path = "/users",
     request_body = CreateUserRequest,
     responses(
         (status = 201, description = "User created", body = CreateUserResponse),
@@ -131,7 +132,7 @@ pub async fn create_user(
         UserRole::Admin => "admin",
         UserRole::User => "user",
     };
-    let id: i64 = sqlx::query_scalar(queries_users::INSERT_USER)
+    let id: i64 = sqlx::query_scalar(queries::INSERT_USER)
         .bind(&username)
         .bind(&hash)
         .bind(role_str)
@@ -156,7 +157,7 @@ pub async fn create_user(
 
 #[utoipa::path(
     patch,
-    path = "/admin/users/{id}",
+    path = "/users/{id}",
     params(("id" = i64, Path, description = "User ID")),
     request_body = UpdateUserRequest,
     responses(
@@ -185,11 +186,11 @@ pub async fn update_user(
         return Err(ApiErrorResponse::conflict("Cannot demote your own account"));
     }
     if payload.role != UserRole::Admin || !payload.active {
-        let active_admins: i64 = sqlx::query_scalar(queries_users::COUNT_ACTIVE_ADMINS)
+        let active_admins: i64 = sqlx::query_scalar(queries::COUNT_ACTIVE_ADMINS)
             .fetch_one(&pool)
             .await
             .map_err(|e| internal_err("Failed to count active admins", e))?;
-        let is_target_active_admin: bool = sqlx::query_scalar(queries_users::IS_ACTIVE_ADMIN)
+        let is_target_active_admin: bool = sqlx::query_scalar(queries::IS_ACTIVE_ADMIN)
             .bind(id)
             .fetch_optional(&pool)
             .await
@@ -205,7 +206,7 @@ pub async fn update_user(
         UserRole::Admin => "admin",
         UserRole::User => "user",
     };
-    let updated: Option<i64> = sqlx::query_scalar(queries_users::UPDATE_USER)
+    let updated: Option<i64> = sqlx::query_scalar(queries::UPDATE_USER)
         .bind(role_str)
         .bind(payload.active)
         .bind(id)
@@ -221,7 +222,7 @@ pub async fn update_user(
 
 #[utoipa::path(
     post,
-    path = "/admin/users/{id}/reset-password",
+    path = "/users/{id}/reset-password",
     params(("id" = i64, Path, description = "User ID")),
     request_body = ResetPasswordRequest,
     responses(
@@ -254,7 +255,7 @@ pub async fn reset_password(
     let hash = task::spawn_blocking(move || generate_hash(&password))
         .await
         .map_err(|e| internal_err("Failed to hash password", e))?;
-    let updated: Option<i64> = sqlx::query_scalar(queries_users::RESET_PASSWORD)
+    let updated: Option<i64> = sqlx::query_scalar(queries::RESET_PASSWORD)
         .bind(&hash)
         .bind(id)
         .fetch_optional(&pool)
