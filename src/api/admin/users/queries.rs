@@ -41,5 +41,3 @@ pub const COUNT_ACTIVE_ADMINS: &str =
     "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1";
 
 pub const IS_ACTIVE_ADMIN: &str = "SELECT role = 'admin' AND active = 1 FROM users WHERE id = ?";
-
-pub const USER_EXISTS: &str = "SELECT COUNT(*) FROM users WHERE id = ?";

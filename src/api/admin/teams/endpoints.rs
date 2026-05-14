@@ -3,17 +3,17 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use sqlx::SqlitePool;
 
-use super::{
-    AddMemberRequest, CreateTeamRequest, SuccessResponse, TeamResponse, UpdateTeamRequest,
-    queries_teams, queries_users,
-};
+use super::queries;
+use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
+use super::responses::TeamResponse;
+use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 
 #[utoipa::path(
     get,
-    path = "/admin/teams",
+    path = "/teams",
     params(PaginationParams),
     responses(
         (status = 200, description = "List all teams", body = inline(PaginatedResponse<TeamResponse>)),
@@ -29,13 +29,13 @@ pub async fn list_teams(
     State(pool): State<SqlitePool>,
     Query(params): Query<PaginationParams>,
 ) -> Result<Json<PaginatedResponse<TeamResponse>>, ApiErrorResponse> {
-    let teams = sqlx::query_as::<_, TeamResponse>(queries_teams::LIST_TEAMS)
+    let teams = sqlx::query_as::<_, TeamResponse>(queries::LIST_TEAMS)
         .bind(params.per_page())
         .bind(params.offset())
         .fetch_all(&pool)
         .await
         .map_err(|e| internal_err("Failed to list teams", e))?;
-    let total: i64 = sqlx::query_scalar(queries_teams::COUNT_TEAMS)
+    let total: i64 = sqlx::query_scalar(queries::COUNT_TEAMS)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count teams", e))?;
@@ -49,7 +49,7 @@ pub async fn list_teams(
 
 #[utoipa::path(
     post,
-    path = "/admin/teams",
+    path = "/teams",
     request_body = CreateTeamRequest,
     responses(
         (status = 201, description = "Team created", body = TeamResponse),
@@ -72,7 +72,7 @@ pub async fn create_team(
             "Team name must be between 1 and 100 characters",
         ));
     }
-    let id: i64 = sqlx::query_scalar(queries_teams::INSERT_TEAM)
+    let id: i64 = sqlx::query_scalar(queries::INSERT_TEAM)
         .bind(&name)
         .fetch_one(&pool)
         .await
@@ -96,7 +96,7 @@ pub async fn create_team(
 
 #[utoipa::path(
     patch,
-    path = "/admin/teams/{id}",
+    path = "/teams/{id}",
     params(("id" = i64, Path, description = "Team ID")),
     request_body = UpdateTeamRequest,
     responses(
@@ -122,7 +122,7 @@ pub async fn update_team(
             "Team name must be between 1 and 100 characters",
         ));
     }
-    let updated: Option<i64> = sqlx::query_scalar(queries_teams::UPDATE_TEAM)
+    let updated: Option<i64> = sqlx::query_scalar(queries::UPDATE_TEAM)
         .bind(&name)
         .bind(id)
         .fetch_optional(&pool)
@@ -143,7 +143,7 @@ pub async fn update_team(
 
 #[utoipa::path(
     delete,
-    path = "/admin/teams/{id}",
+    path = "/teams/{id}",
     params(("id" = i64, Path, description = "Team ID")),
     responses(
         (status = 204, description = "Team deleted"),
@@ -161,7 +161,7 @@ pub async fn delete_team(
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiErrorResponse> {
-    let site_count: i64 = sqlx::query_scalar(queries_teams::COUNT_TEAM_SITES)
+    let site_count: i64 = sqlx::query_scalar(queries::COUNT_TEAM_SITES)
         .bind(id)
         .fetch_one(&pool)
         .await
@@ -171,7 +171,7 @@ pub async fn delete_team(
             "Cannot delete team with assigned sites",
         ));
     }
-    let deleted: Option<i64> = sqlx::query_scalar(queries_teams::DELETE_TEAM)
+    let deleted: Option<i64> = sqlx::query_scalar(queries::DELETE_TEAM)
         .bind(id)
         .fetch_optional(&pool)
         .await
@@ -185,7 +185,7 @@ pub async fn delete_team(
 
 #[utoipa::path(
     post,
-    path = "/admin/teams/{id}/members",
+    path = "/teams/{id}/members",
     params(("id" = i64, Path, description = "Team ID")),
     request_body = AddMemberRequest,
     responses(
@@ -205,7 +205,7 @@ pub async fn add_team_member(
     Path(team_id): Path<i64>,
     Json(payload): Json<AddMemberRequest>,
 ) -> Result<(StatusCode, Json<SuccessResponse>), ApiErrorResponse> {
-    let team_exists: i64 = sqlx::query_scalar(queries_teams::TEAM_EXISTS)
+    let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
         .bind(team_id)
         .fetch_one(&pool)
         .await
@@ -213,7 +213,7 @@ pub async fn add_team_member(
     if team_exists == 0 {
         return Err(ApiErrorResponse::not_found("Team"));
     }
-    let user_exists: i64 = sqlx::query_scalar(queries_users::USER_EXISTS)
+    let user_exists: i64 = sqlx::query_scalar(queries::USER_EXISTS)
         .bind(payload.user_id)
         .fetch_one(&pool)
         .await
@@ -221,7 +221,7 @@ pub async fn add_team_member(
     if user_exists == 0 {
         return Err(ApiErrorResponse::not_found("User"));
     }
-    sqlx::query(queries_teams::ADD_TEAM_MEMBER)
+    sqlx::query(queries::ADD_TEAM_MEMBER)
         .bind(team_id)
         .bind(payload.user_id)
         .execute(&pool)
@@ -240,7 +240,7 @@ pub async fn add_team_member(
 
 #[utoipa::path(
     delete,
-    path = "/admin/teams/{id}/members/{user_id}",
+    path = "/teams/{id}/members/{user_id}",
     params(
         ("id" = i64, Path, description = "Team ID"),
         ("user_id" = i64, Path, description = "User ID"),
@@ -260,7 +260,7 @@ pub async fn remove_team_member(
     State(pool): State<SqlitePool>,
     Path((team_id, user_id)): Path<(i64, i64)>,
 ) -> Result<StatusCode, ApiErrorResponse> {
-    let deleted: Option<i64> = sqlx::query_scalar(queries_teams::REMOVE_TEAM_MEMBER)
+    let deleted: Option<i64> = sqlx::query_scalar(queries::REMOVE_TEAM_MEMBER)
         .bind(team_id)
         .bind(user_id)
         .fetch_optional(&pool)

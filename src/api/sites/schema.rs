@@ -1,3 +1,5 @@
+#![allow(clippy::needless_for_each)]
+
 use crate::api::errors::ApiError;
 use crate::api::pagination::PaginatedResponse;
 use crate::models::site::SiteStatus;

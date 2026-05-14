@@ -30,7 +30,7 @@ export function Setup({ onSetupComplete }: SetupProps) {
       {generatedPassword ? (
         <>
           <p>
-            Save this password now. It is only shown once. Use a password
+            Save this password now. It is only shown once. Store in a password
             manager that encrypts your passwords if you can!
           </p>
           <pre>{generatedPassword}</pre>

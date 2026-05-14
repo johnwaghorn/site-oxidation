@@ -1,11 +1,12 @@
+#![allow(clippy::needless_for_each)]
+
 use utoipa::OpenApi;
 
 use super::admin::schema::AdminApiDoc;
-use super::auth::AuthApiDoc;
-use super::setup::SetupApiDoc;
+use super::auth::schema::AuthApiDoc;
+use super::setup::schema::SetupApiDoc;
 use super::sites::schema::SitesApiDoc;
 
-#[allow(clippy::needless_for_each)]
 #[derive(OpenApi)]
 #[openapi(
     nest(

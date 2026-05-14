@@ -26,3 +26,5 @@ pub const REMOVE_TEAM_MEMBER: &str =
     "DELETE FROM team_members WHERE team_id = ? AND user_id = ? RETURNING team_id";
 
 pub const TEAM_EXISTS: &str = "SELECT COUNT(*) FROM teams WHERE id = ?";
+
+pub const USER_EXISTS: &str = "SELECT COUNT(*) FROM users WHERE id = ?";
