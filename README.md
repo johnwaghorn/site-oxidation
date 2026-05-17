@@ -40,4 +40,4 @@ See [docs/backend/migrations.md](docs/backend/migrations.md).
 
 ## Licence
 
-This project is licenced under the [MIT Licence](LICENSE).
+This project is licenced under [GNU AGPL v3.0](LICENSE).
