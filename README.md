@@ -29,6 +29,12 @@ details).
 See [docs/development.md](docs/development.md) for how to run locally,
 generate OpenAPI types, build the frontend, Docker use etc.
 
+Run every lint/test check locally (same as CI):
+
+```bash
+prek run --all-files --hook-stage pre-push
+```
+
 ## Migrations
 
 Files must be named `{YYYYMMDDHHmmss}_name.sql` (e.g.

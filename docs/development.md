@@ -18,8 +18,8 @@ cargo build
 # Install frontend dependencies
 cd frontend && npm install
 
-# Install git hooks
-prek install
+# Install git hooks (both pre-commit and pre-push)
+prek install --hook-type pre-commit --hook-type pre-push
 ```
 
 ## Running Locally
@@ -76,15 +76,14 @@ writes types to `frontend/src/generated/schema.d.ts`.
 
 ## Formatting and Linting
 
-A convenience script runs all check, for both frontend and backend (the same
-checks that run on commit via prek):
+Run every check across the whole repo (same as CI):
 
 ```bash
-./scripts/lint_full.sh
+prek run --all-files --hook-stage pre-push
 ```
 
 Useful commands:
 
 - Format Rust code: `cargo fmt`
-- Lint Rust code: `cargo clippy --all -- -W clippy::all -W clippy::pedantic`
+- Lint Rust code: `cargo clippy` (lints come from `[lints.clippy]` in `Cargo.toml`)
 - Lint frontend: `cd frontend && npm run lint`
