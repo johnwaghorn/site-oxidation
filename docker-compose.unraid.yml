@@ -1,0 +1,11 @@
+services:
+  app:
+    image: ghcr.io/johnwaghorn/site-oxidation:latest
+    container_name: site-oxidation
+    ports:
+      - "8081:8080"
+    env_file: .env
+    volumes:
+      # Persistent SQLite DB and session.key (owned 99:100)
+      - /mnt/user/appdata/site-oxidation:/app/data
+    restart: unless-stopped
