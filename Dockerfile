@@ -20,6 +20,8 @@ COPY --from=frontend /static ./static
 COPY migrations/ ./migrations/
 # Unraid's nobody:users (99:100) so container can write the SQLite DB & session key
 RUN mkdir -p /app/data && chown 99:100 /app/data
+# Drop root: run as the uid:gid that owns /app/data and Unraid's appdata share
+USER 99:100
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -fsS http://localhost:8080/api/health || exit 1
