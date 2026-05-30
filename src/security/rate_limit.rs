@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_allows_under_limit() {
-        let limiter = LoginRateLimiter::new(3, Duration::from_secs(60));
+        let limiter = LoginRateLimiter::new(3, Duration::from_mins(1));
         let key = "127.0.0.1:admin";
         assert!(!limiter.record_failure(key));
         assert!(!limiter.record_failure(key));
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_blocks_at_limit() {
-        let limiter = LoginRateLimiter::new(3, Duration::from_secs(60));
+        let limiter = LoginRateLimiter::new(3, Duration::from_mins(1));
         let key = "127.0.0.1:admin";
         limiter.record_failure(key);
         limiter.record_failure(key);
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_clear_resets() {
-        let limiter = LoginRateLimiter::new(3, Duration::from_secs(60));
+        let limiter = LoginRateLimiter::new(3, Duration::from_mins(1));
         let key = "127.0.0.1:admin";
         limiter.record_failure(key);
         limiter.record_failure(key);
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_independent_keys() {
-        let limiter = LoginRateLimiter::new(2, Duration::from_secs(60));
+        let limiter = LoginRateLimiter::new(2, Duration::from_mins(1));
         limiter.record_failure("ip1:admin");
         limiter.record_failure("ip1:admin");
         assert!(limiter.is_blocked("ip1:admin"));

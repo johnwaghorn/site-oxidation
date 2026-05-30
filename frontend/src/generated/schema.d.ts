@@ -283,6 +283,8 @@ export interface components {
         ChangePasswordSuccess: {
             success: boolean;
         };
+        /** @enum {string} */
+        CertStatus: "valid" | "expiring" | "critical" | "expired" | "invalid" | "none";
         /**
          * Format: int64
          * @example 60
@@ -360,6 +362,9 @@ export interface components {
         };
         PaginatedResponse_SiteResponse: {
             data: {
+                /** Format: date-time */
+                cert_expires_at?: string | null;
+                cert_status?: null | components["schemas"]["CertStatus"];
                 /** Format: int64 */
                 expected_status: number;
                 expected_text?: string | null;
@@ -375,6 +380,7 @@ export interface components {
                 status: components["schemas"]["SiteStatus"];
                 /** Format: int64 */
                 team_id?: number | null;
+                tls_allow_untrusted: boolean;
                 url: string;
             }[];
             /** Format: int32 */
@@ -399,9 +405,13 @@ export interface components {
             probe_interval_seconds?: components["schemas"]["CheckInterval"];
             /** Format: int64 */
             team_id?: number | null;
+            tls_allow_untrusted?: boolean;
             url: components["schemas"]["SiteUrl"];
         };
         SiteResponse: {
+            /** Format: date-time */
+            cert_expires_at?: string | null;
+            cert_status?: null | components["schemas"]["CertStatus"];
             /** Format: int64 */
             expected_status: number;
             expected_text?: string | null;
@@ -417,10 +427,11 @@ export interface components {
             status: components["schemas"]["SiteStatus"];
             /** Format: int64 */
             team_id?: number | null;
+            tls_allow_untrusted: boolean;
             url: string;
         };
         /** @enum {string} */
-        SiteStatus: "pending" | "up" | "down";
+        SiteStatus: "pending" | "up" | "down" | "blocked";
         /** @example https://waghorn.tech */
         SiteUrl: string;
         SuccessResponse: {
@@ -1398,6 +1409,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: {
+                            /** Format: date-time */
+                            cert_expires_at?: string | null;
+                            cert_status?: null | components["schemas"]["CertStatus"];
                             /** Format: int64 */
                             expected_status: number;
                             expected_text?: string | null;
@@ -1413,6 +1427,7 @@ export interface operations {
                             status: components["schemas"]["SiteStatus"];
                             /** Format: int64 */
                             team_id?: number | null;
+                            tls_allow_untrusted: boolean;
                             url: string;
                         }[];
                         /** Format: int32 */

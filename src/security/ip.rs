@@ -1,12 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 fn is_v4_non_public(v4: Ipv4Addr) -> bool {
-    v4.is_loopback() || v4.is_private() || v4.is_link_local()
+    v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified()
 }
 
 fn is_v6_non_public(v6: &Ipv6Addr) -> bool {
     v6.is_loopback()
-        || (v6.segments()[0] & 0xfe00) == 0xfc00
+        || v6.is_unspecified()
+        || (v6.segments()[0] & 0xffc0) == 0xfe80 // link-local fe80::/10
+        || (v6.segments()[0] & 0xfe00) == 0xfc00 // unique-local fc00::/7
         || v6
             .to_ipv4_mapped()
             .or_else(|| v6.to_ipv4())
@@ -35,13 +37,17 @@ mod tests {
     #[case("192.168.0.1", true)]
     #[case("192.168.255.255", true)]
     #[case("169.254.1.1", true)]
+    #[case("0.0.0.0", true)]
     #[case("8.8.8.8", false)]
     #[case("1.1.1.1", false)]
     #[case("93.184.216.34", false)]
     #[case("172.32.0.1", false)]
     #[case("::1", true)]
+    #[case("::", true)]
     #[case("fd00::1", true)]
     #[case("fc00::1", true)]
+    #[case("fe80::1", true)]
+    #[case("febf::1", true)]
     #[case("2001:4860:4860::8888", false)]
     #[case("2606:4700:4700::1111", false)]
     #[case("::ffff:127.0.0.1", true)]

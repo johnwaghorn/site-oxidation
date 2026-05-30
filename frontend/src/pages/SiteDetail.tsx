@@ -7,6 +7,7 @@ import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { CertBadge } from "../components/ui/CertBadge";
 import {
   pageWrapper,
   pageTitle,
@@ -65,7 +66,15 @@ export function SiteDetail() {
       >
         <h1 style={pageTitle}>{site.name}</h1>
         <StatusBadge status={site.status} />
+        <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
       </div>
+
+      {site.cert_expires_at && (
+        <p style={{ ...mutedText, marginTop: "-12px", marginBottom: "24px" }}>
+          Certificate expiry:{" "}
+          {new Date(site.cert_expires_at).toLocaleDateString()}
+        </p>
+      )}
 
       <section style={section}>
         <h2>Edit Site</h2>

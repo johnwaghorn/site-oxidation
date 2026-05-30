@@ -1,4 +1,4 @@
-use crate::models::site::SiteStatus;
+use crate::models::site::{CertStatus, SiteStatus};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use utoipa::ToSchema;
@@ -15,6 +15,9 @@ pub struct SiteResponse {
     pub last_response_time_ms: Option<i64>,
     pub probe_interval_seconds: i64,
     pub team_id: Option<i64>,
+    pub tls_allow_untrusted: bool,
+    pub cert_status: Option<CertStatus>,
+    pub cert_expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize, sqlx::FromRow, ToSchema)]

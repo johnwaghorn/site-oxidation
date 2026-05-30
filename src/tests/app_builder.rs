@@ -16,6 +16,8 @@ pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
         bootstrap_trusted_ips: Vec::new(),
         canary_timeout_secs: 3,
         canary_url: "https://www.google.com".to_owned(),
+        cert_critical_days: 7,
+        cert_warn_days: 30,
         cookie_secure: false,
         data_dir: std::path::PathBuf::from(":memory:"),
         database_path: std::path::PathBuf::from(":memory:"),
@@ -47,11 +49,11 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
         config: test_config(allow_private_ips),
         login_limiter: std::sync::Arc::new(crate::security::rate_limit::LoginRateLimiter::new(
             5,
-            std::time::Duration::from_secs(60),
+            std::time::Duration::from_mins(1),
         )),
         admin_limiter: std::sync::Arc::new(crate::security::rate_limit::LoginRateLimiter::new(
             10,
-            std::time::Duration::from_secs(60),
+            std::time::Duration::from_mins(1),
         )),
     };
     let auth_routes = crate::api::auth::auth_routes();
@@ -96,11 +98,11 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
         config,
         login_limiter: std::sync::Arc::new(crate::security::rate_limit::LoginRateLimiter::new(
             5,
-            std::time::Duration::from_secs(60),
+            std::time::Duration::from_mins(1),
         )),
         admin_limiter: std::sync::Arc::new(crate::security::rate_limit::LoginRateLimiter::new(
             10,
-            std::time::Duration::from_secs(60),
+            std::time::Duration::from_mins(1),
         )),
     };
     let auth_routes = crate::api::auth::auth_routes();

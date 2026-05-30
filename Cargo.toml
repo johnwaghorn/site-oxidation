@@ -26,6 +26,9 @@ password-auth = "1.0"
 time = "0.3"
 dashmap = "6"
 getrandom = "0.2"
+tokio-rustls = "0.26"
+rustls-platform-verifier = "0.7"
+x509-cert = { version = "0.2", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 http-body-util = "0.1.3"

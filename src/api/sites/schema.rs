@@ -2,7 +2,7 @@
 
 use crate::api::errors::ApiError;
 use crate::api::pagination::PaginatedResponse;
-use crate::models::site::SiteStatus;
+use crate::models::site::{CertStatus, SiteStatus};
 use utoipa::OpenApi;
 
 use super::endpoints;
@@ -26,6 +26,7 @@ use super::responses::{OutageResponse, SiteResponse};
         PaginatedResponse<OutageResponse>,
         SitePayload,
         SiteStatus,
+        CertStatus,
         ApiError,
     )),
     tags(
