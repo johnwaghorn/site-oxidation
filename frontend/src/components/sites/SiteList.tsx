@@ -27,6 +27,7 @@ export function SiteList({ sites, onDelete }: SiteListProps) {
           <th style={tableCellLeft}>Name</th>
           <th style={tableCellLeft}>URL</th>
           <th style={tableCellCenter}>Status</th>
+          <th style={tableCellCenter}>Cert</th>
           <th style={tableCellRight}>Latency</th>
           <th style={tableCellRight}>Last Checked</th>
           {onDelete && <th style={tableCell}></th>}

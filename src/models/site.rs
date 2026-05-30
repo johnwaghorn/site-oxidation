@@ -8,6 +8,7 @@ pub enum SiteStatus {
     Pending,
     Up,
     Down,
+    Blocked,
 }
 
 impl SiteStatus {
@@ -18,6 +19,22 @@ impl SiteStatus {
     pub fn is_down(self) -> bool {
         matches!(self, SiteStatus::Down)
     }
+
+    pub fn is_blocked(self) -> bool {
+        matches!(self, SiteStatus::Blocked)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type, ToSchema)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum CertStatus {
+    Valid,
+    Expiring,
+    Critical,
+    Expired,
+    Invalid,
+    None,
 }
 
 #[derive(sqlx::FromRow)]
@@ -29,4 +46,5 @@ pub struct SiteRow {
     pub expected_text: Option<String>,
     pub status: SiteStatus,
     pub probe_interval_seconds: i64,
+    pub tls_allow_untrusted: bool,
 }

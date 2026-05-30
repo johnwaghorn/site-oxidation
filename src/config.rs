@@ -10,6 +10,8 @@ pub struct AppConfig {
     pub bootstrap_trusted_ips: Vec<std::net::IpAddr>,
     pub canary_timeout_secs: u64,
     pub canary_url: String,
+    pub cert_critical_days: i64,
+    pub cert_warn_days: i64,
     pub cookie_secure: bool,
     pub data_dir: PathBuf,
     pub database_path: PathBuf,
@@ -55,6 +57,28 @@ impl AppConfig {
             Ok(v) => v,
             Err(_) => "https://www.google.com".to_owned(),
         };
+        let cert_critical_days = match env::var("CERT_CRITICAL_DAYS") {
+            Ok(v) => v
+                .parse::<i64>()
+                .with_context(|| format!("Invalid CERT_CRITICAL_DAYS value: {v}"))?,
+            Err(_) => 7,
+        };
+        let cert_warn_days = match env::var("CERT_WARN_DAYS") {
+            Ok(v) => v
+                .parse::<i64>()
+                .with_context(|| format!("Invalid CERT_WARN_DAYS value: {v}"))?,
+            Err(_) => 30,
+        };
+        if cert_critical_days < 0 || cert_warn_days < 0 {
+            anyhow::bail!(
+                "CERT_CRITICAL_DAYS ({cert_critical_days}) and CERT_WARN_DAYS ({cert_warn_days}) must not be negative"
+            );
+        }
+        if cert_critical_days > cert_warn_days {
+            anyhow::bail!(
+                "CERT_CRITICAL_DAYS ({cert_critical_days}) must be <= CERT_WARN_DAYS ({cert_warn_days})"
+            );
+        }
         let cookie_secure = match env::var("COOKIE_SECURE") {
             Ok(v) => v
                 .parse::<bool>()
@@ -128,6 +152,8 @@ impl AppConfig {
             bootstrap_trusted_ips,
             canary_timeout_secs,
             canary_url,
+            cert_critical_days,
+            cert_warn_days,
             cookie_secure,
             data_dir,
             database_path,

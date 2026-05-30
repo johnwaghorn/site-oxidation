@@ -12,4 +12,6 @@ pub struct SitePayload {
     #[serde(default)]
     pub probe_interval_seconds: CheckInterval,
     pub team_id: Option<i64>,
+    #[serde(default)]
+    pub tls_allow_untrusted: bool,
 }

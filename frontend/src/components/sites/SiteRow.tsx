@@ -8,6 +8,7 @@ import {
   mutedText,
 } from "../../lib/styles";
 import { StatusBadge } from "../ui/StatusBadge";
+import { CertBadge } from "../ui/CertBadge";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
 
@@ -33,6 +34,9 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
       </td>
       <td style={tableCellCenter}>
         <StatusBadge status={site.status} />
+      </td>
+      <td style={tableCellCenter}>
+        <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
       </td>
       <td style={{ ...tableCellRight, fontFamily: "monospace" }}>
         {site.last_response_time_ms != null

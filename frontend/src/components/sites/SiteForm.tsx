@@ -36,6 +36,9 @@ export function SiteForm({
   const [teamId, setTeamId] = useState<number | null>(
     initialData?.team_id ?? null,
   );
+  const [tlsAllowUntrusted, setTlsAllowUntrusted] = useState(
+    initialData?.tls_allow_untrusted ?? false,
+  );
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -46,6 +49,7 @@ export function SiteForm({
       expected_text: expectedText || null,
       probe_interval_seconds: probeInterval,
       team_id: teamId,
+      tls_allow_untrusted: tlsAllowUntrusted,
     });
     if (mode === "create") {
       setName("");
@@ -53,6 +57,7 @@ export function SiteForm({
       setExpectedStatus(200);
       setExpectedText("");
       setTeamId(null);
+      setTlsAllowUntrusted(false);
     }
   };
 
@@ -69,7 +74,7 @@ export function SiteForm({
         required
         minLength={1}
         maxLength={100}
-        style={{ ...compactInput, flex: 1 }}
+        style={{ ...compactInput, flex: 1, minWidth: "140px" }}
       />
       <input
         type="url"
@@ -77,7 +82,7 @@ export function SiteForm({
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         required
-        style={{ ...compactInput, flex: 2 }}
+        style={{ ...compactInput, flex: 2, minWidth: "220px" }}
       />
       <input
         type="number"
@@ -93,7 +98,7 @@ export function SiteForm({
         placeholder="Expected text (optional)"
         value={expectedText}
         onChange={(e) => setExpectedText(e.target.value)}
-        style={{ ...compactInput, flex: 1 }}
+        style={{ ...compactInput, flex: 1, minWidth: "140px" }}
       />
       <select
         value={probeInterval}
@@ -123,6 +128,23 @@ export function SiteForm({
           ))}
         </select>
       )}
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+          fontSize: "14px",
+          whiteSpace: "nowrap",
+        }}
+        title="Skip TLS trust and hostname verification for this site. Use for internal boxes with untrusted certs."
+      >
+        <input
+          type="checkbox"
+          checked={tlsAllowUntrusted}
+          onChange={(e) => setTlsAllowUntrusted(e.target.checked)}
+        />
+        Allow untrusted
+      </label>
       <button type="submit" disabled={isLoading} style={compactInput}>
         {isLoading
           ? isEdit

@@ -4,14 +4,14 @@ mod config;
 mod db;
 mod jobs;
 mod models;
-mod net;
+mod probe;
 mod security;
 mod state;
 #[cfg(test)]
 mod tests;
 
 use crate::auth_backend::Backend;
-use crate::net::SafeResolver;
+use crate::security::resolver::SafeResolver;
 use anyhow::{Context, Result};
 use api::ApiDoc;
 use axum::Router;
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
     let _deletion_task = tokio::task::spawn(
         session_store
             .clone()
-            .continuously_delete_expired(Duration::from_secs(60)),
+            .continuously_delete_expired(Duration::from_mins(1)),
     );
     let key = security::session_key::get_or_create_key(&config.session_key_path, &config.data_dir)
         .context("Failed to load or create session key")?;
@@ -69,11 +69,11 @@ async fn main() -> Result<()> {
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
     let login_limiter = Arc::new(security::rate_limit::LoginRateLimiter::new(
         5,
-        Duration::from_secs(60),
+        Duration::from_mins(1),
     ));
     let admin_limiter = Arc::new(security::rate_limit::LoginRateLimiter::new(
         20,
-        Duration::from_secs(60),
+        Duration::from_mins(1),
     ));
     let pruner_limiter = Arc::clone(&login_limiter);
     let pruner_admin_limiter = Arc::clone(&admin_limiter);
@@ -83,14 +83,23 @@ async fn main() -> Result<()> {
         login_limiter,
         admin_limiter,
     };
-    let client = Client::builder()
-        .user_agent(&config.probe_user_agent)
-        .redirect(reqwest::redirect::Policy::none())
-        .dns_resolver(Arc::new(SafeResolver {
-            allow_private: config.probe_allow_private_ips,
-        }))
+    let resolver: Arc<SafeResolver> = Arc::new(SafeResolver {
+        allow_private: config.probe_allow_private_ips,
+    });
+    let probe_builder = || {
+        Client::builder()
+            .user_agent(&config.probe_user_agent)
+            .redirect(reqwest::redirect::Policy::none())
+            .dns_resolver(Arc::clone(&resolver))
+    };
+    let verifying_client = probe_builder()
         .build()
-        .context("Failed to build 'reqwest' client")?;
+        .context("Failed to build verifying probe client")?;
+    let untrusted_client = probe_builder()
+        .tls_danger_accept_invalid_certs(true)
+        .tls_danger_accept_invalid_hostnames(true)
+        .build()
+        .context("Failed to build no-verify probe client for tls_allow_untrusted sites")?;
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));
     let health_routes = api::healthcheck::health_routes();
     let auth_routes = api::auth::auth_routes();
@@ -126,11 +135,17 @@ async fn main() -> Result<()> {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
         loop {
             interval.tick().await;
-            check_all_sites(&client, &checker_pool, &checker_config).await;
+            check_all_sites(
+                &verifying_client,
+                &untrusted_client,
+                &checker_pool,
+                &checker_config,
+            )
+            .await;
         }
     });
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(300));
+        let mut interval = tokio::time::interval(Duration::from_mins(5));
         loop {
             interval.tick().await;
             pruner_limiter.prune_expired();

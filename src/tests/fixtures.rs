@@ -63,5 +63,6 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
         expected_text: None,
         status,
         probe_interval_seconds: TEST_PROBE_INTERVAL_SECONDS,
+        tls_allow_untrusted: false,
     }
 }

@@ -188,6 +188,7 @@ pub async fn create_site(
         .bind(payload.expected_text.as_ref().map(ExpectedText::as_str))
         .bind(payload.probe_interval_seconds.as_i64())
         .bind(team_id)
+        .bind(payload.tls_allow_untrusted)
         .fetch_one(&state.pool)
         .await
         .map_err(|e| {
@@ -235,6 +236,7 @@ pub async fn update_site(
         .bind(payload.expected_text.as_ref().map(ExpectedText::as_str))
         .bind(payload.probe_interval_seconds.as_i64())
         .bind(team_id)
+        .bind(payload.tls_allow_untrusted)
         .bind(id)
         .fetch_optional(&state.pool)
         .await

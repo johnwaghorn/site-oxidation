@@ -13,6 +13,8 @@ export const formInput: CSSProperties = {
 
 export const inlineForm: CSSProperties = {
   display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
   gap: "8px",
   marginBottom: "24px",
 };
