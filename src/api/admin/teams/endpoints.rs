@@ -7,7 +7,7 @@ use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
 use super::responses::TeamResponse;
 use crate::api::admin::responses::SuccessResponse;
-use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
+use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 
@@ -76,13 +76,7 @@ pub async fn create_team(
         .bind(&name)
         .fetch_one(&pool)
         .await
-        .map_err(|e| {
-            if e.to_string().contains("UNIQUE constraint failed") {
-                ApiErrorResponse::conflict("Team name already exists")
-            } else {
-                internal_err("Failed to create team", e)
-            }
-        })?;
+        .map_err(|e| unique_conflict_err("Team name already exists", "Failed to create team", e))?;
     Ok((
         StatusCode::CREATED,
         Json(TeamResponse {
@@ -127,13 +121,7 @@ pub async fn update_team(
         .bind(id)
         .fetch_optional(&pool)
         .await
-        .map_err(|e| {
-            if e.to_string().contains("UNIQUE constraint failed") {
-                ApiErrorResponse::conflict("Team name already exists")
-            } else {
-                internal_err("Failed to rename team", e)
-            }
-        })?;
+        .map_err(|e| unique_conflict_err("Team name already exists", "Failed to rename team", e))?;
 
     if updated.is_none() {
         return Err(ApiErrorResponse::not_found("Team"));
@@ -227,13 +215,11 @@ pub async fn add_team_member(
         .execute(&pool)
         .await
         .map_err(|e| {
-            if e.to_string().contains("UNIQUE constraint failed")
-                || e.to_string().contains("PRIMARY KEY constraint failed")
-            {
-                ApiErrorResponse::conflict("User is already a member of this team")
-            } else {
-                internal_err("Failed to add team member", e)
-            }
+            unique_conflict_err(
+                "User is already a member of this team",
+                "Failed to add team member",
+                e,
+            )
         })?;
     Ok((StatusCode::CREATED, Json(SuccessResponse { success: true })))
 }

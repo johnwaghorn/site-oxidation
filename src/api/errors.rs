@@ -26,6 +26,15 @@ where
     ApiErrorResponse::internal(msg)
 }
 
+pub fn unique_conflict_err(conflict_msg: &str, context: &str, e: sqlx::Error) -> ApiErrorResponse {
+    if e.as_database_error()
+        .is_some_and(sqlx::error::DatabaseError::is_unique_violation)
+    {
+        return ApiErrorResponse::conflict(conflict_msg);
+    }
+    internal_err(context, e)
+}
+
 impl ApiErrorResponse {
     pub fn not_found(resource: &str) -> Self {
         Self {

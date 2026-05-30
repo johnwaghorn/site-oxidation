@@ -11,7 +11,7 @@ use super::queries;
 use super::requests::{CreateUserRequest, ResetPasswordRequest, UpdateUserRequest};
 use super::responses::{CreateUserResponse, UserResponse};
 use crate::api::admin::responses::SuccessResponse;
-use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
+use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::models::user::UserRole;
@@ -138,13 +138,7 @@ pub async fn create_user(
         .bind(role_str)
         .fetch_one(&pool)
         .await
-        .map_err(|e| {
-            if e.to_string().contains("UNIQUE constraint failed") {
-                ApiErrorResponse::conflict("Username already exists")
-            } else {
-                internal_err("Failed to create user", e)
-            }
-        })?;
+        .map_err(|e| unique_conflict_err("Username already exists", "Failed to create user", e))?;
     Ok((
         StatusCode::CREATED,
         Json(CreateUserResponse {

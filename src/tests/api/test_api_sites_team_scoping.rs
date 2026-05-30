@@ -181,6 +181,134 @@ async fn test_non_admin_cannot_create_site_for_other_team(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_different_teams_can_monitor_the_same_url(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team B')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'up', 2)",
+    )
+    .bind(TEST_SITE_NAME)
+    .bind(TEST_SITE_URL)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let payload = format!(
+        r#"{{"name":"{TEST_SITE_NAME}","url":"{TEST_SITE_URL}","probe_interval_seconds":{TEST_PROBE_INTERVAL_SECONDS},"team_id":1}}"#,
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_same_team_cannot_duplicate_a_url(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'up', 1)",
+    )
+    .bind(TEST_SITE_NAME)
+    .bind(TEST_SITE_URL)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let payload = format!(
+        r#"{{"name":"A Different Name","url":"{TEST_SITE_URL}","probe_interval_seconds":{TEST_PROBE_INTERVAL_SECONDS},"team_id":1}}"#,
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_update_site_to_url_used_in_same_team_returns_409(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES ('Site One', 'https://one.waghorn.tech', 200, 'up', 1)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let target_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES ('Site Two', 'https://two.waghorn.tech', 200, 'up', 1) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let payload = format!(
+        r#"{{"name":"Site Two","url":"https://one.waghorn.tech","probe_interval_seconds":{TEST_PROBE_INTERVAL_SECONDS},"team_id":1}}"#,
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/sites/{target_id}"))
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_non_admin_list_shows_only_own_teams_sites(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")

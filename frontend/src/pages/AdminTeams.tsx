@@ -68,6 +68,7 @@ export function AdminTeams() {
   };
 
   const startEditing = (team: TeamResponse) => {
+    updateTeam.reset();
     setEditingTeam(team);
     setEditName(team.name);
   };
@@ -106,6 +107,9 @@ export function AdminTeams() {
         </button>
       </form>
       {createTeam.isError && <ErrorMessage error={createTeam.error} />}
+      {editingTeam && updateTeam.isError && (
+        <ErrorMessage error={updateTeam.error} />
+      )}
 
       {isLoading ? (
         <LoadingSpinner />

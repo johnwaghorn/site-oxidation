@@ -27,10 +27,6 @@ pagination gets slow. `created_at` for time-range queries and pruning.
 
 Search field towards the top of each page.
 
-## Cert expiry
-
-RAG colours for status
-
 ## User theme preferences
 
 e.g. Dark mode.

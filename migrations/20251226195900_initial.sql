@@ -26,7 +26,7 @@ CREATE TABLE team_members (
 CREATE TABLE sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 100),
-    url TEXT NOT NULL UNIQUE CHECK(length(url) BETWEEN 10 AND 2000),
+    url TEXT NOT NULL CHECK(length(url) BETWEEN 10 AND 2000),
     expected_status INTEGER DEFAULT 200 CHECK(expected_status BETWEEN 100 AND 599),
     expected_text TEXT CHECK(expected_text IS NULL OR length(expected_text) BETWEEN 1 AND 500),
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'up', 'down', 'blocked')),
@@ -52,4 +52,5 @@ CREATE TABLE outages (
 
 CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
 CREATE INDEX idx_team_members_user_id ON team_members(user_id);
-CREATE INDEX idx_sites_team_id ON sites(team_id);
+CREATE UNIQUE INDEX idx_sites_team_url ON sites(team_id, url);
+CREATE UNIQUE INDEX idx_sites_url_no_team ON sites(url) WHERE team_id IS NULL;

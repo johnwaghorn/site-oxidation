@@ -5,7 +5,7 @@ use super::queries::{
 };
 use super::validators::ExpectedText;
 use super::{OutageResponse, SitePayload, SiteResponse};
-use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
+use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAppAccess;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::models::user::UserRole;
@@ -164,6 +164,7 @@ pub async fn get_site_outages(
       responses(
           (status = 201, description = "Site created", body = SiteResponse),
           (status = 401, description = "Unauthorized", body = ApiError),
+          (status = 409, description = "A site with that URL already exists for this team", body = ApiError),
           (status = 422, description = "Site payload validation error", body = ApiError),
           (status = 500, description = "Internal server error", body = ApiError)
       ),
@@ -192,7 +193,8 @@ pub async fn create_site(
         .fetch_one(&state.pool)
         .await
         .map_err(|e| {
-            internal_err(
+            unique_conflict_err(
+                "A site with that URL already exists for this team",
                 &format!("Failed to insert site '{}'", payload.name.as_str()),
                 e,
             )
@@ -210,6 +212,7 @@ pub async fn create_site(
           (status = 400, description = "Invalid Site ID", body = ApiError),
           (status = 401, description = "Unauthorized", body = ApiError),
           (status = 404, description = "Site not found", body = ApiError),
+          (status = 409, description = "A site with that URL already exists for this team", body = ApiError),
           (status = 422, description = "Site payload validation error", body = ApiError),
           (status = 500, description = "Internal server error", body = ApiError)
       ),
@@ -240,7 +243,13 @@ pub async fn update_site(
         .bind(id)
         .fetch_optional(&state.pool)
         .await
-        .map_err(|e| internal_err(&format!("Failed to update site {id}"), e))?
+        .map_err(|e| {
+            unique_conflict_err(
+                "A site with that URL already exists for this team",
+                &format!("Failed to update site {id}"),
+                e,
+            )
+        })?
         .ok_or_else(|| ApiErrorResponse::not_found("Site"))
         .map(Json)
 }

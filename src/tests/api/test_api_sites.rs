@@ -56,6 +56,33 @@ async fn test_create_site(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_create_duplicate_url_returns_409(pool: SqlitePool) {
+    insert_test_site(&pool, SiteStatus::Up).await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let payload = format!(
+        r#"{{"name":"A Different Name","url":"{TEST_SITE_URL}","probe_interval_seconds":{TEST_PROBE_INTERVAL_SECONDS}}}"#,
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["message"],
+        "A site with that URL already exists for this team"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_create_site_invalid_payload_returns_422(pool: SqlitePool) {
     let (app, cookie) = authenticated_admin_app(pool, true).await;
     let response = app
