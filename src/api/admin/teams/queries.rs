@@ -1,9 +1,10 @@
 pub const LIST_TEAMS: &str = concat!(
     "SELECT t.id, t.name, ",
-    "COUNT(DISTINCT tm.user_id) AS member_count, ",
+    "COUNT(DISTINCT CASE WHEN u.active = 1 THEN tm.user_id END) AS member_count, ",
     "COUNT(DISTINCT s.id) AS site_count ",
     "FROM teams t ",
     "LEFT JOIN team_members tm ON t.id = tm.team_id ",
+    "LEFT JOIN users u ON u.id = tm.user_id ",
     "LEFT JOIN sites s ON t.id = s.team_id ",
     "GROUP BY t.id ",
     "ORDER BY t.id ",

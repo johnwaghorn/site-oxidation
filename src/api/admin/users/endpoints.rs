@@ -27,6 +27,7 @@ pub(super) struct ListUsersQuery {
     search: Option<String>,
     team_id: Option<i64>,
     exclude_team_id: Option<i64>,
+    active: Option<bool>,
 }
 
 impl ListUsersQuery {
@@ -70,6 +71,7 @@ pub async fn list_users(
         .bind(search.as_deref())
         .bind(params.team_id)
         .bind(params.exclude_team_id)
+        .bind(params.active)
         .bind(pagination.per_page())
         .bind(pagination.offset())
         .fetch_all(&pool)
@@ -79,6 +81,7 @@ pub async fn list_users(
         .bind(search.as_deref())
         .bind(params.team_id)
         .bind(params.exclude_team_id)
+        .bind(params.active)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count users", e))?;
@@ -260,6 +263,50 @@ pub async fn update_user(
         return Err(ApiErrorResponse::not_found("User"));
     }
     Ok(Json(SuccessResponse { success: true }))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/users/{id}",
+    params(("id" = i64, Path, description = "User ID")),
+    responses(
+        (status = 204, description = "User deleted"),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 403, description = "Admin access required", body = ApiError),
+        (status = 404, description = "User not found", body = ApiError),
+        (status = 409, description = "Cannot delete self or last active admin", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "admin/users",
+    security(("session_cookie" = [])),
+)]
+pub async fn delete_user(
+    RequireAdmin(admin): RequireAdmin,
+    State(pool): State<SqlitePool>,
+    Path(id): Path<i64>,
+) -> Result<StatusCode, ApiErrorResponse> {
+    if id == admin.id {
+        return Err(ApiErrorResponse::conflict("Cannot delete your own account"));
+    }
+    let deleted: Option<i64> = sqlx::query_scalar(queries::DELETE_USER)
+        .bind(id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to delete user", e))?;
+    if deleted.is_none() {
+        let user_exists: bool = sqlx::query_scalar(queries::USER_EXISTS)
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to check user", e))?;
+        if user_exists {
+            return Err(ApiErrorResponse::conflict(
+                "Cannot delete the last active admin",
+            ));
+        }
+        return Err(ApiErrorResponse::not_found("User"));
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(

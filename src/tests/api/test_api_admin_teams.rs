@@ -51,6 +51,43 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_team_member_count_excludes_inactive_users(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let active_id = insert_test_user(&pool, "active", TEST_PASSWORD, "user", false).await;
+    let inactive_id = insert_test_user(&pool, "inactive", TEST_PASSWORD, "user", false).await;
+    sqlx::query("UPDATE users SET active = 0 WHERE id = ?")
+        .bind(inactive_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?), (1, ?)")
+        .bind(active_id)
+        .bind(inactive_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["data"][0]["member_count"], 1);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_create_duplicate_team_returns_409(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")

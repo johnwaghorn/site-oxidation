@@ -316,6 +316,94 @@ async fn test_update_user_and_nonexistent_returns_404(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_delete_user_cascades_memberships_and_nonexistent_returns_404(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool.clone());
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/admin/users/{user_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let membership_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM team_members WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(membership_count, 0);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/admin/users/{user_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_cannot_delete_self(pool: SqlitePool) {
+    let admin_id = insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/admin/users/{admin_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_can_delete_other_admin_when_not_last(pool: SqlitePool) {
+    insert_test_user(&pool, "admin1", TEST_PASSWORD, "admin", false).await;
+    let admin2_id = insert_test_user(&pool, "admin2", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin1", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/admin/users/{admin2_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_cannot_demote_admin_without_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin1", TEST_PASSWORD, "admin", false).await;
     let admin2_id = insert_test_user(&pool, "admin2", TEST_PASSWORD, "admin", false).await;
@@ -499,6 +587,41 @@ async fn test_list_users_excludes_by_team_id(pool: SqlitePool) {
     assert!(!names.contains(&"alice"));
     assert!(names.contains(&"admin"));
     assert!(names.contains(&"bob"));
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_users_filters_by_active_status(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    insert_test_user(&pool, "active", TEST_PASSWORD, "user", false).await;
+    let inactive_id = insert_test_user(&pool, "inactive", TEST_PASSWORD, "user", false).await;
+    sqlx::query("UPDATE users SET active = 0 WHERE id = ?")
+        .bind(inactive_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users?active=true")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let names: Vec<&str> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|u| u["username"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"admin"));
+    assert!(names.contains(&"active"));
+    assert!(!names.contains(&"inactive"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

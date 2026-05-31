@@ -15,6 +15,7 @@ use super::responses::{CreateUserResponse, UserResponse};
         endpoints::list_users,
         endpoints::create_user,
         endpoints::update_user,
+        endpoints::delete_user,
         endpoints::reset_password,
     ),
     components(schemas(

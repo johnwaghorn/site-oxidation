@@ -6,14 +6,19 @@ import {
 } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { queryKeys } from "../lib/queryKeys";
-import type { components } from "../generated/schema";
+import type { components, operations } from "../generated/schema";
+
+type ListUsersQuery = NonNullable<
+  operations["list_users"]["parameters"]["query"]
+>;
 
 export interface AdminUsersFilters {
-  page: number;
-  perPage: number;
-  search?: string;
-  teamId?: number;
-  excludeTeamId?: number;
+  page: NonNullable<ListUsersQuery["page"]>;
+  perPage: NonNullable<ListUsersQuery["per_page"]>;
+  search?: ListUsersQuery["search"];
+  teamId?: ListUsersQuery["team_id"];
+  excludeTeamId?: ListUsersQuery["exclude_team_id"];
+  active?: ListUsersQuery["active"];
 }
 
 type CreateTeamRequest = components["schemas"]["CreateTeamRequest"];
@@ -63,6 +68,7 @@ export function useAdminUsers(filters: AdminUsersFilters) {
             search: filters.search || undefined,
             team_id: filters.teamId,
             exclude_team_id: filters.excludeTeamId,
+            active: filters.active,
           },
         },
       });
@@ -87,6 +93,7 @@ export function useCreateTeam() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.adminTeamsAll,
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
     },
   });
 }
@@ -112,6 +119,7 @@ export function useUpdateTeam() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.adminTeamsAll,
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
     },
   });
 }
@@ -129,6 +137,7 @@ export function useDeleteTeam() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.adminTeamsAll,
       });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
     },
   });
 }
@@ -204,6 +213,9 @@ export function useCreateUser() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.adminUsersAll,
       });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
     },
   });
 }
@@ -228,6 +240,29 @@ export function useUpdateUser() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.adminUsersAll,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await api.DELETE("/api/admin/users/{id}", {
+        params: { path: { id } },
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminUsersAll,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
       });
     },
   });

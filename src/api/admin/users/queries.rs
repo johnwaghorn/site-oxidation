@@ -11,9 +11,10 @@ pub const LIST_USERS: &str = concat!(
     "  AND (?3 IS NULL OR NOT EXISTS ( ",
     "       SELECT 1 FROM team_members tme WHERE tme.user_id = u.id AND tme.team_id = ?3 ",
     "  )) ",
+    "  AND (?4 IS NULL OR u.active = ?4) ",
     "GROUP BY u.id ",
     "ORDER BY u.id ",
-    "LIMIT ?4 OFFSET ?5"
+    "LIMIT ?5 OFFSET ?6"
 );
 
 pub const COUNT_USERS: &str = concat!(
@@ -24,7 +25,8 @@ pub const COUNT_USERS: &str = concat!(
     "  )) ",
     "  AND (?3 IS NULL OR NOT EXISTS ( ",
     "       SELECT 1 FROM team_members tme WHERE tme.user_id = u.id AND tme.team_id = ?3 ",
-    "  ))"
+    "  )) ",
+    "  AND (?4 IS NULL OR u.active = ?4)"
 );
 
 pub const INSERT_USER: &str = concat!(
@@ -45,6 +47,13 @@ pub const UPDATE_USER: &str = concat!(
 );
 
 pub const USER_EXISTS: &str = "SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)";
+
+pub const DELETE_USER: &str = concat!(
+    "DELETE FROM users WHERE id = ?1 AND (",
+    "  role != 'admin' OR active = 0 ",
+    "  OR (SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1) > 1",
+    ") RETURNING id"
+);
 
 pub const RESET_PASSWORD: &str =
     "UPDATE users SET password = ?, must_change_password = 1 WHERE id = ? RETURNING id";

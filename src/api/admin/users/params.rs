@@ -11,4 +11,6 @@ pub struct ListUsersParams {
     pub team_id: Option<i64>,
     /// Exclude members of this team from results.
     pub exclude_team_id: Option<i64>,
+    /// Restrict results by active status.
+    pub active: Option<bool>,
 }

@@ -244,12 +244,14 @@ function MemberPanel({ teamId }: MemberPanelProps) {
     page: membersPage,
     perPage: membersPerPage,
     teamId,
+    active: true,
   });
   const { data: candidatesData } = useAdminUsers({
     page: 1,
     perPage: 20,
     search: debouncedSearch.trim() || undefined,
     excludeTeamId: teamId,
+    active: true,
   });
 
   const addMember = useAddTeamMember();

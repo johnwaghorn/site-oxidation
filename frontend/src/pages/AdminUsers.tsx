@@ -11,6 +11,7 @@ import {
   useTeamOptions,
   useCreateUser,
   useUpdateUser,
+  useDeleteUser,
   useResetPassword,
 } from "../hooks/useAdmin";
 import { usePagination } from "../hooks/usePagination";
@@ -19,6 +20,7 @@ import { AdminNav } from "../components/ui/AdminNav";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Pagination } from "../components/ui/Pagination";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import {
   pageWrapper,
   backLink,
@@ -41,12 +43,14 @@ import type { components } from "../generated/schema";
 
 type UserResponse = components["schemas"]["UserResponse"];
 type UserRole = components["schemas"]["UserRole"];
+type TeamOption = components["schemas"]["TeamOption"];
 
 export function AdminUsers() {
   const { page, perPage, goToPage } = usePagination();
   const { data: users, isLoading, error } = useAdminUsers({ page, perPage });
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const deleteUser = useDeleteUser();
   const resetPassword = useResetPassword();
 
   const totalPages = users ? Math.ceil(users.total / users.per_page) : 0;
@@ -66,6 +70,7 @@ export function AdminUsers() {
 
   const [resettingUserId, setResettingUserId] = useState<number | null>(null);
   const [tempPassword, setTempPassword] = useState("");
+  const [userToDelete, setUserToDelete] = useState<UserResponse | null>(null);
 
   const resetCreateForm = () => {
     setNewUsername("");
@@ -156,6 +161,7 @@ export function AdminUsers() {
           Create User
         </button>
       )}
+      {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
 
       <div style={{ marginTop: "24px" }}>
         {isLoading ? (
@@ -232,6 +238,18 @@ export function AdminUsers() {
                               ? "Cancel"
                               : "Reset Password"}
                           </button>
+                          <button
+                            onClick={() => setUserToDelete(user)}
+                            style={{
+                              ...compactInput,
+                              color: "#dc2626",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Delete
+                          </button>
                         </div>
                         {resettingUserId === user.id && (
                           <div style={{ display: "flex", gap: "8px" }}>
@@ -290,6 +308,15 @@ export function AdminUsers() {
           <p style={mutedText}>No users found.</p>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={userToDelete !== null}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={() => userToDelete && deleteUser.mutate(userToDelete.id)}
+        title="Delete User"
+        message={`Are you sure you want to delete "${userToDelete?.username}"?`}
+        confirmText="Delete"
+        isDestructive
+      />
     </div>
   );
 }
@@ -398,7 +425,7 @@ function TeamCombobox({
   const optionId = (id: number) => `${listboxId}-opt-${id}`;
   const activeOption = activeIndex >= 0 ? opts[activeIndex] : undefined;
 
-  const selectOption = (team: { id: number; name: string }) => {
+  const selectOption = (team: TeamOption) => {
     onChange(team.id);
     setQuery(team.name);
     setOpen(false);
