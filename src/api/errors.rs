@@ -35,6 +35,15 @@ pub fn unique_conflict_err(conflict_msg: &str, context: &str, e: sqlx::Error) ->
     internal_err(context, e)
 }
 
+pub fn foreign_key_err(resource: &str, context: &str, e: sqlx::Error) -> ApiErrorResponse {
+    if e.as_database_error()
+        .is_some_and(sqlx::error::DatabaseError::is_foreign_key_violation)
+    {
+        return ApiErrorResponse::not_found(resource);
+    }
+    internal_err(context, e)
+}
+
 impl ApiErrorResponse {
     pub fn not_found(resource: &str) -> Self {
         Self {

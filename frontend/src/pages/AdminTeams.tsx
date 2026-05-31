@@ -110,6 +110,7 @@ export function AdminTeams() {
       {editingTeam && updateTeam.isError && (
         <ErrorMessage error={updateTeam.error} />
       )}
+      {deleteTeam.isError && <ErrorMessage error={deleteTeam.error} />}
 
       {isLoading ? (
         <LoadingSpinner />
@@ -388,6 +389,7 @@ function MemberPanel({ teamId }: MemberPanelProps) {
         )}
       </div>
       {addMember.isError && <ErrorMessage error={addMember.error} />}
+      {removeMember.isError && <ErrorMessage error={removeMember.error} />}
     </div>
   );
 }

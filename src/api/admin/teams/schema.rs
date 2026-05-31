@@ -7,12 +7,13 @@ use crate::api::errors::ApiError;
 
 use super::endpoints;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
-use super::responses::TeamResponse;
+use super::responses::{TeamOption, TeamResponse};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         endpoints::list_teams,
+        endpoints::list_team_options,
         endpoints::create_team,
         endpoints::update_team,
         endpoints::delete_team,
@@ -21,6 +22,7 @@ use super::responses::TeamResponse;
     ),
     components(schemas(
         TeamResponse,
+        TeamOption,
         CreateTeamRequest,
         UpdateTeamRequest,
         AddMemberRequest,

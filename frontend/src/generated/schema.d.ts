@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/teams/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_team_options"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/teams/{id}": {
         parameters: {
             query?: never;
@@ -296,6 +312,11 @@ export interface components {
         CreateUserRequest: {
             password: string;
             role: components["schemas"]["UserRole"];
+            /**
+             * Format: int64
+             * @description Ignored for role `admin`.
+             */
+            team_id?: number | null;
             username: string;
         };
         CreateUserResponse: {
@@ -438,6 +459,11 @@ export interface components {
         SiteUrl: string;
         SuccessResponse: {
             success: boolean;
+        };
+        TeamOption: {
+            /** Format: int64 */
+            id: number;
+            name: string;
         };
         TeamResponse: {
             /** Format: int64 */
@@ -608,6 +634,55 @@ export interface operations {
             };
         };
     };
+    list_team_options: {
+        parameters: {
+            query?: {
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 20 matching teams (id/name) for a selector typeahead */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamOption"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admin access required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     delete_team: {
         parameters: {
             query?: never;
@@ -654,7 +729,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Team has assigned sites */
+            /** @description Team has assigned sites or is the last team for a non-admin member */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -866,6 +941,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description Cannot remove a non-admin user's last team */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -991,8 +1075,26 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description Username already exists */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Validation error (e.g. missing team for a non-admin user) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1063,7 +1165,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
-            /** @description Cannot deactivate self or last admin */
+            /** @description Cannot deactivate self or last admin, or demote an admin without a team */
             409: {
                 headers: {
                     [name: string]: unknown;

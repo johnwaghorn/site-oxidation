@@ -11,6 +11,10 @@ use tower::ServiceExt;
 #[sqlx::test(migrations = "./migrations")]
 async fn test_create_and_list_users(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -22,7 +26,7 @@ async fn test_create_and_list_users(pool: SqlitePool) {
                 .header("cookie", &cookie)
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    r#"{"username":"newuser","password":"temp-pass-123","role":"user"}"#,
+                    r#"{"username":"newuser","password":"temp-pass-123","role":"user","team_id":1}"#,
                 ))
                 .unwrap(),
         )
@@ -113,13 +117,167 @@ async fn test_create_duplicate_username_returns_409(pool: SqlitePool) {
                 .header("cookie", &cookie)
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    r#"{"username":"admin","password":"temp-pass-123","role":"user"}"#,
+                    r#"{"username":"admin","password":"temp-pass-123","role":"admin"}"#,
                 ))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_user_requires_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"newuser","password":"temp-pass-123","role":"user"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_user_nonexistent_team_returns_404(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"newuser","password":"temp-pass-123","role":"user","team_id":999}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_admin_without_team_succeeds(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"newadmin","password":"temp-pass-123","role":"admin"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_user_with_team_adds_membership(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool.clone());
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"newuser","password":"temp-pass-123","role":"user","team_id":1}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let (count,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM team_members tm JOIN users u ON u.id = tm.user_id \
+         WHERE u.username = 'newuser' AND tm.team_id = 1",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        count, 1,
+        "new non-admin user should be a member of the team"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_duplicate_user_rolls_back(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    insert_test_user(&pool, "dupe", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (users_before,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let (members_before,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM team_members")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool.clone());
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"dupe","password":"temp-pass-123","role":"user","team_id":1}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    let (users_after,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let (members_after,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM team_members")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        users_after, users_before,
+        "rolled-back duplicate create must not add a user row"
+    );
+    assert_eq!(
+        members_after, members_before,
+        "rolled-back create must not add a membership row"
+    );
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -155,6 +313,57 @@ async fn test_update_user_and_nonexistent_returns_404(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_cannot_demote_admin_without_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin1", TEST_PASSWORD, "admin", false).await;
+    let admin2_id = insert_test_user(&pool, "admin2", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin1", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/admin/users/{admin2_id}"))
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"role":"user","active":true}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_can_demote_admin_with_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin1", TEST_PASSWORD, "admin", false).await;
+    let admin2_id = insert_test_user(&pool, "admin2", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(admin2_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin1", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/admin/users/{admin2_id}"))
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"role":"user","active":true}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[sqlx::test(migrations = "./migrations")]

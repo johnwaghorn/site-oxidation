@@ -177,10 +177,74 @@ async fn test_cannot_delete_team_with_sites(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_add_and_remove_team_member(pool: SqlitePool) {
+async fn test_cannot_delete_non_admin_users_last_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/admin/teams/1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_can_delete_team_when_non_admin_user_has_another_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?), (2, ?)")
+        .bind(user_id)
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/admin/teams/1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_add_and_remove_team_member(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (2, ?)")
+        .bind(user_id)
         .execute(&pool)
         .await
         .unwrap();
@@ -205,6 +269,63 @@ async fn test_add_and_remove_team_member(pool: SqlitePool) {
             Request::builder()
                 .method("DELETE")
                 .uri(format!("/admin/teams/1/members/{user_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_cannot_remove_non_admin_users_last_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/admin/teams/1/members/{user_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_can_remove_admins_last_team(pool: SqlitePool) {
+    let admin_id = insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(admin_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/admin/teams/1/members/{admin_id}"))
                 .header("cookie", &cookie)
                 .body(Body::empty())
                 .unwrap(),
@@ -312,4 +433,49 @@ async fn test_remove_nonexistent_membership_returns_404(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_team_options_unfiltered_and_search(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    for name in ["Engineering", "Marketing", "Operations"] {
+        sqlx::query("INSERT INTO teams (name) VALUES (?)")
+            .bind(name)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams/options")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let teams = body.as_array().unwrap();
+    assert_eq!(teams.len(), 3);
+    assert_eq!(teams[0]["name"], "Engineering");
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams/options?search=market")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let teams = body.as_array().unwrap();
+    assert_eq!(teams.len(), 1);
+    assert_eq!(teams[0]["name"], "Marketing");
 }

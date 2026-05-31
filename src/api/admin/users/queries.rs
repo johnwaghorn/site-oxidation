@@ -32,7 +32,19 @@ pub const INSERT_USER: &str = concat!(
     "VALUES (?, ?, ?, 1) RETURNING id"
 );
 
-pub const UPDATE_USER: &str = "UPDATE users SET role = ?, active = ? WHERE id = ? RETURNING id";
+pub const TEAM_EXISTS: &str = "SELECT COUNT(*) FROM teams WHERE id = ?";
+
+pub const ADD_TEAM_MEMBER: &str = "INSERT INTO team_members (team_id, user_id) VALUES (?, ?)";
+
+pub const UPDATE_USER: &str = concat!(
+    "UPDATE users SET role = ?1, active = ?2 ",
+    "WHERE id = ?3 AND (",
+    "  ?1 != 'user' ",
+    "  OR EXISTS(SELECT 1 FROM team_members WHERE user_id = ?3)",
+    ") RETURNING id"
+);
+
+pub const USER_EXISTS: &str = "SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)";
 
 pub const RESET_PASSWORD: &str =
     "UPDATE users SET password = ?, must_change_password = 1 WHERE id = ? RETURNING id";

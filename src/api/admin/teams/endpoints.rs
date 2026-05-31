@@ -1,11 +1,13 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use serde::Deserialize;
 use sqlx::SqlitePool;
+use utoipa::IntoParams;
 
 use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
-use super::responses::TeamResponse;
+use super::responses::{TeamOption, TeamResponse};
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAdmin;
@@ -45,6 +47,50 @@ pub async fn list_teams(
         per_page: params.per_page(),
         total,
     }))
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct TeamOptionsQuery {
+    pub search: Option<String>,
+}
+
+impl TeamOptionsQuery {
+    fn search(&self) -> Option<String> {
+        self.search
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/teams/options",
+    params(TeamOptionsQuery),
+    responses(
+        (status = 200, description = "Up to 20 matching teams (id/name) for a selector typeahead", body = [TeamOption]),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 403, description = "Admin access required", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "admin/teams",
+    security(("session_cookie" = [])),
+)]
+pub async fn list_team_options(
+    RequireAdmin(_user): RequireAdmin,
+    State(pool): State<SqlitePool>,
+    Query(params): Query<TeamOptionsQuery>,
+) -> Result<Json<Vec<TeamOption>>, ApiErrorResponse> {
+    const LIMIT: i64 = 20;
+    let options = sqlx::query_as::<_, TeamOption>(queries::SEARCH_TEAM_OPTIONS)
+        .bind(params.search())
+        .bind(LIMIT)
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to list team options", e))?;
+    Ok(Json(options))
 }
 
 #[utoipa::path(
@@ -138,7 +184,7 @@ pub async fn update_team(
         (status = 401, description = "Unauthorized", body = ApiError),
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 404, description = "Team not found", body = ApiError),
-        (status = 409, description = "Team has assigned sites", body = ApiError),
+        (status = 409, description = "Team has assigned sites or is the last team for a non-admin member", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/teams",
@@ -165,6 +211,16 @@ pub async fn delete_team(
         .await
         .map_err(|e| internal_err("Failed to delete team", e))?;
     if deleted.is_none() {
+        let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to check team", e))?;
+        if team_exists > 0 {
+            return Err(ApiErrorResponse::conflict(
+                "Cannot delete the last team assigned to a non-admin user",
+            ));
+        }
         return Err(ApiErrorResponse::not_found("Team"));
     }
 
@@ -236,6 +292,7 @@ pub async fn add_team_member(
         (status = 401, description = "Unauthorized", body = ApiError),
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 404, description = "Membership not found", body = ApiError),
+        (status = 409, description = "Cannot remove a non-admin user's last team", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/teams",
@@ -254,6 +311,17 @@ pub async fn remove_team_member(
         .map_err(|e| internal_err("Failed to remove team member", e))?;
 
     if deleted.is_none() {
+        let membership_exists: bool = sqlx::query_scalar(queries::MEMBERSHIP_EXISTS)
+            .bind(team_id)
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to check team membership", e))?;
+        if membership_exists {
+            return Err(ApiErrorResponse::conflict(
+                "Cannot remove a non-admin user's last team",
+            ));
+        }
         return Err(ApiErrorResponse::not_found("Membership"));
     }
     Ok(StatusCode::NO_CONTENT)

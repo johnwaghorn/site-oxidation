@@ -7,6 +7,8 @@ pub struct CreateUserRequest {
     pub username: String,
     pub password: String,
     pub role: UserRole,
+    /// Ignored for role `admin`.
+    pub team_id: Option<i64>,
 }
 
 #[derive(Deserialize, ToSchema)]

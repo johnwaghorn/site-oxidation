@@ -37,6 +37,20 @@ export function useAdminTeams(page = 1, perPage = 20) {
   });
 }
 
+export function useTeamOptions(search: string) {
+  return useQuery({
+    queryKey: queryKeys.adminTeamOptions(search),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/admin/teams/options", {
+        params: { query: { search: search || undefined } },
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useAdminUsers(filters: AdminUsersFilters) {
   return useQuery({
     queryKey: queryKeys.adminUsers(filters),
