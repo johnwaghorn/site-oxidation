@@ -13,6 +13,18 @@ pub const LIST_TEAMS: &str = concat!(
 
 pub const COUNT_TEAMS: &str = "SELECT COUNT(*) FROM teams";
 
+pub const SELECT_TEAM: &str = concat!(
+    "SELECT t.id, t.name, ",
+    "COUNT(DISTINCT CASE WHEN u.active = 1 THEN tm.user_id END) AS member_count, ",
+    "COUNT(DISTINCT s.id) AS site_count ",
+    "FROM teams t ",
+    "LEFT JOIN team_members tm ON t.id = tm.team_id ",
+    "LEFT JOIN users u ON u.id = tm.user_id ",
+    "LEFT JOIN sites s ON t.id = s.team_id ",
+    "WHERE t.id = ? ",
+    "GROUP BY t.id"
+);
+
 pub const SEARCH_TEAM_OPTIONS: &str = concat!(
     "SELECT id, name FROM teams ",
     "WHERE (?1 IS NULL OR name LIKE '%' || ?1 || '%') ",
@@ -35,6 +47,19 @@ pub const DELETE_TEAM: &str = concat!(
 );
 
 pub const COUNT_TEAM_SITES: &str = "SELECT COUNT(*) FROM sites WHERE team_id = ?";
+
+pub const LIST_TEAM_SITES: &str = concat!(
+    "SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, ",
+    "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
+    "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
+    "FROM sites s ",
+    "INNER JOIN teams t ON t.id = s.team_id ",
+    "WHERE s.team_id = ? ",
+    "ORDER BY s.id DESC LIMIT ? OFFSET ?"
+);
+
+pub const UNASSIGN_TEAM_SITE: &str =
+    "UPDATE sites SET team_id = NULL WHERE team_id = ? AND id = ? RETURNING id";
 
 pub const ADD_TEAM_MEMBER: &str = "INSERT INTO team_members (team_id, user_id) VALUES (?, ?)";
 

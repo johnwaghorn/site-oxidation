@@ -6,6 +6,7 @@ import { Login } from "./pages/Login";
 import { Setup } from "./pages/Setup";
 import { ChangePassword } from "./pages/ChangePassword";
 import { AdminTeams } from "./pages/AdminTeams";
+import { AdminTeamDetail } from "./pages/AdminTeamDetail";
 import { AdminUsers } from "./pages/AdminUsers";
 import { useAuth } from "./hooks/useAuth";
 import { useSetupStatus } from "./hooks/useSetup";
@@ -79,6 +80,7 @@ function App() {
         {role === "admin" && (
           <>
             <Route path="/admin/teams" element={<AdminTeams />} />
+            <Route path="/admin/teams/:id" element={<AdminTeamDetail />} />
             <Route path="/admin/users" element={<AdminUsers />} />
           </>
         )}

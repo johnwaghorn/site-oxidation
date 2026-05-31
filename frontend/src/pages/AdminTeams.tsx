@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AdminNav } from "../components/ui/AdminNav";
 import {
   useAdminTeams,
@@ -35,6 +35,7 @@ type TeamResponse = components["schemas"]["TeamResponse"];
 type UserResponse = components["schemas"]["UserResponse"];
 
 export function AdminTeams() {
+  const navigate = useNavigate();
   const { page, perPage, goToPage } = usePagination();
   const { data: teams, isLoading, error } = useAdminTeams(page, perPage);
   const createTeam = useCreateTeam();
@@ -155,7 +156,7 @@ export function AdminTeams() {
                         </button>
                       </form>
                     ) : (
-                      team.name
+                      <Link to={`/admin/teams/${team.id}`}>{team.name}</Link>
                     )}
                   </td>
                   <td style={tableCellCenter}>{team.member_count}</td>
@@ -212,15 +213,23 @@ export function AdminTeams() {
       <ConfirmDialog
         isOpen={teamToDelete !== null}
         onClose={() => setTeamToDelete(null)}
-        onConfirm={() => teamToDelete && deleteTeam.mutate(teamToDelete.id)}
+        onConfirm={() => {
+          if (!teamToDelete) return;
+          if (teamToDelete.site_count > 0) {
+            navigate(`/admin/teams/${teamToDelete.id}`);
+            return;
+          }
+          deleteTeam.mutate(teamToDelete.id);
+        }}
         title="Delete Team"
         message={
           teamToDelete?.site_count
-            ? `Cannot delete "${teamToDelete.name}" because it has ${teamToDelete.site_count} assigned site(s). Reassign them first.`
+            ? `"${teamToDelete.name}" still has ${teamToDelete.site_count} assigned site(s). Open the team details to reassign them or remove them from the team before deleting it.`
             : `Are you sure you want to delete "${teamToDelete?.name}"?`
         }
-        confirmText="Delete"
-        isDestructive
+        confirmText={teamToDelete?.site_count ? "Manage Sites" : "Delete"}
+        cancelText={teamToDelete?.site_count ? "Close" : "Cancel"}
+        isDestructive={!teamToDelete?.site_count}
       />
     </div>
   );

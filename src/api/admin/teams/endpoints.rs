@@ -12,6 +12,7 @@ use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
+use crate::api::sites::responses::SiteResponse;
 
 #[utoipa::path(
     get,
@@ -47,6 +48,119 @@ pub async fn list_teams(
         per_page: params.per_page(),
         total,
     }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/teams/{id}",
+    params(("id" = i64, Path, description = "Team ID")),
+    responses(
+        (status = 200, description = "Team details", body = TeamResponse),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 403, description = "Admin access required", body = ApiError),
+        (status = 404, description = "Team not found", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "admin/teams",
+    security(("session_cookie" = [])),
+)]
+pub async fn get_team(
+    RequireAdmin(_admin): RequireAdmin,
+    State(pool): State<SqlitePool>,
+    Path(id): Path<i64>,
+) -> Result<Json<TeamResponse>, ApiErrorResponse> {
+    let team = sqlx::query_as::<_, TeamResponse>(queries::SELECT_TEAM)
+        .bind(id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to get team", e))?
+        .ok_or_else(|| ApiErrorResponse::not_found("Team"))?;
+    Ok(Json(team))
+}
+
+#[utoipa::path(
+    get,
+    path = "/teams/{id}/sites",
+    params(
+        ("id" = i64, Path, description = "Team ID"),
+        PaginationParams,
+    ),
+    responses(
+        (status = 200, description = "List sites assigned to a team", body = inline(PaginatedResponse<SiteResponse>)),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 403, description = "Admin access required", body = ApiError),
+        (status = 404, description = "Team not found", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "admin/teams",
+    security(("session_cookie" = [])),
+)]
+pub async fn list_team_sites(
+    RequireAdmin(_admin): RequireAdmin,
+    State(pool): State<SqlitePool>,
+    Path(id): Path<i64>,
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<PaginatedResponse<SiteResponse>>, ApiErrorResponse> {
+    let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
+        .bind(id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to check team", e))?;
+    if team_exists == 0 {
+        return Err(ApiErrorResponse::not_found("Team"));
+    }
+    let sites = sqlx::query_as::<_, SiteResponse>(queries::LIST_TEAM_SITES)
+        .bind(id)
+        .bind(params.per_page())
+        .bind(params.offset())
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to list team sites", e))?;
+    let total: i64 = sqlx::query_scalar(queries::COUNT_TEAM_SITES)
+        .bind(id)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to count team sites", e))?;
+    Ok(Json(PaginatedResponse {
+        data: sites,
+        page: params.page(),
+        per_page: params.per_page(),
+        total,
+    }))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/teams/{id}/sites/{site_id}",
+    params(
+        ("id" = i64, Path, description = "Team ID"),
+        ("site_id" = i64, Path, description = "Site ID"),
+    ),
+    responses(
+        (status = 204, description = "Site removed from team"),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 403, description = "Admin access required", body = ApiError),
+        (status = 404, description = "Site is not assigned to team", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "admin/teams",
+    security(("session_cookie" = [])),
+)]
+pub async fn unassign_team_site(
+    RequireAdmin(_admin): RequireAdmin,
+    State(pool): State<SqlitePool>,
+    Path((team_id, site_id)): Path<(i64, i64)>,
+) -> Result<StatusCode, ApiErrorResponse> {
+    let updated: Option<i64> = sqlx::query_scalar(queries::UNASSIGN_TEAM_SITE)
+        .bind(team_id)
+        .bind(site_id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to remove site from team", e))?;
+    if updated.is_none() {
+        return Err(ApiErrorResponse::not_found("Site assignment"));
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize, IntoParams)]

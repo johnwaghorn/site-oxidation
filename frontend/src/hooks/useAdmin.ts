@@ -42,6 +42,35 @@ export function useAdminTeams(page = 1, perPage = 20) {
   });
 }
 
+export function useAdminTeam(id: number) {
+  return useQuery({
+    queryKey: queryKeys.adminTeam(id),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/admin/teams/{id}", {
+        params: { path: { id } },
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: id > 0,
+  });
+}
+
+export function useAdminTeamSites(id: number, page = 1, perPage = 20) {
+  return useQuery({
+    queryKey: queryKeys.adminTeamSites(id, page, perPage),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/admin/teams/{id}/sites", {
+        params: { path: { id }, query: { page, per_page: perPage } },
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: id > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useTeamOptions(search: string) {
   return useQuery({
     queryKey: queryKeys.adminTeamOptions(search),
@@ -138,6 +167,40 @@ export function useDeleteTeam() {
         queryKey: queryKeys.adminTeamsAll,
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
+    },
+  });
+}
+
+export function useUnassignTeamSite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      teamId,
+      siteId,
+    }: {
+      teamId: number;
+      siteId: number;
+    }) => {
+      const { error } = await api.DELETE(
+        "/api/admin/teams/{id}/sites/{site_id}",
+        {
+          params: { path: { id: teamId, site_id: siteId } },
+        },
+      );
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: async (_, { teamId, siteId }) => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeam(teamId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamSitesAll(teamId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminTeamsAll,
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.sitesAll });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.site(siteId) });
     },
   });
 }

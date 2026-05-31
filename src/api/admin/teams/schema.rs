@@ -4,6 +4,7 @@ use utoipa::OpenApi;
 
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::ApiError;
+use crate::api::sites::responses::SiteResponse;
 
 use super::endpoints;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
@@ -13,6 +14,9 @@ use super::responses::{TeamOption, TeamResponse};
 #[openapi(
     paths(
         endpoints::list_teams,
+        endpoints::get_team,
+        endpoints::list_team_sites,
+        endpoints::unassign_team_site,
         endpoints::list_team_options,
         endpoints::create_team,
         endpoints::update_team,
@@ -23,6 +27,7 @@ use super::responses::{TeamOption, TeamResponse};
     components(schemas(
         TeamResponse,
         TeamOption,
+        SiteResponse,
         CreateTeamRequest,
         UpdateTeamRequest,
         AddMemberRequest,

@@ -51,6 +51,126 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES \
+         ('Alpha Site', 'https://alpha.example.com', 200, 'pending', 1), \
+         ('Beta Site', 'https://beta.example.com', 200, 'pending', 2)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams/1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["name"], "Team Alpha");
+    assert_eq!(body["site_count"], 1);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams/1/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 1);
+    assert_eq!(body["data"][0]["name"], "Alpha Site");
+    assert_eq!(body["data"][0]["team_name"], "Team Alpha");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_unassign_site_from_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'pending', 1)",
+    )
+    .bind(TEST_SITE_NAME)
+    .bind(TEST_SITE_URL)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool.clone());
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/admin/teams/1/sites/1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let team_id: Option<i64> = sqlx::query_scalar("SELECT team_id FROM sites WHERE id = 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(team_id, None);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_cannot_unassign_site_from_wrong_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'pending', 1)",
+    )
+    .bind(TEST_SITE_NAME)
+    .bind(TEST_SITE_URL)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/admin/teams/2/sites/1")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_team_member_count_excludes_inactive_users(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let active_id = insert_test_user(&pool, "active", TEST_PASSWORD, "user", false).await;
