@@ -4,13 +4,14 @@ import type { components } from "../../generated/schema";
 
 type SitePayload = components["schemas"]["SitePayload"];
 type UserTeam = components["schemas"]["UserTeam"];
+type UserRole = components["schemas"]["UserRole"];
 
 interface SiteFormProps {
   onSubmit: (site: SitePayload) => void;
   isLoading?: boolean;
   mode?: "create" | "edit";
   initialData?: SitePayload;
-  role: "admin" | "user" | null;
+  role: UserRole | null;
   teams: UserTeam[];
 }
 

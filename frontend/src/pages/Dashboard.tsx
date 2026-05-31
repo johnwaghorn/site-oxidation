@@ -19,10 +19,11 @@ import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
 type UserTeam = components["schemas"]["UserTeam"];
+type UserRole = components["schemas"]["UserRole"];
 
 interface DashboardProps {
   username: string | null;
-  role: "admin" | "user" | null;
+  role: UserRole | null;
   teams: UserTeam[];
   onLogout: () => void;
   onChangePassword: () => void;
