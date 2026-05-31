@@ -11,3 +11,5 @@ pub const SELECT_USER_TEAMS: &str = concat!(
     "WHERE tm.user_id = ? ",
     "ORDER BY t.name"
 );
+
+pub const SELECT_ALL_TEAMS: &str = "SELECT id, name FROM teams ORDER BY name";

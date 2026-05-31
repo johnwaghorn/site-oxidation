@@ -75,6 +75,33 @@ async fn test_non_admin_can_create_with_team_id(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_admin_can_create_for_team_without_membership(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let payload = format!(
+        r#"{{"name":"{TEST_SITE_NAME}","url":"{TEST_SITE_URL}","probe_interval_seconds":{TEST_PROBE_INTERVAL_SECONDS},"team_id":1}}"#,
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_non_admin_cannot_access_other_teams_sites(pool: SqlitePool) {
     let user1_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
     insert_test_user(&pool, "user2", TEST_PASSWORD, "user", false).await;

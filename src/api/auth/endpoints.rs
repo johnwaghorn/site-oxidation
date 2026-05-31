@@ -11,6 +11,7 @@ use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess, UserTeam}
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAuth;
 use crate::auth_backend::{AuthSession, Credentials};
+use crate::models::user::UserRole;
 use crate::security::password::{
     validate_password_bounds, validate_password_changed, validate_password_not_username,
 };
@@ -111,11 +112,20 @@ pub async fn me(
     let user = auth_session
         .user
         .ok_or_else(ApiErrorResponse::unauthorized)?;
-    let teams = sqlx::query_as::<_, UserTeam>(super::queries::SELECT_USER_TEAMS)
-        .bind(user.id)
-        .fetch_all(&pool)
-        .await
-        .map_err(|e| internal_err("Failed to fetch user teams", e))?;
+    let teams = match user.role {
+        UserRole::Admin => {
+            sqlx::query_as::<_, UserTeam>(super::queries::SELECT_ALL_TEAMS)
+                .fetch_all(&pool)
+                .await
+        }
+        UserRole::User => {
+            sqlx::query_as::<_, UserTeam>(super::queries::SELECT_USER_TEAMS)
+                .bind(user.id)
+                .fetch_all(&pool)
+                .await
+        }
+    }
+    .map_err(|e| internal_err("Failed to fetch user teams", e))?;
     Ok(Json(MeSuccess {
         id: user.id,
         username: user.username,
