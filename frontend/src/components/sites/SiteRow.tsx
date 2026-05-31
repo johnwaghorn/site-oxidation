@@ -32,6 +32,9 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
           {site.url}
         </a>
       </td>
+      <td style={{ ...tableCell, ...mutedText, fontSize: "14px" }}>
+        {site.team_name ?? "No team"}
+      </td>
       <td style={tableCellCenter}>
         <StatusBadge status={site.status} />
       </td>

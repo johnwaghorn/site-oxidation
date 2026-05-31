@@ -15,6 +15,7 @@ pub struct SiteResponse {
     pub last_response_time_ms: Option<i64>,
     pub probe_interval_seconds: i64,
     pub team_id: Option<i64>,
+    pub team_name: Option<String>,
     pub tls_allow_untrusted: bool,
     pub cert_status: Option<CertStatus>,
     pub cert_expires_at: Option<DateTime<Utc>>,

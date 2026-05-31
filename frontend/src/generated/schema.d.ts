@@ -276,6 +276,8 @@ export interface components {
             password: string;
             username: string;
         };
+        /** @enum {string} */
+        CertStatus: "valid" | "expiring" | "critical" | "expired" | "invalid" | "none";
         ChangePasswordRequest: {
             current_password: string;
             new_password: string;
@@ -283,8 +285,6 @@ export interface components {
         ChangePasswordSuccess: {
             success: boolean;
         };
-        /** @enum {string} */
-        CertStatus: "valid" | "expiring" | "critical" | "expired" | "invalid" | "none";
         /**
          * Format: int64
          * @example 60
@@ -380,6 +380,7 @@ export interface components {
                 status: components["schemas"]["SiteStatus"];
                 /** Format: int64 */
                 team_id?: number | null;
+                team_name?: string | null;
                 tls_allow_untrusted: boolean;
                 url: string;
             }[];
@@ -427,6 +428,7 @@ export interface components {
             status: components["schemas"]["SiteStatus"];
             /** Format: int64 */
             team_id?: number | null;
+            team_name?: string | null;
             tls_allow_untrusted: boolean;
             url: string;
         };
@@ -1427,6 +1429,7 @@ export interface operations {
                             status: components["schemas"]["SiteStatus"];
                             /** Format: int64 */
                             team_id?: number | null;
+                            team_name?: string | null;
                             tls_allow_untrusted: boolean;
                             url: string;
                         }[];
@@ -1492,6 +1495,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description A site with that URL already exists for this team */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1623,6 +1635,15 @@ export interface operations {
             };
             /** @description Site not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description A site with that URL already exists for this team */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

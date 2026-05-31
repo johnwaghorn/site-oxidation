@@ -16,6 +16,14 @@ use axum::{
     http::status::StatusCode,
 };
 
+async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, ApiErrorResponse> {
+    sqlx::query_as::<_, SiteResponse>(SELECT_SITE_ADMIN)
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| internal_err(&format!("Failed to reload site {id}"), e))
+}
+
 #[utoipa::path(
     get,
     path = "/sites",
@@ -182,7 +190,7 @@ pub async fn create_site(
             "Private/internal IP addresses are not allowed",
         ));
     }
-    let result = sqlx::query_as::<_, SiteResponse>(INSERT_SITE)
+    let id: i64 = sqlx::query_scalar(INSERT_SITE)
         .bind(payload.name.as_str())
         .bind(payload.url.as_str())
         .bind(payload.expected_status.as_i64())
@@ -199,7 +207,8 @@ pub async fn create_site(
                 e,
             )
         })?;
-    Ok((StatusCode::CREATED, Json(result)))
+    let site = reload_site(&state.pool, id).await?;
+    Ok((StatusCode::CREATED, Json(site)))
 }
 
 #[utoipa::path(
@@ -232,7 +241,7 @@ pub async fn update_site(
             "Private/internal IP addresses are not allowed",
         ));
     }
-    sqlx::query_as::<_, SiteResponse>(UPDATE_SITE)
+    let updated: Option<i64> = sqlx::query_scalar(UPDATE_SITE)
         .bind(payload.name.as_str())
         .bind(payload.url.as_str())
         .bind(payload.expected_status.as_i64())
@@ -249,9 +258,12 @@ pub async fn update_site(
                 &format!("Failed to update site {id}"),
                 e,
             )
-        })?
-        .ok_or_else(|| ApiErrorResponse::not_found("Site"))
-        .map(Json)
+        })?;
+    if updated.is_none() {
+        return Err(ApiErrorResponse::not_found("Site"));
+    }
+    let site = reload_site(&state.pool, id).await?;
+    Ok(Json(site))
 }
 
 #[utoipa::path(

@@ -357,3 +357,132 @@ async fn test_non_admin_list_shows_only_own_teams_sites(pool: SqlitePool) {
     assert_eq!(body["per_page"], 20);
     assert_eq!(body["total"], 1);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_admin_list_includes_team_name(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'up', 1)",
+    )
+    .bind(TEST_SITE_NAME)
+    .bind(TEST_SITE_URL)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["data"][0]["team_name"], "Team A");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_non_admin_list_includes_team_name(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'up', 1)",
+    )
+    .bind(TEST_SITE_NAME)
+    .bind(TEST_SITE_URL)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["data"][0]["team_name"], "Team A");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_admin_unassigned_site_has_null_team_name(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO sites (name, url, expected_status, status) VALUES (?, ?, 200, 'up')")
+        .bind(TEST_SITE_NAME)
+        .bind(TEST_SITE_URL)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert!(body["data"][0]["team_name"].is_null());
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_site_response_includes_team_name(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let payload = format!(
+        r#"{{"name":"{TEST_SITE_NAME}","url":"{TEST_SITE_URL}","probe_interval_seconds":{TEST_PROBE_INTERVAL_SECONDS},"team_id":1}}"#,
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["team_name"], "Team A");
+}
