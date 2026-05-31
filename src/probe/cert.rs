@@ -126,6 +126,11 @@ async fn inspect_certificate(
     let expires_at = cert_expiry_from_der(leaf.as_ref())
         .ok_or_else(|| anyhow::anyhow!("could not read certificate notAfter"))?;
     let trusted = !allow_untrusted && is_cert_trusted(leaf, intermediates, &server_name);
+    if !allow_untrusted && !trusted {
+        tracing::warn!(
+            "Certificate for '{host}' is untrusted (self-signed or unknown issuer). Tick 'Allow untrusted' on this site if that is expected"
+        );
+    }
     Ok(CertFacts {
         expires_at,
         trusted,
