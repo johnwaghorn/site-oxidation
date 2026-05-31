@@ -1,4 +1,6 @@
-type SiteStatus = "pending" | "up" | "down" | "blocked";
+import type { components } from "../../generated/schema";
+
+type SiteStatus = components["schemas"]["SiteStatus"];
 
 interface StatusBadgeProps {
   status: SiteStatus;
