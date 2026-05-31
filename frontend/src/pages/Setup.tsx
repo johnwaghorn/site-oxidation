@@ -2,21 +2,22 @@ import { useState } from "react";
 import { useBootstrap } from "../hooks/useSetup";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { pageWrapper, formInput, subtitle } from "../lib/styles";
+import type { components } from "../generated/schema";
+
+type BootstrapResponse = components["schemas"]["BootstrapResponse"];
 
 interface SetupProps {
   onSetupComplete: () => void;
 }
 
 export function Setup({ onSetupComplete }: SetupProps) {
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(
-    null,
-  );
+  const [newAdmin, setNewAdmin] = useState<BootstrapResponse | null>(null);
   const bootstrap = useBootstrap();
 
   const handleBootstrap = () => {
     bootstrap.mutate(undefined, {
       onSuccess: (data) => {
-        setGeneratedPassword(data.password);
+        setNewAdmin(data);
       },
     });
   };
@@ -27,13 +28,16 @@ export function Setup({ onSetupComplete }: SetupProps) {
       <p style={subtitle}>
         You are first. No admin account exists yet. Create one to get started.
       </p>
-      {generatedPassword ? (
+      {newAdmin ? (
         <>
           <p>
-            Save this password now. It is only shown once. Store in a password
-            manager that encrypts your passwords if you can!
+            Save these now. The password is only shown once. Store them in a
+            password manager that encrypts your passwords if you can!
           </p>
-          <pre>{generatedPassword}</pre>
+          <p style={{ marginBottom: "4px", fontWeight: 500 }}>Username</p>
+          <pre>{newAdmin.username}</pre>
+          <p style={{ marginBottom: "4px", fontWeight: 500 }}>Password</p>
+          <pre>{newAdmin.password}</pre>
           <button onClick={onSetupComplete} style={formInput}>
             I saved my password, continue
           </button>
