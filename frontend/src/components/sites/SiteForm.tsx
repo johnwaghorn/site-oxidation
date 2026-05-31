@@ -103,7 +103,7 @@ export function SiteForm({
         title="Optional text that must appear in the response body for the site to count as up."
         value={expectedText}
         onChange={(e) => setExpectedText(e.target.value)}
-        style={{ ...compactInput, flex: 1, minWidth: "140px" }}
+        style={{ ...compactInput, flex: "1 1 150px", minWidth: "150px" }}
       />
       <select
         value={probeInterval}
