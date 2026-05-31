@@ -69,6 +69,7 @@ export function SiteForm({
       <input
         type="text"
         placeholder="Site name"
+        title="Display name to identify this site on the dashboard."
         value={name}
         onChange={(e) => setName(e.target.value)}
         required
@@ -79,6 +80,7 @@ export function SiteForm({
       <input
         type="url"
         placeholder="https://waghorn.tech"
+        title="Full URL to monitor, including https://. The cert check only runs for https URLs."
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         required
@@ -87,6 +89,7 @@ export function SiteForm({
       <input
         type="number"
         placeholder="Expected status code"
+        title="HTTP status code the site must return to be considered up (e.g. 200). Any other code marks it down."
         value={expectedStatus}
         onChange={(e) => setExpectedStatus(Number(e.target.value))}
         min={100}
@@ -96,6 +99,7 @@ export function SiteForm({
       <input
         type="text"
         placeholder="Expected text (optional)"
+        title="Optional text that must appear in the response body for the site to count as up."
         value={expectedText}
         onChange={(e) => setExpectedText(e.target.value)}
         style={{ ...compactInput, flex: 1, minWidth: "140px" }}
@@ -103,6 +107,7 @@ export function SiteForm({
       <select
         value={probeInterval}
         onChange={(e) => setProbeInterval(Number(e.target.value))}
+        title="How often this site is checked for availability."
         style={compactInput}
       >
         <option value={60}>1 minute</option>
@@ -118,6 +123,7 @@ export function SiteForm({
             setTeamId(e.target.value ? Number(e.target.value) : null)
           }
           required={isTeamRequired}
+          title="Team that owns this site. Only its members (and admins) can see it."
           style={compactInput}
         >
           <option value="">{isTeamRequired ? "Select team" : "No team"}</option>
