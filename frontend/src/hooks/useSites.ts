@@ -15,7 +15,7 @@ export function useSites(page = 1, perPage = 20) {
       if (error) throw new Error(error.message);
       return data!;
     },
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
   });
 }
 
