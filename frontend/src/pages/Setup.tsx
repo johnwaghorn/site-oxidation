@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useBootstrap } from "../hooks/useSetup";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
+import { CopyButton } from "../components/ui/CopyButton";
 import { pageWrapper, formInput, subtitle } from "../lib/styles";
 import type { components } from "../generated/schema";
 
@@ -35,9 +36,9 @@ export function Setup({ onSetupComplete }: SetupProps) {
             password manager that encrypts your passwords if you can!
           </p>
           <p style={{ marginBottom: "4px", fontWeight: 500 }}>Username</p>
-          <pre>{newAdmin.username}</pre>
+          <Credential value={newAdmin.username} />
           <p style={{ marginBottom: "4px", fontWeight: 500 }}>Password</p>
-          <pre>{newAdmin.password}</pre>
+          <Credential value={newAdmin.password} />
           <button onClick={onSetupComplete} style={formInput}>
             I saved my password, continue
           </button>
@@ -52,6 +53,36 @@ export function Setup({ onSetupComplete }: SetupProps) {
         </button>
       )}
       {bootstrap.isError && <ErrorMessage error={bootstrap.error} />}
+    </div>
+  );
+}
+
+function Credential({ value }: { value: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "8px",
+        marginBottom: "16px",
+        maxWidth: "640px",
+        padding: "8px",
+        borderRadius: "8px",
+        backgroundColor: "#161b22",
+      }}
+    >
+      <pre
+        style={{
+          margin: 0,
+          padding: "4px 8px",
+          overflowX: "auto",
+          color: "#e5e7eb",
+        }}
+      >
+        {value}
+      </pre>
+      <CopyButton value={value} />
     </div>
   );
 }
