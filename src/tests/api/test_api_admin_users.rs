@@ -7,6 +7,7 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_create_and_list_users(pool: SqlitePool) {
@@ -146,6 +147,34 @@ async fn test_create_user_requires_team(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+#[traced_test]
+async fn test_create_user_rate_limit_is_logged(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let request = || {
+        Request::builder()
+            .method("POST")
+            .uri("/admin/users")
+            .header("cookie", &cookie)
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"username":"","password":"temp-pass-123","role":"admin"}"#,
+            ))
+            .unwrap()
+    };
+    for _ in 0..10 {
+        let response = app.clone().oneshot(request()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let response = app.oneshot(request()).await.unwrap();
+    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert!(logs_contain("Rate limited admin action"));
+    assert!(logs_contain("admin_username=admin"));
+    assert!(logs_contain("action=\"create_user\""));
 }
 
 #[sqlx::test(migrations = "./migrations")]

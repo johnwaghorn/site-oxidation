@@ -1,6 +1,5 @@
 use crate::tests::{
-    LOOPBACK_IP, PUBLIC_IP, TEST_PASSWORD, capture_warn_logs, insert_test_user, parse_json_body,
-    test_app,
+    LOOPBACK_IP, PUBLIC_IP, TEST_PASSWORD, insert_test_user, parse_json_body, test_app,
 };
 use axum::{
     body::Body,
@@ -8,6 +7,7 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 fn bootstrap_request(ip: [u8; 4]) -> Request<Body> {
     let mut request = Request::builder()
@@ -70,9 +70,9 @@ async fn test_bootstrap_and_setup_status(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_bootstrap_rejected_from_public_ip(pool: SqlitePool) {
     let app = test_app(pool);
-    let (logs, _guard) = capture_warn_logs();
     let response = app.oneshot(bootstrap_request(PUBLIC_IP)).await.unwrap();
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
     let body = parse_json_body(response).await;
@@ -86,9 +86,10 @@ async fn test_bootstrap_rejected_from_public_ip(pool: SqlitePool) {
         .unwrap_or_default();
     assert!(message.contains("BOOTSTRAP_TRUSTED_IPS"));
     assert!(message.contains("BOOTSTRAP_REQUIRE_PRIVATE_IP=false"));
-    let output = logs.output();
-    assert!(output.contains("Rejected bootstrap attempt from an untrusted IP"));
-    assert!(output.contains("client_ip=8.8.8.8"));
+    assert!(logs_contain(
+        "Rejected bootstrap attempt from an untrusted IP"
+    ));
+    assert!(logs_contain("client_ip=8.8.8.8"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

@@ -206,8 +206,9 @@ async fn clear_site_cert(pool: &SqlitePool, site_id: i64) {
 mod tests {
     use super::*;
     use crate::models::site::SiteStatus;
-    use crate::tests::insert_test_site;
+    use crate::tests::{insert_test_site, test_config};
     use reqwest::StatusCode;
+    use tracing_test::traced_test;
 
     fn mock_site_down_result() -> ProbeResult {
         ProbeResult {
@@ -228,6 +229,19 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
+    async fn test_canary_failure_is_logged(pool: SqlitePool) {
+        let client = Client::new();
+        let mut config = test_config(true);
+        config.canary_url = "not a url".to_owned();
+        check_all_sites(&client, &client, &pool, &config).await;
+        assert!(logs_contain(
+            "Canary check failed. Skipping sites check. Network issue?"
+        ));
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
     async fn test_outage_created_when_site_goes_down(pool: SqlitePool) {
         let site = insert_test_site(&pool, SiteStatus::Up).await;
         update_site_status(&pool, &site, &mock_site_down_result()).await;
@@ -237,9 +251,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count.0, 1);
+        assert!(logs_contain("Site 'Waghorn Technology Ltd' is DOWN"));
     }
 
     #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
     async fn test_outage_closed_when_site_recovers(pool: SqlitePool) {
         let site = insert_test_site(&pool, SiteStatus::Down).await;
         sqlx::query("INSERT INTO outages (site_id, http_status, error_message) VALUES (?, ?, ?)")
@@ -257,6 +273,7 @@ mod tests {
                 .await
                 .unwrap();
         assert!(outage_ended.is_some());
+        assert!(logs_contain("Site 'Waghorn Technology Ltd' is back UP"));
     }
 
     #[sqlx::test(migrations = "./migrations")]
