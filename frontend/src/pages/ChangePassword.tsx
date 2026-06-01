@@ -7,6 +7,7 @@ import {
   errorBox,
   subtitle,
 } from "../lib/styles";
+import { FormInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
 type ChangePasswordRequest = components["schemas"]["ChangePasswordRequest"];
@@ -63,16 +64,15 @@ export function ChangePassword({
           : "You must change your password before continuing."}
       </p>
       <form onSubmit={handleSubmit} style={formColumn}>
-        <input
+        <FormInput
           type="password"
           placeholder="Current password"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           required
           autoComplete="current-password"
-          style={formInput}
         />
-        <input
+        <FormInput
           type="password"
           placeholder="New password (12+ characters)"
           value={newPassword}
@@ -80,9 +80,8 @@ export function ChangePassword({
           required
           minLength={12}
           autoComplete="new-password"
-          style={formInput}
         />
-        <input
+        <FormInput
           type="password"
           placeholder="Confirm new password"
           value={confirmPassword}
@@ -90,7 +89,6 @@ export function ChangePassword({
           required
           minLength={12}
           autoComplete="new-password"
-          style={formInput}
         />
         {error && <p style={errorBox}>{error}</p>}
         <button

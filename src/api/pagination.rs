@@ -19,7 +19,7 @@ pub struct PaginationParams {
     pub per_page: Option<u32>,
 }
 
-fn deserialize_u32_params<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+pub(crate) fn deserialize_u32_params<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -42,6 +42,10 @@ impl PaginationParams {
     const DEFAULT_PER_PAGE: u32 = 20;
     const MAX_PAGE: u32 = 10000;
     const MAX_PER_PAGE: u32 = 100;
+
+    pub fn new(page: Option<u32>, per_page: Option<u32>) -> Self {
+        Self { page, per_page }
+    }
 
     pub fn page(&self) -> u32 {
         self.page

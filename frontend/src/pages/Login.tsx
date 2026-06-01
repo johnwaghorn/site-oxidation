@@ -6,6 +6,7 @@ import {
   formInput,
   errorBox,
 } from "../lib/styles";
+import { FormInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
 type Credentials = components["schemas"]["Credentials"];
@@ -49,23 +50,21 @@ export function Login({ onLoginSuccess }: LoginProps) {
     <div style={formPageWrapper}>
       <h1 style={{ marginBottom: "24px" }}>Site Oxidation</h1>
       <form onSubmit={handleSubmit} style={formColumn}>
-        <input
+        <FormInput
           type="text"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
           autoComplete="username"
-          style={formInput}
         />
-        <input
+        <FormInput
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           autoComplete="current-password"
-          style={formInput}
         />
         {error && <p style={errorBox}>{error}</p>}
         <button

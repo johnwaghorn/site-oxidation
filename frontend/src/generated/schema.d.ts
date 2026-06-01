@@ -545,6 +545,8 @@ export interface operations {
                 page?: number;
                 /** @example 20 */
                 per_page?: number;
+                /** @description Case-insensitive substring match. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -669,6 +671,7 @@ export interface operations {
     list_team_options: {
         parameters: {
             query?: {
+                /** @description Case-insensitive substring match. */
                 search?: string;
             };
             header?: never;
@@ -1212,7 +1215,7 @@ export interface operations {
                 page?: number;
                 /** @example 20 */
                 per_page?: number;
-                /** @description Case-insensitive substring match against username. */
+                /** @description Case-insensitive substring match. */
                 search?: string;
                 /** @description Restrict results to members of this team. */
                 team_id?: number;
@@ -1810,6 +1813,8 @@ export interface operations {
                 page?: number;
                 /** @example 20 */
                 per_page?: number;
+                /** @description Case-insensitive substring match. */
+                search?: string;
             };
             header?: never;
             path?: never;

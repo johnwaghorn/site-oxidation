@@ -11,6 +11,9 @@ import type { components, operations } from "../generated/schema";
 type ListUsersQuery = NonNullable<
   operations["list_users"]["parameters"]["query"]
 >;
+type ListTeamsQuery = NonNullable<
+  operations["list_teams"]["parameters"]["query"]
+>;
 
 export interface AdminUsersFilters {
   page: NonNullable<ListUsersQuery["page"]>;
@@ -28,12 +31,16 @@ type CreateUserRequest = components["schemas"]["CreateUserRequest"];
 type UpdateUserRequest = components["schemas"]["UpdateUserRequest"];
 type ResetPasswordRequest = components["schemas"]["ResetPasswordRequest"];
 
-export function useAdminTeams(page = 1, perPage = 20) {
+export function useAdminTeams(
+  page = 1,
+  perPage = 20,
+  search?: ListTeamsQuery["search"],
+) {
   return useQuery({
-    queryKey: queryKeys.adminTeams(page, perPage),
+    queryKey: queryKeys.adminTeams(page, perPage, search),
     queryFn: async () => {
       const { data, error } = await api.GET("/api/admin/teams", {
-        params: { query: { page, per_page: perPage } },
+        params: { query: { page, per_page: perPage, search } },
       });
       if (error) throw new Error(error.message);
       return data!;

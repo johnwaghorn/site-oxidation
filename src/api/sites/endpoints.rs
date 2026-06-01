@@ -7,7 +7,8 @@ use super::validators::ExpectedText;
 use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAppAccess;
-use crate::api::pagination::{PaginatedResponse, PaginationParams};
+use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
+use crate::api::search::{SearchParams, normalize_search};
 use crate::models::user::UserRole;
 use crate::state::AppState;
 use axum::{
@@ -27,7 +28,7 @@ async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, A
 #[utoipa::path(
     get,
     path = "/sites",
-    params(PaginationParams),
+    params(PaginationParams, SearchParams),
     responses(
           (status = 200, description = "List all sites", body = inline(PaginatedResponse<SiteResponse>)),
           (status = 400, description = "Invalid query parameters", body = ApiError),
@@ -40,16 +41,20 @@ async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, A
 pub async fn list_sites(
     RequireAppAccess(user): RequireAppAccess,
     State(state): State<AppState>,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<ListSitesQuery>,
 ) -> Result<Json<PaginatedResponse<SiteResponse>>, ApiErrorResponse> {
+    let pagination = PaginationParams::new(params.page, params.per_page);
+    let search = normalize_search(params.search.as_deref());
     let (sites, total) = if user.role == UserRole::Admin {
         let sites = sqlx::query_as::<_, SiteResponse>(LIST_SITES_ADMIN)
-            .bind(params.per_page())
-            .bind(params.offset())
+            .bind(search)
+            .bind(pagination.per_page())
+            .bind(pagination.offset())
             .fetch_all(&state.pool)
             .await
             .map_err(|e| internal_err("Failed to list all sites", e))?;
         let total: i64 = sqlx::query_scalar(COUNT_SITES_ADMIN)
+            .bind(search)
             .fetch_one(&state.pool)
             .await
             .map_err(|e| internal_err("Failed to count all sites", e))?;
@@ -57,13 +62,15 @@ pub async fn list_sites(
     } else {
         let sites = sqlx::query_as::<_, SiteResponse>(LIST_SITES_USER)
             .bind(user.id)
-            .bind(params.per_page())
-            .bind(params.offset())
+            .bind(search)
+            .bind(pagination.per_page())
+            .bind(pagination.offset())
             .fetch_all(&state.pool)
             .await
             .map_err(|e| internal_err(&format!("Failed to list sites for user {}", user.id), e))?;
         let total: i64 = sqlx::query_scalar(COUNT_SITES_USER)
             .bind(user.id)
+            .bind(search)
             .fetch_one(&state.pool)
             .await
             .map_err(|e| internal_err(&format!("Failed to count sites for user {}", user.id), e))?;
@@ -71,10 +78,19 @@ pub async fn list_sites(
     };
     Ok(Json(PaginatedResponse {
         data: sites,
-        page: params.page(),
-        per_page: params.per_page(),
+        page: pagination.page(),
+        per_page: pagination.per_page(),
         total,
     }))
+}
+
+#[derive(serde::Deserialize)]
+pub struct ListSitesQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    per_page: Option<u32>,
+    search: Option<String>,
 }
 
 #[utoipa::path(

@@ -35,6 +35,71 @@ async fn test_list_sites_returns_inserted_site(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_list_sites_accepts_frontend_pagination_query(pool: SqlitePool) {
+    insert_test_site(&pool, SiteStatus::Up).await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites?page=1&per_page=20")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_sites_filters_by_name_or_url_and_ignores_blank_search(pool: SqlitePool) {
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status) VALUES \
+         ('Documentation', 'https://docs.waghorn.tech', 200, 'up'), \
+         ('Status Page', 'https://status.waghorn.tech', 200, 'up')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+
+    for (search, expected_name) in [
+        ("document", "Documentation"),
+        ("status.waghorn", "Status Page"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/sites?page=1&per_page=20&search={search}"))
+                    .header("cookie", &cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = parse_json_body(response).await;
+        assert_eq!(body["total"], 1);
+        assert_eq!(body["data"][0]["name"], expected_name);
+    }
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites?search=%20%20")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 2);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_create_site(pool: SqlitePool) {
     let (app, cookie) = authenticated_admin_app(pool, true).await;
     let payload = format!(

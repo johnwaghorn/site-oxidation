@@ -6,8 +6,8 @@ use axum::{
 use sqlx::SqlitePool;
 use tower::ServiceExt;
 
-const ALLOWED: &str = "https://myapp.example.com";
-const DISALLOWED: &str = "https://evil.example.com";
+const ALLOWED: &str = "https://myapp.waghorn.tech";
+const DISALLOWED: &str = "https://evil.waghorn.tech";
 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_cors_preflight_allowed_origin(pool: SqlitePool) {

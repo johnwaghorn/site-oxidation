@@ -1,16 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { queryKeys } from "../lib/queryKeys";
-import type { components } from "../generated/schema";
+import type { components, operations } from "../generated/schema";
 
 type SitePayload = components["schemas"]["SitePayload"];
+type ListSitesQuery = NonNullable<
+  operations["list_sites"]["parameters"]["query"]
+>;
 
-export function useSites(page = 1, perPage = 20) {
+export function useSites(
+  page = 1,
+  perPage = 20,
+  search?: ListSitesQuery["search"],
+) {
   return useQuery({
-    queryKey: queryKeys.sites(page, perPage),
+    queryKey: queryKeys.sites(page, perPage, search),
     queryFn: async () => {
       const { data, error } = await api.GET("/api/sites", {
-        params: { query: { page, per_page: perPage } },
+        params: { query: { page, per_page: perPage, search } },
       });
       if (error) throw new Error(error.message);
       return data!;

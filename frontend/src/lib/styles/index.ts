@@ -12,6 +12,8 @@ export {
   formInput,
   inlineForm,
   compactInput,
+  polishedFieldChrome,
+  polishedFieldFocus,
   comboboxList,
   comboboxItem,
   comboboxItemHovered,

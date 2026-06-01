@@ -635,7 +635,7 @@ async fn test_list_users_filters_by_search(pool: SqlitePool) {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/admin/users?search=al")
+                .uri("/admin/users?page=1&per_page=20&search=al")
                 .header("cookie", &cookie)
                 .body(Body::empty())
                 .unwrap(),

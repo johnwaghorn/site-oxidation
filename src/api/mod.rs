@@ -8,6 +8,7 @@ pub(crate) mod extractors;
 pub(crate) mod healthcheck;
 pub(crate) mod pagination;
 pub(crate) mod schema;
+pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod sites;
 

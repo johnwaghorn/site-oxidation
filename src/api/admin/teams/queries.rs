@@ -6,12 +6,14 @@ pub const LIST_TEAMS: &str = concat!(
     "LEFT JOIN team_members tm ON t.id = tm.team_id ",
     "LEFT JOIN users u ON u.id = tm.user_id ",
     "LEFT JOIN sites s ON t.id = s.team_id ",
+    "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
     "GROUP BY t.id ",
     "ORDER BY t.id ",
-    "LIMIT ? OFFSET ?"
+    "LIMIT ?2 OFFSET ?3"
 );
 
-pub const COUNT_TEAMS: &str = "SELECT COUNT(*) FROM teams";
+pub const COUNT_TEAMS: &str =
+    "SELECT COUNT(*) FROM teams WHERE (?1 IS NULL OR name LIKE '%' || ?1 || '%')";
 
 pub const SELECT_TEAM: &str = concat!(
     "SELECT t.id, t.name, ",

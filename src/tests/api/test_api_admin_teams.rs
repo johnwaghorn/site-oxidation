@@ -51,6 +51,69 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_list_teams_accepts_frontend_pagination_query(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams?page=1&per_page=20")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_teams_filters_by_search_and_ignores_blank_search(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Engineering'), ('Marketing')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams?page=1&per_page=20&search=engine")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 1);
+    assert_eq!(body["data"][0]["name"], "Engineering");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/teams?search=%20%20")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 2);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
@@ -59,8 +122,8 @@ async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
         .unwrap();
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES \
-         ('Alpha Site', 'https://alpha.example.com', 200, 'pending', 1), \
-         ('Beta Site', 'https://beta.example.com', 200, 'pending', 2)",
+         ('Alpha Site', 'https://alpha.waghorn.tech', 200, 'pending', 1), \
+         ('Beta Site', 'https://beta.waghorn.tech', 200, 'pending', 2)",
     )
     .execute(&pool)
     .await

@@ -15,14 +15,17 @@ use crate::api::errors::{
     ApiError, ApiErrorResponse, foreign_key_err, internal_err, unique_conflict_err,
 };
 use crate::api::extractors::RequireAdmin;
-use crate::api::pagination::{PaginatedResponse, PaginationParams};
+use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
+use crate::api::search::{SearchParams, normalize_search};
 use crate::models::user::UserRole;
 use crate::security::password::{validate_password_bounds, validate_password_not_username};
 use crate::state::AdminLimiter;
 
 #[derive(Deserialize)]
 pub(super) struct ListUsersQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
     page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
     per_page: Option<u32>,
     search: Option<String>,
     team_id: Option<i64>,
@@ -30,27 +33,10 @@ pub(super) struct ListUsersQuery {
     active: Option<bool>,
 }
 
-impl ListUsersQuery {
-    fn pagination(&self) -> PaginationParams {
-        PaginationParams {
-            page: self.page,
-            per_page: self.per_page,
-        }
-    }
-
-    fn search(&self) -> Option<String> {
-        self.search
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_owned)
-    }
-}
-
 #[utoipa::path(
     get,
     path = "/users",
-    params(PaginationParams, ListUsersParams),
+    params(PaginationParams, SearchParams, ListUsersParams),
     responses(
         (status = 200, description = "List all users", body = inline(PaginatedResponse<UserResponse>)),
         (status = 401, description = "Unauthorized", body = ApiError),
@@ -65,10 +51,10 @@ pub async fn list_users(
     State(pool): State<SqlitePool>,
     Query(params): Query<ListUsersQuery>,
 ) -> Result<Json<PaginatedResponse<UserResponse>>, ApiErrorResponse> {
-    let pagination = params.pagination();
-    let search = params.search();
+    let pagination = PaginationParams::new(params.page, params.per_page);
+    let search = normalize_search(params.search.as_deref());
     let users = sqlx::query_as::<_, UserResponse>(queries::LIST_USERS)
-        .bind(search.as_deref())
+        .bind(search)
         .bind(params.team_id)
         .bind(params.exclude_team_id)
         .bind(params.active)
@@ -78,7 +64,7 @@ pub async fn list_users(
         .await
         .map_err(|e| internal_err("Failed to list users", e))?;
     let total: i64 = sqlx::query_scalar(queries::COUNT_USERS)
-        .bind(search.as_deref())
+        .bind(search)
         .bind(params.team_id)
         .bind(params.exclude_team_id)
         .bind(params.active)

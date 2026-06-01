@@ -3,7 +3,6 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use serde::Deserialize;
 use sqlx::SqlitePool;
-use utoipa::IntoParams;
 
 use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
@@ -11,13 +10,23 @@ use super::responses::{TeamOption, TeamResponse};
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAdmin;
-use crate::api::pagination::{PaginatedResponse, PaginationParams};
+use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
+use crate::api::search::{SearchParams, normalize_search};
 use crate::api::sites::responses::SiteResponse;
+
+#[derive(Deserialize)]
+pub struct ListTeamsQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    per_page: Option<u32>,
+    search: Option<String>,
+}
 
 #[utoipa::path(
     get,
     path = "/teams",
-    params(PaginationParams),
+    params(PaginationParams, SearchParams),
     responses(
         (status = 200, description = "List all teams", body = inline(PaginatedResponse<TeamResponse>)),
         (status = 401, description = "Unauthorized", body = ApiError),
@@ -30,22 +39,26 @@ use crate::api::sites::responses::SiteResponse;
 pub async fn list_teams(
     RequireAdmin(_user): RequireAdmin,
     State(pool): State<SqlitePool>,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<ListTeamsQuery>,
 ) -> Result<Json<PaginatedResponse<TeamResponse>>, ApiErrorResponse> {
+    let pagination = PaginationParams::new(params.page, params.per_page);
+    let search = normalize_search(params.search.as_deref());
     let teams = sqlx::query_as::<_, TeamResponse>(queries::LIST_TEAMS)
-        .bind(params.per_page())
-        .bind(params.offset())
+        .bind(search)
+        .bind(pagination.per_page())
+        .bind(pagination.offset())
         .fetch_all(&pool)
         .await
         .map_err(|e| internal_err("Failed to list teams", e))?;
     let total: i64 = sqlx::query_scalar(queries::COUNT_TEAMS)
+        .bind(search)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count teams", e))?;
     Ok(Json(PaginatedResponse {
         data: teams,
-        page: params.page(),
-        per_page: params.per_page(),
+        page: pagination.page(),
+        per_page: pagination.per_page(),
         total,
     }))
 }
@@ -163,26 +176,10 @@ pub async fn unassign_team_site(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Deserialize, IntoParams)]
-#[into_params(parameter_in = Query)]
-pub struct TeamOptionsQuery {
-    pub search: Option<String>,
-}
-
-impl TeamOptionsQuery {
-    fn search(&self) -> Option<String> {
-        self.search
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_owned)
-    }
-}
-
 #[utoipa::path(
     get,
     path = "/teams/options",
-    params(TeamOptionsQuery),
+    params(SearchParams),
     responses(
         (status = 200, description = "Up to 20 matching teams (id/name) for a selector typeahead", body = [TeamOption]),
         (status = 401, description = "Unauthorized", body = ApiError),
@@ -195,11 +192,11 @@ impl TeamOptionsQuery {
 pub async fn list_team_options(
     RequireAdmin(_user): RequireAdmin,
     State(pool): State<SqlitePool>,
-    Query(params): Query<TeamOptionsQuery>,
+    Query(params): Query<SearchParams>,
 ) -> Result<Json<Vec<TeamOption>>, ApiErrorResponse> {
     const LIMIT: i64 = 20;
     let options = sqlx::query_as::<_, TeamOption>(queries::SEARCH_TEAM_OPTIONS)
-        .bind(params.search())
+        .bind(params.normalized())
         .bind(LIMIT)
         .fetch_all(&pool)
         .await

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSites, useCreateSite, useDeleteSite } from "../hooks/useSites";
 import { usePagination } from "../hooks/usePagination";
 import { SiteList } from "../components/sites/SiteList";
@@ -8,6 +8,9 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { UserMenu } from "../components/ui/UserMenu";
+import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
+import { FormToggleButton } from "../components/ui/FormToggleButton";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   pageWrapper,
   headerRow,
@@ -36,10 +39,17 @@ export function Dashboard({
   onLogout,
   onChangePassword,
 }: DashboardProps) {
-  const { page, goToPage } = usePagination();
-  const { data, isLoading, error } = useSites(page);
+  const { page, perPage, goToPage, resetPage } = usePagination();
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const { data, isLoading, error } = useSites(
+    page,
+    perPage,
+    debouncedSearch || undefined,
+  );
   const createSite = useCreateSite();
   const deleteSite = useDeleteSite();
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<SiteResponse | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
 
@@ -50,6 +60,10 @@ export function Dashboard({
     ? sites.filter((s) => s.team_id === selectedTeamId)
     : sites;
   const orphanedCount = sites.filter((s) => s.team_id == null).length;
+
+  useEffect(() => {
+    resetPage();
+  }, [debouncedSearch, resetPage]);
 
   return (
     <div style={pageWrapper}>
@@ -63,14 +77,44 @@ export function Dashboard({
         />
       </div>
 
-      <SiteForm
-        onSubmit={(site) => createSite.mutate(site)}
-        isLoading={createSite.isPending}
-        role={role}
-        teams={teams}
-      />
+      <SearchToolbar
+        action={
+          <FormToggleButton
+            isOpen={showCreateForm}
+            openLabel="Add Site"
+            onClick={() => {
+              createSite.reset();
+              setShowCreateForm(!showCreateForm);
+            }}
+          />
+        }
+      >
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search sites..."
+        />
+      </SearchToolbar>
 
-      {createSite.isError && <ErrorMessage error={createSite.error} />}
+      {showCreateForm && (
+        <div>
+          <SiteForm
+            onSubmit={(site) =>
+              createSite.mutate(site, {
+                onSuccess: () => setShowCreateForm(false),
+              })
+            }
+            onCancel={() => {
+              createSite.reset();
+              setShowCreateForm(false);
+            }}
+            isLoading={createSite.isPending}
+            role={role}
+            teams={teams}
+          />
+          {createSite.isError && <ErrorMessage error={createSite.error} />}
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingSpinner />

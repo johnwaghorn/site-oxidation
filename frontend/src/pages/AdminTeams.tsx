@@ -16,6 +16,9 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Pagination } from "../components/ui/Pagination";
+import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
+import { FormInput } from "../components/ui/FormControls";
+import { FormToggleButton } from "../components/ui/FormToggleButton";
 import {
   pageWrapper,
   backLink,
@@ -36,13 +39,20 @@ type UserResponse = components["schemas"]["UserResponse"];
 
 export function AdminTeams() {
   const navigate = useNavigate();
-  const { page, perPage, goToPage } = usePagination();
-  const { data: teams, isLoading, error } = useAdminTeams(page, perPage);
+  const { page, perPage, goToPage, resetPage } = usePagination();
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const {
+    data: teams,
+    isLoading,
+    error,
+  } = useAdminTeams(page, perPage, debouncedSearch || undefined);
   const createTeam = useCreateTeam();
   const updateTeam = useUpdateTeam();
   const deleteTeam = useDeleteTeam();
 
   const [newTeamName, setNewTeamName] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamResponse | null>(null);
   const [editName, setEditName] = useState("");
   const [teamToDelete, setTeamToDelete] = useState<TeamResponse | null>(null);
@@ -54,7 +64,10 @@ export function AdminTeams() {
     createTeam.mutate(
       { name: newTeamName.trim() },
       {
-        onSuccess: () => setNewTeamName(""),
+        onSuccess: () => {
+          setNewTeamName("");
+          setShowCreateForm(false);
+        },
       },
     );
   };
@@ -83,6 +96,10 @@ export function AdminTeams() {
     }
   }, [teams, page, goToPage]);
 
+  useEffect(() => {
+    resetPage();
+  }, [debouncedSearch, resetPage]);
+
   return (
     <div style={pageWrapper}>
       <Link to="/" style={backLink}>
@@ -90,28 +107,66 @@ export function AdminTeams() {
       </Link>
       <AdminNav />
 
-      <form onSubmit={handleCreateTeam} style={inlineForm}>
-        <input
-          type="text"
-          placeholder="New team name"
-          value={newTeamName}
-          onChange={(e) => setNewTeamName(e.target.value)}
-          required
-          style={{ ...compactInput, flex: 1 }}
-        />
-        <button
-          type="submit"
-          disabled={createTeam.isPending}
-          style={compactInput}
-        >
-          {createTeam.isPending ? "Creating..." : "Create Team"}
-        </button>
-      </form>
-      {createTeam.isError && <ErrorMessage error={createTeam.error} />}
       {editingTeam && updateTeam.isError && (
         <ErrorMessage error={updateTeam.error} />
       )}
       {deleteTeam.isError && <ErrorMessage error={deleteTeam.error} />}
+
+      <SearchToolbar
+        action={
+          <FormToggleButton
+            isOpen={showCreateForm}
+            openLabel="Create Team"
+            onClick={() => {
+              createTeam.reset();
+              if (showCreateForm) {
+                setNewTeamName("");
+              }
+              setShowCreateForm(!showCreateForm);
+            }}
+          />
+        }
+      >
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search teams..."
+        />
+      </SearchToolbar>
+
+      {showCreateForm && (
+        <div>
+          <form onSubmit={handleCreateTeam} style={inlineForm}>
+            <FormInput
+              type="text"
+              placeholder="New team name"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              required
+              style={{ flex: 1 }}
+            />
+            <button
+              type="submit"
+              disabled={createTeam.isPending}
+              style={compactInput}
+            >
+              {createTeam.isPending ? "Creating..." : "Create Team"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                createTeam.reset();
+                setNewTeamName("");
+                setShowCreateForm(false);
+              }}
+              style={compactInput}
+            >
+              Cancel
+            </button>
+          </form>
+          {createTeam.isError && <ErrorMessage error={createTeam.error} />}
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingSpinner />

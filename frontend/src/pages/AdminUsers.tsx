@@ -21,6 +21,9 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Pagination } from "../components/ui/Pagination";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
+import { FormInput, FormSelect } from "../components/ui/FormControls";
+import { FormToggleButton } from "../components/ui/FormToggleButton";
 import {
   pageWrapper,
   backLink,
@@ -46,8 +49,18 @@ type UserRole = components["schemas"]["UserRole"];
 type TeamOption = components["schemas"]["TeamOption"];
 
 export function AdminUsers() {
-  const { page, perPage, goToPage } = usePagination();
-  const { data: users, isLoading, error } = useAdminUsers({ page, perPage });
+  const { page, perPage, goToPage, resetPage } = usePagination();
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const {
+    data: users,
+    isLoading,
+    error,
+  } = useAdminUsers({
+    page,
+    perPage,
+    search: debouncedSearch || undefined,
+  });
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
@@ -60,6 +73,10 @@ export function AdminUsers() {
       goToPage(1);
     }
   }, [users, page, goToPage]);
+
+  useEffect(() => {
+    resetPage();
+  }, [debouncedSearch, resetPage]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
@@ -138,32 +155,52 @@ export function AdminUsers() {
       </Link>
       <AdminNav />
 
-      {showCreateForm ? (
-        <CreateUserForm
-          username={newUsername}
-          password={newPassword}
-          role={newRole}
-          teamId={newTeamId}
-          error={createError}
-          isPending={createUser.isPending}
-          onUsernameChange={setNewUsername}
-          onPasswordChange={setNewPassword}
-          onRoleChange={handleRoleChange}
-          onTeamChange={setNewTeamId}
-          onSubmit={handleCreateUser}
-          onCancel={() => {
-            resetCreateForm();
-            setShowCreateForm(false);
-          }}
-        />
-      ) : (
-        <button onClick={() => setShowCreateForm(true)} style={compactInput}>
-          Create User
-        </button>
-      )}
       {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
 
-      <div style={{ marginTop: "24px" }}>
+      <SearchToolbar
+        action={
+          <FormToggleButton
+            isOpen={showCreateForm}
+            openLabel="Create User"
+            onClick={() => {
+              if (showCreateForm) {
+                resetCreateForm();
+              }
+              setShowCreateForm(!showCreateForm);
+            }}
+          />
+        }
+      >
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search users..."
+        />
+      </SearchToolbar>
+
+      {showCreateForm && (
+        <div style={{ marginBottom: "24px" }}>
+          <CreateUserForm
+            username={newUsername}
+            password={newPassword}
+            role={newRole}
+            teamId={newTeamId}
+            error={createError}
+            isPending={createUser.isPending}
+            onUsernameChange={setNewUsername}
+            onPasswordChange={setNewPassword}
+            onRoleChange={handleRoleChange}
+            onTeamChange={setNewTeamId}
+            onSubmit={handleCreateUser}
+            onCancel={() => {
+              resetCreateForm();
+              setShowCreateForm(false);
+            }}
+          />
+        </div>
+      )}
+
+      <div>
         {isLoading ? (
           <LoadingSpinner />
         ) : error ? (
@@ -355,37 +392,37 @@ function CreateUserForm({
     <form onSubmit={onSubmit} style={{ ...formColumn, maxWidth: "400px" }}>
       <label>
         <span style={mutedText}>Username</span>
-        <input
+        <FormInput
           type="text"
           placeholder="e.g. jsmith"
           value={username}
           onChange={(e) => onUsernameChange(e.target.value)}
           required
-          style={{ ...formInput, display: "block", width: "100%" }}
+          style={{ display: "block", width: "100%" }}
         />
       </label>
       <label>
         <span style={mutedText}>Temporary password</span>
-        <input
+        <FormInput
           type="text"
           placeholder="12+ characters"
           value={password}
           onChange={(e) => onPasswordChange(e.target.value)}
           required
           minLength={12}
-          style={{ ...formInput, display: "block", width: "100%" }}
+          style={{ display: "block", width: "100%" }}
         />
       </label>
       <label>
         <span style={mutedText}>Role</span>
-        <select
+        <FormSelect
           value={role}
           onChange={(e) => onRoleChange(e.target.value as UserRole)}
-          style={{ ...formInput, display: "block", width: "100%" }}
+          style={{ display: "block", width: "100%" }}
         >
           <option value="user">User</option>
           <option value="admin">Admin</option>
-        </select>
+        </FormSelect>
       </label>
       {needsTeam && <TeamCombobox teamId={teamId} onChange={onTeamChange} />}
       {error && <p style={errorBox}>{error}</p>}
@@ -462,7 +499,7 @@ function TeamCombobox({
     <label>
       <span style={mutedText}>Team</span>
       <div style={{ position: "relative" }}>
-        <input
+        <FormInput
           type="text"
           role="combobox"
           aria-expanded={listOpen}
@@ -482,7 +519,7 @@ function TeamCombobox({
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onKeyDown={handleKeyDown}
-          style={{ ...formInput, display: "block", width: "100%" }}
+          style={{ display: "block", width: "100%" }}
         />
         {listOpen && (
           <ul

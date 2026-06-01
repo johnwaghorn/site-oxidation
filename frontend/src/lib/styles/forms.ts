@@ -23,6 +23,23 @@ export const compactInput: CSSProperties = {
   padding: "8px",
 };
 
+export const polishedFieldChrome: CSSProperties = {
+  boxSizing: "border-box",
+  padding: "10px 12px",
+  border: "1px solid GrayText",
+  borderRadius: "8px",
+  backgroundColor: "Field",
+  color: "FieldText",
+  fontSize: "14px",
+  transition: "border-color 150ms ease, box-shadow 150ms ease",
+};
+
+export const polishedFieldFocus: CSSProperties = {
+  borderColor: "#646cff",
+  boxShadow: "0 0 0 3px rgba(100, 108, 255, 0.2)",
+  outline: "none",
+};
+
 export const comboboxList: CSSProperties = {
   position: "absolute",
   zIndex: 10,

@@ -13,7 +13,7 @@ export function ErrorMessage({ error }: ErrorMessageProps) {
         borderRadius: "4px",
       }}
     >
-      Error: {error.message}
+      Error: {error.message || "Something went wrong. Please try again."}
     </div>
   );
 }
