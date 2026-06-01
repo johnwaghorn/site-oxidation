@@ -1,6 +1,7 @@
 use crate::tests::{
     TEST_NEW_PASSWORD, TEST_PASSWORD, WRONG_PASSWORD, build_change_password_request,
-    build_login_request, insert_test_user, login_and_get_cookie, parse_json_body, test_app,
+    build_login_request, capture_warn_logs, insert_test_user, login_and_get_cookie,
+    parse_json_body, test_app,
 };
 use axum::{
     body::Body,
@@ -127,9 +128,29 @@ async fn test_password_change_with_wrong_current_password_fails(pool: SqlitePool
 async fn test_login_with_invalid_credentials_fails(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);
+    let (logs, _guard) = capture_warn_logs();
     let response = app
         .oneshot(build_login_request("admin", WRONG_PASSWORD))
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let output = logs.output();
+    assert!(output.contains("Failed login attempt for 'admin' from 127.0.0.1"));
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_login_rate_limit_is_logged(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let (logs, _guard) = capture_warn_logs();
+    for _ in 0..5 {
+        let response = app
+            .clone()
+            .oneshot(build_login_request("admin", WRONG_PASSWORD))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    let output = logs.output();
+    assert!(output.contains("Login rate limit reached for 127.0.0.1"));
 }

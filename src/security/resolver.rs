@@ -43,3 +43,19 @@ impl Resolve for SafeResolver {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::capture_warn_logs;
+
+    #[tokio::test]
+    async fn private_ip_rejection_is_logged() {
+        let (logs, _guard) = capture_warn_logs();
+        let result = resolve_public_addrs("127.0.0.1", 443, false).await;
+        assert!(matches!(result, Err(ResolveError::PrivateIp { .. })));
+        let output = logs.output();
+        assert!(output.contains("Blocked '127.0.0.1': resolves to private/internal IP"));
+        assert!(output.contains("PROBE_ALLOW_PRIVATE_IPS=true"));
+    }
+}

@@ -77,6 +77,7 @@ pub struct PaginatedResponse<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::capture_warn_logs;
     #[test]
     fn test_page_clamped_to_min() {
         let params = PaginationParams {
@@ -138,5 +139,22 @@ mod tests {
         assert_eq!(PaginationParams::DEFAULT_PER_PAGE, 20);
         assert_eq!(PaginationParams::MAX_PAGE, 10000);
         assert_eq!(PaginationParams::MAX_PER_PAGE, 100);
+    }
+
+    #[test]
+    fn test_u32_overflow_is_logged_and_uses_default() {
+        #[derive(Deserialize)]
+        struct OverflowParam {
+            #[serde(deserialize_with = "deserialize_u32_params")]
+            value: Option<u32>,
+        }
+        let (logs, _guard) = capture_warn_logs();
+        let param: OverflowParam = serde_json::from_value(serde_json::json!({
+            "value": u64::from(u32::MAX) + 1,
+        }))
+        .unwrap();
+        assert_eq!(param.value, None);
+        let output = logs.output();
+        assert!(output.contains("exceeds u32 max, using default value"));
     }
 }

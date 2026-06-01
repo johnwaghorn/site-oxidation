@@ -51,8 +51,12 @@ pub async fn bootstrap(
     let is_trusted = is_private_ip(&client_ip) || config.bootstrap_trusted_ips.contains(&client_ip);
     tracing::info!("Bootstrap attempt from IP: {client_ip} (trusted: {is_trusted})");
     if config.bootstrap_require_private_ip && !is_trusted {
+        tracing::warn!(
+            client_ip = %client_ip,
+            "Rejected bootstrap attempt from an untrusted IP. Connect from a private network, add the IP to BOOTSTRAP_TRUSTED_IPS, or set BOOTSTRAP_REQUIRE_PRIVATE_IP=false if public bootstrap access is intentional."
+        );
         return Err(ApiErrorResponse::forbidden(
-            "Bootstrap restricted to local/private network or trusted IPs. Check VPNs.",
+            "Bootstrap is restricted to local/private networks. Connect from a private network, add your IP to BOOTSTRAP_TRUSTED_IPS, or set BOOTSTRAP_REQUIRE_PRIVATE_IP=false if public bootstrap access is intentional.",
         ));
     }
     let mut conn = pool
