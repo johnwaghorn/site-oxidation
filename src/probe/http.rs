@@ -81,25 +81,8 @@ pub async fn check_url(
 mod tests {
     use super::*;
     use crate::security::resolver::SafeResolver;
+    use crate::tests::TestHttpServer;
     use std::sync::Arc;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpListener;
-    use tokio::task::JoinHandle;
-
-    async fn start_local_http_server() -> (u16, JoinHandle<()>) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
-        let handle = tokio::spawn(async move {
-            if let Ok((mut socket, _)) = listener.accept().await {
-                let mut buf = [0u8; 2048];
-                let _ = socket.read(&mut buf).await;
-                let response =
-                    b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
-                let _ = socket.write_all(response).await;
-            }
-        });
-        (port, handle)
-    }
 
     #[tokio::test]
     async fn test_check_url_blocks_literal_private_ip_when_private_ips_disabled() {
@@ -117,22 +100,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_url_allows_literal_private_ip_when_private_ips_enabled() {
-        let (port, server_handle) = start_local_http_server().await;
+        let server = TestHttpServer::start().await;
         let client = Client::new();
         let check = CheckExpectation {
             expected_status: 200,
             expected_text: None,
         };
-        let url = format!("http://127.0.0.1:{port}");
-        let result = check_url(&client, &url, &check, 1, true).await;
+        let url = server.base_url();
+        let result = check_url(&client, url, &check, 1, true).await;
         assert!(result.status.is_up());
         assert_eq!(result.status_code, Some(StatusCode::OK));
-        server_handle.await.unwrap();
     }
 
     #[tokio::test]
     async fn test_check_url_blocks_hostname_that_resolves_to_private_ip() {
-        let (port, server_handle) = start_local_http_server().await;
+        let server = TestHttpServer::start().await;
         let client = Client::builder()
             .dns_resolver(Arc::new(SafeResolver {
                 allow_private: false,
@@ -143,18 +125,17 @@ mod tests {
             expected_status: 200,
             expected_text: None,
         };
-        let url = format!("http://localhost:{port}");
+        let url = format!("http://localhost:{}", server.port());
         let result = check_url(&client, &url, &check, 1, false).await;
         assert!(
             result.status.is_blocked(),
             "hostname resolving to a private IP should mark site as Blocked"
         );
-        server_handle.abort();
     }
 
     #[tokio::test]
     async fn test_check_url_allows_hostname_resolving_to_private_ip_when_private_ips_enabled() {
-        let (port, _server_handle) = start_local_http_server().await;
+        let server = TestHttpServer::start().await;
         let client = Client::builder()
             .dns_resolver(Arc::new(SafeResolver {
                 allow_private: true,
@@ -165,10 +146,9 @@ mod tests {
             expected_status: 200,
             expected_text: None,
         };
-        let url = format!("http://localhost:{port}");
+        let url = format!("http://localhost:{}", server.port());
         let result = check_url(&client, &url, &check, 1, true).await;
         assert!(result.status.is_up());
         assert_eq!(result.status_code, Some(StatusCode::OK));
-        _server_handle.await.unwrap();
     }
 }

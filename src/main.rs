@@ -131,6 +131,8 @@ async fn main() -> Result<()> {
     tracing::info!("Server started on {}", addr);
     let checker_pool = pool.clone();
     let checker_config = config.clone();
+    // Background site checker: wakes every 10 seconds and probes any sites
+    // whose configured check interval has elapsed.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
         loop {
@@ -144,6 +146,8 @@ async fn main() -> Result<()> {
             .await;
         }
     });
+    // Rate-limit cleanup worker: periodically removes expired login/admin
+    // limiter entries from memory.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_mins(5));
         loop {
