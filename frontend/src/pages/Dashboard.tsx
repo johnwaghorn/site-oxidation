@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useSites, useCreateSite, useDeleteSite } from "../hooks/useSites";
 import { usePagination } from "../hooks/usePagination";
 import { SiteList } from "../components/sites/SiteList";
@@ -55,6 +56,7 @@ export function Dashboard({
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
   const hasNoSites = data != null && data.total === 0 && !debouncedSearch;
+  const showGetStarted = role === "admin" && hasNoSites;
 
   const sites = data?.data ?? [];
   const filteredSites = selectedTeamId
@@ -124,41 +126,47 @@ export function Dashboard({
       ) : error ? (
         <ErrorMessage error={error} />
       ) : data ? (
-        <>
-          {role === "admin" && orphanedCount > 0 && (
-            <p style={mutedText}>
-              {orphanedCount} site{orphanedCount === 1 ? "" : "s"} with no team
-              assigned
-            </p>
-          )}
-          {role !== "admin" && teams.length > 1 && (
-            <select
-              value={selectedTeamId ?? ""}
-              onChange={(e) =>
-                setSelectedTeamId(
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
-              style={compactInput}
-            >
-              <option value="">All teams</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <SiteList
-            sites={filteredSites}
-            onDelete={(site) => setSiteToDelete(site)}
-          />
-          <Pagination
-            page={data.page}
-            totalPages={totalPages}
-            onPageChange={goToPage}
-          />
-        </>
+        showGetStarted ? (
+          !showCreateForm && (
+            <GetStartedNudge onAddSite={() => setShowCreateForm(true)} />
+          )
+        ) : (
+          <>
+            {role === "admin" && orphanedCount > 0 && (
+              <p style={mutedText}>
+                {orphanedCount} site{orphanedCount === 1 ? "" : "s"} with no
+                team assigned
+              </p>
+            )}
+            {role !== "admin" && teams.length > 1 && (
+              <select
+                value={selectedTeamId ?? ""}
+                onChange={(e) =>
+                  setSelectedTeamId(
+                    e.target.value ? Number(e.target.value) : null,
+                  )
+                }
+                style={compactInput}
+              >
+                <option value="">All teams</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <SiteList
+              sites={filteredSites}
+              onDelete={(site) => setSiteToDelete(site)}
+            />
+            <Pagination
+              page={data.page}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            />
+          </>
+        )
       ) : null}
 
       <ConfirmDialog
@@ -170,6 +178,73 @@ export function Dashboard({
         confirmText="Delete"
         isDestructive
       />
+    </div>
+  );
+}
+
+function GetStartedNudge({ onAddSite }: { onAddSite: () => void }) {
+  return (
+    <div
+      style={{
+        boxSizing: "border-box",
+        maxWidth: "720px",
+        marginTop: "8px",
+        padding: "28px",
+        border: "1px solid GrayText",
+        borderRadius: "14px",
+        background:
+          "linear-gradient(135deg, rgba(100, 108, 255, 0.12), transparent 42%), Canvas",
+        boxShadow: "0 14px 34px rgba(0, 0, 0, 0.12)",
+      }}
+    >
+      <p
+        style={{
+          ...mutedText,
+          margin: "0 0 8px 0",
+          fontSize: "13px",
+          fontWeight: 600,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}
+      >
+        Welcome
+      </p>
+      <h2 style={{ margin: "0 0 10px 0", fontSize: "28px", lineHeight: 1.2 }}>
+        Start monitoring your first site
+      </h2>
+      <p style={{ ...mutedText, maxWidth: "560px", margin: "0 0 22px 0" }}>
+        Add a URL to begin tracking uptime and response history. Teams are
+        optional for admins, so you can organise access now or come back to it
+        later via the Admin Panel.
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+        <button
+          type="button"
+          onClick={onAddSite}
+          style={{
+            padding: "10px 16px",
+            borderColor: "#646cff",
+            backgroundColor: "#646cff",
+            color: "#ffffff",
+          }}
+        >
+          Add your first site
+        </button>
+        <Link
+          to="/admin/teams"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "10px 16px",
+            border: "1px solid GrayText",
+            borderRadius: "8px",
+            color: "inherit",
+            fontWeight: 500,
+          }}
+        >
+          Set up teams
+        </Link>
+      </div>
     </div>
   );
 }
