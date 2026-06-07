@@ -7,6 +7,7 @@ export function ErrorMessage({ error }: ErrorMessageProps) {
   return (
     <div
       style={{
+        marginTop: "16px",
         padding: "16px",
         backgroundColor: "#fee2e2",
         color: "#991b1b",
