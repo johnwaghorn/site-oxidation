@@ -84,6 +84,7 @@ async fn test_bootstrap_rejected_from_public_ip(pool: SqlitePool) {
         .get("message")
         .and_then(serde_json::Value::as_str)
         .unwrap_or_default();
+    assert!(message.contains("8.8.8.8"));
     assert!(message.contains("BOOTSTRAP_TRUSTED_IPS"));
     assert!(message.contains("BOOTSTRAP_REQUIRE_PRIVATE_IP=false"));
     assert!(logs_contain(

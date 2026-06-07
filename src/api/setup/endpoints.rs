@@ -55,9 +55,9 @@ pub async fn bootstrap(
             client_ip = %client_ip,
             "Rejected bootstrap attempt from an untrusted IP. Connect from a private network, add the IP to BOOTSTRAP_TRUSTED_IPS, or set BOOTSTRAP_REQUIRE_PRIVATE_IP=false if public bootstrap access is intentional."
         );
-        return Err(ApiErrorResponse::forbidden(
-            "Bootstrap is restricted to local/private networks. Connect from a private network, add your IP to BOOTSTRAP_TRUSTED_IPS, or set BOOTSTRAP_REQUIRE_PRIVATE_IP=false if public bootstrap access is intentional.",
-        ));
+        return Err(ApiErrorResponse::forbidden(&format!(
+            "Bootstrap is restricted to local/private networks. Your IP is {client_ip}. Connect from a private network, add this IP to BOOTSTRAP_TRUSTED_IPS, or set BOOTSTRAP_REQUIRE_PRIVATE_IP=false if public bootstrap access is intentional."
+        )));
     }
     let mut conn = pool
         .acquire()
@@ -112,8 +112,7 @@ async fn do_bootstrap(
 fn generate_random_password() -> Result<String, ApiErrorResponse> {
     use std::fmt::Write;
     let mut bytes = [0u8; 32];
-    getrandom::getrandom(&mut bytes)
-        .map_err(|e| internal_err("Failed to generate random bytes", e))?;
+    getrandom::fill(&mut bytes).map_err(|e| internal_err("Failed to generate random bytes", e))?;
     let mut hex = String::with_capacity(64);
     for byte in bytes {
         let _ = write!(hex, "{byte:02x}");

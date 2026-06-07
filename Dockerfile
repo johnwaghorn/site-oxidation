@@ -5,7 +5,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM rust:1.95 AS backend
+FROM rust:1.96 AS backend
 WORKDIR /app
 COPY Cargo.* ./
 COPY src/ ./src/
