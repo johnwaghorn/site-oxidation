@@ -67,6 +67,7 @@ export function AdminUsers() {
   const resetPassword = useResetPassword();
 
   const totalPages = users ? Math.ceil(users.total / users.per_page) : 0;
+  const hasNoUsers = users != null && users.total === 0 && !debouncedSearch;
 
   useEffect(() => {
     if (users && users.data.length === 0 && users.total > 0 && page > 1) {
@@ -171,11 +172,13 @@ export function AdminUsers() {
           />
         }
       >
-        <SearchInput
-          value={searchInput}
-          onChange={setSearchInput}
-          placeholder="Search users..."
-        />
+        {!hasNoUsers && (
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search users..."
+          />
+        )}
       </SearchToolbar>
 
       {showCreateForm && (

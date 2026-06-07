@@ -19,13 +19,12 @@ export function SearchToolbar({ children, action }: SearchToolbarProps) {
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",
-        justifyContent: "space-between",
         gap: "12px",
         marginBottom: "20px",
       }}
     >
       {children}
-      {action}
+      {action && <div style={{ marginLeft: "auto" }}>{action}</div>}
     </div>
   );
 }

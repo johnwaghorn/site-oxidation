@@ -54,6 +54,7 @@ export function Dashboard({
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
+  const hasNoSites = data != null && data.total === 0 && !debouncedSearch;
 
   const sites = data?.data ?? [];
   const filteredSites = selectedTeamId
@@ -89,11 +90,13 @@ export function Dashboard({
           />
         }
       >
-        <SearchInput
-          value={searchInput}
-          onChange={setSearchInput}
-          placeholder="Search sites..."
-        />
+        {!hasNoSites && (
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search sites..."
+          />
+        )}
       </SearchToolbar>
 
       {showCreateForm && (

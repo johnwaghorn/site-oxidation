@@ -89,6 +89,7 @@ export function AdminTeams() {
 
   const teamList = teams?.data ?? [];
   const totalPages = teams ? Math.ceil(teams.total / teams.per_page) : 0;
+  const hasNoTeams = teams != null && teams.total === 0 && !debouncedSearch;
 
   useEffect(() => {
     if (teams && teams.data.length === 0 && teams.total > 0 && page > 1) {
@@ -127,11 +128,13 @@ export function AdminTeams() {
           />
         }
       >
-        <SearchInput
-          value={searchInput}
-          onChange={setSearchInput}
-          placeholder="Search teams..."
-        />
+        {!hasNoTeams && (
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search teams..."
+          />
+        )}
       </SearchToolbar>
 
       {showCreateForm && (
@@ -262,7 +265,9 @@ export function AdminTeams() {
           />
         </>
       ) : (
-        <p style={mutedText}>No teams yet. Create one above.</p>
+        <p style={mutedText}>
+          No teams yet. Create one above. Maybe a team just for admins!
+        </p>
       )}
 
       <ConfirmDialog
