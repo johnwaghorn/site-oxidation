@@ -6,7 +6,27 @@ use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::Client;
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use std::time::Duration;
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ProbeGroupKey {
+    url: String,
+    expected_status: i64,
+    expected_text: Option<String>,
+    tls_allow_untrusted: bool,
+}
+
+impl From<&SiteRow> for ProbeGroupKey {
+    fn from(site: &SiteRow) -> Self {
+        Self {
+            url: site.url.clone(),
+            expected_status: site.expected_status,
+            expected_text: site.expected_text.clone(),
+            tls_allow_untrusted: site.tls_allow_untrusted,
+        }
+    }
+}
 
 pub async fn check_all_sites(
     verifying_client: &Client,
@@ -26,10 +46,21 @@ pub async fn check_all_sites(
     }
     let sites = sqlx::query_as::<_, SiteRow>(
         r"
-            SELECT id, name, url, expected_status, expected_text, status, probe_interval_seconds, tls_allow_untrusted
-            FROM sites
-            WHERE last_checked_at IS NULL
-                OR datetime(last_checked_at, '+' || COALESCE(probe_interval_seconds, 60) || ' seconds') <= datetime('now')
+            SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, s.tls_allow_untrusted
+            FROM sites s
+            WHERE EXISTS (
+                SELECT 1
+                FROM sites due
+                WHERE due.url = s.url
+                    AND due.expected_status = s.expected_status
+                    AND due.expected_text IS s.expected_text
+                    AND due.tls_allow_untrusted = s.tls_allow_untrusted
+                    AND due.probe_interval_seconds = s.probe_interval_seconds
+                    AND (
+                        due.last_checked_at IS NULL
+                        OR datetime(due.last_checked_at, '+' || COALESCE(due.probe_interval_seconds, 60) || ' seconds') <= datetime('now')
+                    )
+            )
             ",
     )
     .fetch_all(pool)
@@ -40,48 +71,70 @@ pub async fn check_all_sites(
         return;
     }
     let site_count = sites.len();
-    stream::iter(sites)
-        .map(|site| check_single_site(verifying_client, untrusted_client, pool, config, site))
+    let mut grouped_sites: HashMap<ProbeGroupKey, Vec<SiteRow>> = HashMap::new();
+    for site in sites {
+        grouped_sites
+            .entry(ProbeGroupKey::from(&site))
+            .or_default()
+            .push(site);
+    }
+    let probe_count = grouped_sites.len();
+    stream::iter(grouped_sites)
+        .map(|(group_key, group_sites)| {
+            check_site_group(
+                verifying_client,
+                untrusted_client,
+                pool,
+                config,
+                group_key,
+                group_sites,
+            )
+        })
         .buffer_unordered(config.probe_max_concurrent_checks)
         .collect::<Vec<()>>()
         .await;
-    tracing::info!("Finished checking {} sites", site_count);
+    tracing::info!(
+        "Finished checking {} sites in {} probes",
+        site_count,
+        probe_count
+    );
 }
 
-async fn check_single_site(
+async fn check_site_group(
     verifying_client: &Client,
     untrusted_client: &Client,
     pool: &SqlitePool,
     config: &AppConfig,
-    site: SiteRow,
+    group_key: ProbeGroupKey,
+    group_sites: Vec<SiteRow>,
 ) {
     tracing::info!(
-        "Checking site {} (interval: {}s)",
-        site.name,
-        site.probe_interval_seconds
+        "Checking URL '{}' for {} monitor(s)",
+        group_key.url,
+        group_sites.len()
     );
-    let probe_client = if site.tls_allow_untrusted {
+    let probe_client = if group_key.tls_allow_untrusted {
         untrusted_client
     } else {
         verifying_client
     };
     let check = CheckExpectation {
-        expected_status: u16::try_from(site.expected_status).unwrap_or(200),
-        expected_text: site.expected_text.clone(),
+        expected_status: u16::try_from(group_key.expected_status).unwrap_or(200),
+        expected_text: group_key.expected_text.clone(),
     };
     let mut probe_result = check_url(
         probe_client,
-        &site.url,
+        &group_key.url,
         &check,
         config.probe_timeout_secs,
         config.probe_allow_private_ips,
     )
     .await;
-    if probe_result.status.is_down() && !site.status.is_down() {
+    if probe_result.status.is_down() && group_sites.iter().any(|site| !site.status.is_down()) {
         for attempt in 1..=config.probe_retry_count {
             tracing::info!(
-                "Site '{}' probe failed, retry {}/{} after {}ms",
-                site.name,
+                "URL '{}' probe failed, retry {}/{} after {}ms",
+                group_key.url,
                 attempt,
                 config.probe_retry_count,
                 config.probe_retry_delay_ms
@@ -89,25 +142,29 @@ async fn check_single_site(
             tokio::time::sleep(Duration::from_millis(config.probe_retry_delay_ms)).await;
             probe_result = check_url(
                 probe_client,
-                &site.url,
+                &group_key.url,
                 &check,
                 config.probe_timeout_secs,
                 config.probe_allow_private_ips,
             )
             .await;
             if probe_result.status.is_up() {
-                tracing::info!("Site '{}' recovered on retry {}", site.name, attempt);
+                tracing::info!("URL '{}' recovered on retry {}", group_key.url, attempt);
                 break;
             }
         }
     }
-    update_site_status(pool, &site, &probe_result).await;
+    for site in &group_sites {
+        update_site_status(pool, site, &probe_result).await;
+    }
     if probe_result.status.is_blocked() {
-        clear_site_cert(pool, site.id).await;
+        for site in &group_sites {
+            clear_site_cert(pool, site.id).await;
+        }
     } else {
         let cert = check_certificate(
-            &site.url,
-            site.tls_allow_untrusted,
+            &group_key.url,
+            group_key.tls_allow_untrusted,
             config.probe_allow_private_ips,
             Duration::from_secs(config.probe_timeout_secs),
             Utc::now(),
@@ -117,7 +174,9 @@ async fn check_single_site(
             },
         )
         .await;
-        update_site_cert_status(pool, site.id, &cert).await;
+        for site in &group_sites {
+            update_site_cert_status(pool, site.id, &cert).await;
+        }
     }
 }
 
@@ -206,9 +265,51 @@ async fn clear_site_cert(pool: &SqlitePool, site_id: i64) {
 mod tests {
     use super::*;
     use crate::models::site::SiteStatus;
-    use crate::tests::{insert_test_site, test_config};
+    use crate::tests::{TestHttpServer, insert_test_site, test_config};
     use reqwest::StatusCode;
     use tracing_test::traced_test;
+
+    async fn insert_probe_site(
+        pool: &SqlitePool,
+        name: &str,
+        url: &str,
+        expected_status: i64,
+        expected_text: Option<&str>,
+        status: SiteStatus,
+        probe_interval_seconds: i64,
+        tls_allow_untrusted: bool,
+    ) -> i64 {
+        let team_id: i64 = sqlx::query_scalar("INSERT INTO teams (name) VALUES (?) RETURNING id")
+            .bind(format!("{name} Team"))
+            .fetch_one(pool)
+            .await
+            .unwrap();
+        sqlx::query_scalar(
+            "INSERT INTO sites (
+                name, url, expected_status, expected_text, status,
+                probe_interval_seconds, tls_allow_untrusted, team_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        )
+        .bind(name)
+        .bind(url)
+        .bind(expected_status)
+        .bind(expected_text)
+        .bind(status)
+        .bind(probe_interval_seconds)
+        .bind(tls_allow_untrusted)
+        .bind(team_id)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    fn probe_config(base_url: &str) -> AppConfig {
+        let mut config = test_config(true);
+        config.canary_url = format!("{base_url}/canary");
+        config.probe_retry_count = 0;
+        config.probe_retry_delay_ms = 0;
+        config
+    }
 
     fn mock_site_down_result() -> ProbeResult {
         ProbeResult {
@@ -238,6 +339,233 @@ mod tests {
         assert!(logs_contain(
             "Canary check failed. Skipping sites check. Network issue?"
         ));
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
+    async fn test_equivalent_due_sites_with_different_intervals_share_probe(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let base_url = server.base_url();
+        let url = format!("{base_url}/site");
+        insert_probe_site(
+            &pool,
+            "Site A",
+            &url,
+            200,
+            None,
+            SiteStatus::Pending,
+            60,
+            false,
+        )
+        .await;
+        insert_probe_site(
+            &pool,
+            "Site B",
+            &url,
+            200,
+            None,
+            SiteStatus::Pending,
+            300,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        assert_eq!(server.request_count(), 1);
+        let updated: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sites WHERE status = 'up' AND last_checked_at IS NOT NULL",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(updated, 2);
+        assert!(logs_contain("Finished checking 2 sites in 1 probes"));
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_due_site_coalesces_recent_equivalent_monitor_with_same_interval(
+        pool: SqlitePool,
+    ) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let base_url = server.base_url();
+        let url = format!("{base_url}/site");
+        insert_probe_site(
+            &pool,
+            "Due",
+            &url,
+            200,
+            None,
+            SiteStatus::Pending,
+            60,
+            false,
+        )
+        .await;
+        let recent_id = insert_probe_site(
+            &pool,
+            "Recent",
+            &url,
+            200,
+            None,
+            SiteStatus::Pending,
+            60,
+            false,
+        )
+        .await;
+        sqlx::query("UPDATE sites SET last_checked_at = datetime('now') WHERE id = ?")
+            .bind(recent_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let client = Client::new();
+        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        assert_eq!(server.request_count(), 1);
+        let updated: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sites WHERE status = 'up' AND last_checked_at IS NOT NULL",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(updated, 2);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_shared_failure_creates_separate_outages(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let base_url = server.base_url();
+        let url = format!("{base_url}/site");
+        insert_probe_site(
+            &pool,
+            "Site A",
+            &url,
+            503,
+            None,
+            SiteStatus::Pending,
+            60,
+            false,
+        )
+        .await;
+        insert_probe_site(
+            &pool,
+            "Site B",
+            &url,
+            503,
+            None,
+            SiteStatus::Pending,
+            60,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        assert_eq!(server.request_count(), 1);
+        let outages: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(outages, 2);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_shared_failure_retries_when_any_site_was_not_down(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let base_url = server.base_url();
+        let url = format!("{base_url}/site");
+        insert_probe_site(&pool, "Site A", &url, 503, None, SiteStatus::Up, 60, false).await;
+        insert_probe_site(
+            &pool,
+            "Site B",
+            &url,
+            503,
+            None,
+            SiteStatus::Down,
+            60,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        let mut config = probe_config(&base_url);
+        config.probe_retry_count = 1;
+        check_all_sites(&client, &client, &pool, &config).await;
+        assert_eq!(server.request_count(), 2);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_shared_failure_does_not_retry_when_all_sites_were_down(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let base_url = server.base_url();
+        let url = format!("{base_url}/site");
+        insert_probe_site(
+            &pool,
+            "Site A",
+            &url,
+            503,
+            None,
+            SiteStatus::Down,
+            60,
+            false,
+        )
+        .await;
+        insert_probe_site(
+            &pool,
+            "Site B",
+            &url,
+            503,
+            None,
+            SiteStatus::Down,
+            60,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        let mut config = probe_config(&base_url);
+        config.probe_retry_count = 1;
+        check_all_sites(&client, &client, &pool, &config).await;
+        assert_eq!(server.request_count(), 1);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_distinct_probe_keys_do_not_share_probe(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let base_url = server.base_url();
+        let url = format!("{base_url}/site");
+        insert_probe_site(&pool, "Base", &url, 200, None, SiteStatus::Down, 60, false).await;
+        insert_probe_site(
+            &pool,
+            "Status",
+            &url,
+            201,
+            None,
+            SiteStatus::Down,
+            60,
+            false,
+        )
+        .await;
+        insert_probe_site(
+            &pool,
+            "Text",
+            &url,
+            200,
+            Some("ok"),
+            SiteStatus::Down,
+            60,
+            false,
+        )
+        .await;
+        insert_probe_site(&pool, "TLS", &url, 200, None, SiteStatus::Down, 60, true).await;
+        insert_probe_site(
+            &pool,
+            "Trailing Slash",
+            &format!("{base_url}/site/"),
+            200,
+            None,
+            SiteStatus::Down,
+            60,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        assert_eq!(server.request_count(), 5);
     }
 
     #[sqlx::test(migrations = "./migrations")]
