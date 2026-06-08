@@ -228,6 +228,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/theme": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["update_theme_preference"];
+        trace?: never;
+    };
     "/api/setup/bootstrap": {
         parameters: {
             query?: never;
@@ -377,6 +393,7 @@ export interface components {
             must_change_password: boolean;
             role: components["schemas"]["UserRole"];
             teams: components["schemas"]["UserTeam"][];
+            theme_preference: components["schemas"]["ThemePreference"];
             username: string;
         };
         OutageResponse: {
@@ -506,8 +523,16 @@ export interface components {
             /** Format: int64 */
             site_count: number;
         };
+        /** @enum {string} */
+        ThemePreference: "system" | "light" | "dark";
         UpdateTeamRequest: {
             name: string;
+        };
+        UpdateThemePreferenceRequest: {
+            theme_preference: components["schemas"]["ThemePreference"];
+        };
+        UpdateThemePreferenceSuccess: {
+            theme_preference: components["schemas"]["ThemePreference"];
         };
         UpdateUserRequest: {
             active: boolean;
@@ -1712,6 +1737,57 @@ export interface operations {
             };
             /** @description Not authenticated */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    update_theme_preference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateThemePreferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description Theme preference updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateThemePreferenceSuccess"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Theme preference validation failed */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

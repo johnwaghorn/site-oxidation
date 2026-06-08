@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/site-oxidation.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Site Oxidation</title>
+    <script>
+      (function () {
+        var prePaintThemeStorageKey = "site-oxidation-theme";
+        try {
+          var theme = localStorage.getItem(prePaintThemeStorageKey);
+          if (theme === "light" || theme === "dark") {
+            document.documentElement.dataset.theme = theme;
+          }
+        } catch (_storageUnavailable) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

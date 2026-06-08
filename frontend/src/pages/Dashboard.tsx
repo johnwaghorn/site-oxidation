@@ -11,15 +11,10 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { UserMenu } from "../components/ui/UserMenu";
 import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
+import { FormSelect } from "../components/ui/FormControls";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import type { ThemePreference } from "../hooks/useThemePreference";
-import {
-  pageWrapper,
-  headerRow,
-  pageTitle,
-  compactInput,
-  mutedText,
-} from "../lib/styles";
+import { pageWrapper, headerRow, pageTitle, mutedText } from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
@@ -146,14 +141,14 @@ export function Dashboard({
               </p>
             )}
             {role !== "admin" && teams.length > 1 && (
-              <select
+              <FormSelect
                 value={selectedTeamId ?? ""}
                 onChange={(e) =>
                   setSelectedTeamId(
                     e.target.value ? Number(e.target.value) : null,
                   )
                 }
-                style={compactInput}
+                style={{ marginBottom: "16px" }}
               >
                 <option value="">All teams</option>
                 {teams.map((t) => (
@@ -161,7 +156,7 @@ export function Dashboard({
                     {t.name}
                   </option>
                 ))}
-              </select>
+              </FormSelect>
             )}
             <SiteList
               sites={filteredSites}

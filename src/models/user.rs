@@ -10,6 +10,15 @@ pub enum UserRole {
     User,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, sqlx::Type, ToSchema)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum ThemePreference {
+    System,
+    Light,
+    Dark,
+}
+
 #[derive(Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: i64,
@@ -19,6 +28,7 @@ pub struct User {
     pub role: UserRole,
     pub active: bool,
     pub must_change_password: bool,
+    pub theme_preference: ThemePreference,
 }
 
 impl std::fmt::Debug for User {
@@ -30,6 +40,7 @@ impl std::fmt::Debug for User {
             .field("role", &self.role)
             .field("active", &self.active)
             .field("must_change_password", &self.must_change_password)
+            .field("theme_preference", &self.theme_preference)
             .finish()
     }
 }

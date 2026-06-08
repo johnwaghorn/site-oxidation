@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties } from "react";
+import { useNavigate } from "react-router-dom";
 import type { ThemePreference } from "../../hooks/useThemePreference";
 
 interface UserMenuProps {
@@ -31,6 +32,7 @@ export function UserMenu({
   onLogout,
   onThemePreferenceChange,
 }: UserMenuProps) {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -104,7 +106,7 @@ export function UserMenu({
             <button
               onClick={() => {
                 setIsOpen(false);
-                window.location.href = "/admin/teams";
+                void navigate("/admin/teams");
               }}
               style={menuItemStyle}
             >

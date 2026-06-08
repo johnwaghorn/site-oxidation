@@ -197,7 +197,7 @@ export function AdminTeams() {
                         onSubmit={handleRename}
                         style={{ display: "flex", gap: "8px" }}
                       >
-                        <input
+                        <FormInput
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
