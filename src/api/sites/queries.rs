@@ -64,7 +64,7 @@ pub const COUNT_SITES_USER: &str = concat!(
 
 // Outages
 pub const LIST_OUTAGES: &str = concat!(
-    "SELECT id, site_id, http_status, started_at, ended_at, error_message ",
+    "SELECT id, site_id, http_status, expected_status, started_at, ended_at, error_message ",
     "FROM outages WHERE site_id = ? ",
     "ORDER BY started_at DESC, id DESC LIMIT ? OFFSET ?"
 );

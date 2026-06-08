@@ -26,6 +26,7 @@ pub struct OutageResponse {
     pub id: i64,
     pub site_id: i64,
     pub http_status: Option<i64>,
+    pub expected_status: Option<i64>,
     pub started_at: DateTime<Utc>,
     pub ended_at: Option<DateTime<Utc>>,
     pub error_message: Option<String>,

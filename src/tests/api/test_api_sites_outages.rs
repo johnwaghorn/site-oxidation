@@ -13,9 +13,10 @@ use tower::ServiceExt;
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_outages_returns_inserted_outage(pool: SqlitePool) {
     insert_test_site(&pool, SiteStatus::Down).await;
-    sqlx::query("INSERT INTO outages (site_id, http_status) VALUES (?, ?)")
+    sqlx::query("INSERT INTO outages (site_id, http_status, expected_status) VALUES (?, ?, ?)")
         .bind(1)
         .bind(500)
+        .bind(200)
         .execute(&pool)
         .await
         .unwrap();
@@ -33,6 +34,8 @@ async fn test_list_outages_returns_inserted_outage(pool: SqlitePool) {
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
     assert_eq!(body["data"].as_array().unwrap().len(), 1);
+    assert_eq!(body["data"][0]["http_status"], 500);
+    assert_eq!(body["data"][0]["expected_status"], 200);
     assert_eq!(body["page"], 1);
     assert_eq!(body["per_page"], 20);
     assert_eq!(body["total"], 1);

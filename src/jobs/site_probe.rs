@@ -208,10 +208,13 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
                 .as_deref()
                 .unwrap_or("no error message")
         );
-        sqlx::query("INSERT INTO outages (site_id, http_status, error_message) VALUES (?, ?, ?)")
+        sqlx::query(
+            "INSERT INTO outages (site_id, http_status, error_message, expected_status) VALUES (?, ?, ?, ?)",
+        )
             .bind(site.id)
             .bind(result.status_code.map(|c| i64::from(c.as_u16())))
             .bind(&result.error_message)
+            .bind(site.expected_status)
             .execute(pool)
             .await
             .map_err(|e| tracing::error!("Failed to insert outage for site {}: {}", site.id, e))
@@ -579,6 +582,13 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count.0, 1);
+        let expected_status: Option<i64> =
+            sqlx::query_scalar("SELECT expected_status FROM outages WHERE site_id = ?")
+                .bind(site.id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(expected_status, Some(site.expected_status));
         assert!(logs_contain("Site 'Waghorn Technology Ltd' is DOWN"));
     }
 

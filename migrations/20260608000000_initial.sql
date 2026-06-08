@@ -5,6 +5,7 @@ CREATE TABLE users (
     role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 1 CHECK(must_change_password IN (0, 1)),
+    theme_preference TEXT NOT NULL DEFAULT 'system' CHECK(theme_preference IN ('system', 'light', 'dark')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,6 +46,7 @@ CREATE TABLE outages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     http_status INTEGER CHECK(http_status IS NULL OR http_status BETWEEN 100 AND 599),
+    expected_status INTEGER CHECK(expected_status IS NULL OR expected_status BETWEEN 100 AND 599),
     error_message TEXT CHECK(error_message IS NULL OR length(error_message) <= 500),
     started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ended_at DATETIME

@@ -108,7 +108,8 @@ export function SiteDetail() {
                 <tr style={tableHeaderRow}>
                   <th style={tableCellLeft}>Started</th>
                   <th style={tableCellLeft}>Ended</th>
-                  <th style={tableCellCenter}>HTTP Status</th>
+                  <th style={tableCellCenter}>Expected Status</th>
+                  <th style={tableCellCenter}>Actual Status</th>
                   <th style={tableCellLeft}>Error</th>
                 </tr>
               </thead>
@@ -148,6 +149,14 @@ function OutageRow({ outage }: { outage: OutageResponse }) {
         }}
       >
         {ended}
+      </td>
+      <td
+        style={{
+          ...tableCellCenter,
+          fontFamily: "monospace",
+        }}
+      >
+        {outage.expected_status ?? "-"}
       </td>
       <td
         style={{

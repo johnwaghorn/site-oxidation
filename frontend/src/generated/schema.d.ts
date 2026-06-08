@@ -401,6 +401,8 @@ export interface components {
             ended_at?: string | null;
             error_message?: string | null;
             /** Format: int64 */
+            expected_status?: number | null;
+            /** Format: int64 */
             http_status?: number | null;
             /** Format: int64 */
             id: number;
@@ -414,6 +416,8 @@ export interface components {
                 /** Format: date-time */
                 ended_at?: string | null;
                 error_message?: string | null;
+                /** Format: int64 */
+                expected_status?: number | null;
                 /** Format: int64 */
                 http_status?: number | null;
                 /** Format: int64 */
@@ -2251,6 +2255,8 @@ export interface operations {
                             /** Format: date-time */
                             ended_at?: string | null;
                             error_message?: string | null;
+                            /** Format: int64 */
+                            expected_status?: number | null;
                             /** Format: int64 */
                             http_status?: number | null;
                             /** Format: int64 */
