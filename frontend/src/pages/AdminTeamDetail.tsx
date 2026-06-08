@@ -12,6 +12,7 @@ import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Pagination } from "../components/ui/Pagination";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { Truncate } from "../components/ui/Truncate";
 import {
   backLink,
   compactInput,
@@ -70,7 +71,9 @@ export function AdminTeamDetail() {
       </Link>
       <AdminNav />
 
-      <h1 style={pageTitle}>{team.name}</h1>
+      <h1 style={pageTitle}>
+        <Truncate text={team.name} maxWidth="90%" />
+      </h1>
       <p style={mutedText}>
         {team.member_count} active member{team.member_count === 1 ? "" : "s"}{" "}
         and {team.site_count} assigned site{team.site_count === 1 ? "" : "s"}

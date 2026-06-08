@@ -296,6 +296,28 @@ async fn test_create_duplicate_team_returns_409(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_create_team_rejects_name_longer_than_60_chars(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let name = "a".repeat(61);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/teams")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(format!(r#"{{"name":"{name}"}}"#)))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_rename_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Old Name')")

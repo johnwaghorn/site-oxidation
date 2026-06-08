@@ -69,6 +69,9 @@ export const comboboxItem: CSSProperties = {
   fontWeight: 400,
   color: "inherit",
   cursor: "pointer",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
 
 export const comboboxItemHovered: CSSProperties = {

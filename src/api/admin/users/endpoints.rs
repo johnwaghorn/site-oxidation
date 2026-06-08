@@ -110,9 +110,9 @@ pub async fn create_user(
     }
     limiter.record_failure(&limiter_key);
     let username = payload.username.trim().to_owned();
-    if username.is_empty() || username.len() > 100 {
+    if username.is_empty() || username.chars().count() > 60 {
         return Err(ApiErrorResponse::validation(
-            "Username must be between 1 and 100 characters",
+            "Username must be between 1 and 60 characters",
         ));
     }
     validate_password_bounds(&payload.password)?;

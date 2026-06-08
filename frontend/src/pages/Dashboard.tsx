@@ -148,7 +148,7 @@ export function Dashboard({
                     e.target.value ? Number(e.target.value) : null,
                   )
                 }
-                style={{ marginBottom: "16px" }}
+                style={{ marginBottom: "16px", maxWidth: "min(100%, 360px)" }}
               >
                 <option value="">All teams</option>
                 {teams.map((t) => (

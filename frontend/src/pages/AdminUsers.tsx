@@ -24,6 +24,7 @@ import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
+import { Truncate } from "../components/ui/Truncate";
 import {
   pageWrapper,
   backLink,
@@ -248,7 +249,10 @@ export function AdminUsers() {
                         fontSize: "14px",
                       }}
                     >
-                      {user.team_names || "None"}
+                      <Truncate
+                        text={user.team_names || "None"}
+                        maxWidth={260}
+                      />
                     </td>
                     <td style={tableCell}>
                       <div
@@ -546,6 +550,7 @@ function TeamCombobox({
                   selectOption(t);
                 }}
                 onMouseEnter={() => setActiveIndex(i)}
+                title={t.name}
                 style={{
                   ...comboboxItem,
                   ...(i === activeIndex ? comboboxItemHovered : null),

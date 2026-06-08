@@ -224,9 +224,9 @@ pub async fn create_team(
     Json(payload): Json<CreateTeamRequest>,
 ) -> Result<(StatusCode, Json<TeamResponse>), ApiErrorResponse> {
     let name = payload.name.trim().to_owned();
-    if name.is_empty() || name.len() > 100 {
+    if name.is_empty() || name.chars().count() > 60 {
         return Err(ApiErrorResponse::validation(
-            "Team name must be between 1 and 100 characters",
+            "Team name must be between 1 and 60 characters",
         ));
     }
     let id: i64 = sqlx::query_scalar(queries::INSERT_TEAM)
@@ -268,9 +268,9 @@ pub async fn update_team(
     Json(payload): Json<UpdateTeamRequest>,
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
     let name = payload.name.trim().to_owned();
-    if name.is_empty() || name.len() > 100 {
+    if name.is_empty() || name.chars().count() > 60 {
         return Err(ApiErrorResponse::validation(
-            "Team name must be between 1 and 100 characters",
+            "Team name must be between 1 and 60 characters",
         ));
     }
     let updated: Option<i64> = sqlx::query_scalar(queries::UPDATE_TEAM)

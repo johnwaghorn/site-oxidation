@@ -19,6 +19,7 @@ import { Pagination } from "../components/ui/Pagination";
 import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
+import { Truncate } from "../components/ui/Truncate";
 import {
   pageWrapper,
   backLink,
@@ -221,7 +222,9 @@ export function AdminTeams() {
                         </button>
                       </form>
                     ) : (
-                      <Link to={`/admin/teams/${team.id}`}>{team.name}</Link>
+                      <Link to={`/admin/teams/${team.id}`}>
+                        <Truncate text={team.name} />
+                      </Link>
                     )}
                   </td>
                   <td style={tableCellCenter}>{team.member_count}</td>

@@ -9,6 +9,7 @@ import {
 } from "../../lib/styles";
 import { StatusBadge } from "../ui/StatusBadge";
 import { CertBadge } from "../ui/CertBadge";
+import { Truncate } from "../ui/Truncate";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
 
@@ -33,7 +34,7 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
         </a>
       </td>
       <td style={{ ...tableCell, ...mutedText, fontSize: "14px" }}>
-        {site.team_name ?? "No team"}
+        <Truncate text={site.team_name ?? "No team"} />
       </td>
       <td style={tableCellCenter}>
         <StatusBadge status={site.status} />

@@ -725,3 +725,27 @@ async fn test_can_deactivate_other_admin_when_not_last(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_create_user_rejects_username_longer_than_60_chars(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let username = "a".repeat(61);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/users")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"username":"{username}","password":"temp-pass-123","role":"admin"}}"#
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+}
