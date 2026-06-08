@@ -1,4 +1,4 @@
-use crate::models::user::UserRole;
+use crate::models::user::{ThemePreference, UserRole};
 use serde::Serialize;
 use sqlx::FromRow;
 use utoipa::ToSchema;
@@ -14,6 +14,7 @@ pub struct MeSuccess {
     pub username: String,
     pub role: UserRole,
     pub must_change_password: bool,
+    pub theme_preference: ThemePreference,
     pub teams: Vec<UserTeam>,
 }
 
@@ -26,4 +27,9 @@ pub struct UserTeam {
 #[derive(Serialize, ToSchema)]
 pub struct ChangePasswordSuccess {
     pub success: bool,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct UpdateThemePreferenceSuccess {
+    pub theme_preference: ThemePreference,
 }

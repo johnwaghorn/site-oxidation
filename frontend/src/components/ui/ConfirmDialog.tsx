@@ -52,7 +52,9 @@ export function ConfirmDialog({
             background: isDestructive
               ? "var(--color-danger)"
               : "var(--color-primary)",
-            color: isDestructive ? "#ffffff" : "var(--color-primary-text)",
+            color: isDestructive
+              ? "var(--color-danger-on)"
+              : "var(--color-primary-text)",
             cursor: "pointer",
           }}
         >

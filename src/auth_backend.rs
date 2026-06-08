@@ -73,7 +73,7 @@ impl AuthnBackend for Backend {
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
         let user: Option<User> = sqlx::query_as(
-            "SELECT id, username, password, role, active, must_change_password FROM users WHERE username = ?"
+            "SELECT id, username, password, role, active, must_change_password, theme_preference FROM users WHERE username = ?"
         )
             .bind(&creds.username)
             .fetch_optional(&self.db)
@@ -103,7 +103,7 @@ impl AuthnBackend for Backend {
         // Deactivated users lose access on next request, even if they still hold a valid
         // session cookie.
         let user = sqlx::query_as(
-            "SELECT id, username, password, role, active, must_change_password FROM users \
+            "SELECT id, username, password, role, active, must_change_password, theme_preference FROM users \
             WHERE id = ? AND active = 1",
         )
         .bind(*user_id)

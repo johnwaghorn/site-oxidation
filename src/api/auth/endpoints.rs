@@ -6,8 +6,10 @@ use sqlx::SqlitePool;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use super::requests::ChangePasswordRequest;
-use super::responses::{ChangePasswordSuccess, LoginSuccess, MeSuccess, UserTeam};
+use super::requests::{ChangePasswordRequest, UpdateThemePreferenceRequest};
+use super::responses::{
+    ChangePasswordSuccess, LoginSuccess, MeSuccess, UpdateThemePreferenceSuccess, UserTeam,
+};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAuth;
 use crate::auth_backend::{AuthSession, Credentials};
@@ -131,7 +133,43 @@ pub async fn me(
         username: user.username,
         role: user.role,
         must_change_password: user.must_change_password,
+        theme_preference: user.theme_preference,
         teams,
+    }))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/auth/theme",
+    request_body = UpdateThemePreferenceRequest,
+    responses(
+        (status = 200, description = "Theme preference updated", body = UpdateThemePreferenceSuccess),
+        (status = 401, description = "Not authenticated", body = ApiError),
+        (status = 422, description = "Theme preference validation failed", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "auth",
+    security(("session_cookie" = [])),
+)]
+pub async fn update_theme_preference(
+    RequireAuth(user): RequireAuth,
+    State(pool): State<SqlitePool>,
+    Json(payload): Json<UpdateThemePreferenceRequest>,
+) -> Result<Json<UpdateThemePreferenceSuccess>, ApiErrorResponse> {
+    sqlx::query(super::queries::UPDATE_THEME_PREFERENCE)
+        .bind(payload.theme_preference)
+        .bind(user.id)
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            internal_err(
+                &format!("Failed to update theme preference for user {}", user.id),
+                e,
+            )
+        })?;
+
+    Ok(Json(UpdateThemePreferenceSuccess {
+        theme_preference: payload.theme_preference,
     }))
 }
 

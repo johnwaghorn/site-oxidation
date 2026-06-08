@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { SiteDetail } from "./pages/SiteDetail";
@@ -24,7 +24,9 @@ function App() {
     role,
     teams,
     mustChangePassword,
+    themePreference: savedThemePreference,
     refresh,
+    updateThemePreference,
   } = useAuth();
   const {
     setupRequired,
@@ -32,6 +34,17 @@ function App() {
     refresh: refreshSetup,
   } = useSetupStatus();
   const [changingPassword, setChangingPassword] = useState(false);
+
+  useEffect(() => {
+    if (savedThemePreference && savedThemePreference !== themePreference) {
+      setThemePreference(savedThemePreference);
+    }
+  }, [savedThemePreference, setThemePreference, themePreference]);
+
+  const handleThemePreferenceChange = (preference: typeof themePreference) => {
+    setThemePreference(preference);
+    void updateThemePreference(preference);
+  };
 
   if (authLoading || setupLoading) {
     return (
@@ -76,7 +89,7 @@ function App() {
               themePreference={themePreference}
               onLogout={logout}
               onChangePassword={() => setChangingPassword(true)}
-              onThemePreferenceChange={setThemePreference}
+              onThemePreferenceChange={handleThemePreferenceChange}
             />
           }
         />
