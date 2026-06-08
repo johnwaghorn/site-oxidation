@@ -17,7 +17,7 @@ import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Pagination } from "../components/ui/Pagination";
 import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
-import { FormInput } from "../components/ui/FormControls";
+import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import {
   pageWrapper,
@@ -150,6 +150,7 @@ export function AdminTeams() {
             />
             <button
               type="submit"
+              className="button-primary-action"
               disabled={createTeam.isPending}
               style={compactInput}
             >
@@ -157,6 +158,7 @@ export function AdminTeams() {
             </button>
             <button
               type="button"
+              className="button-secondary-action"
               onClick={() => {
                 createTeam.reset();
                 setNewTeamName("");
@@ -200,13 +202,18 @@ export function AdminTeams() {
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           required
-                          style={compactInput}
+                          style={{ ...compactInput, minWidth: "180px" }}
                         />
-                        <button type="submit" style={compactInput}>
+                        <button
+                          type="submit"
+                          className="button-table-action"
+                          style={compactInput}
+                        >
                           Save
                         </button>
                         <button
                           type="button"
+                          className="button-table-action"
                           onClick={() => setEditingTeam(null)}
                           style={compactInput}
                         >
@@ -222,6 +229,7 @@ export function AdminTeams() {
                   <td style={tableCell}>
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button
+                        className="button-table-action"
                         onClick={() =>
                           setManagingTeam(
                             managingTeam?.id === team.id ? null : team,
@@ -232,20 +240,16 @@ export function AdminTeams() {
                         {managingTeam?.id === team.id ? "Close" : "Members"}
                       </button>
                       <button
+                        className="button-table-action"
                         onClick={() => startEditing(team)}
                         style={compactInput}
                       >
                         Rename
                       </button>
                       <button
+                        className="button-table-action button-table-danger"
                         onClick={() => setTeamToDelete(team)}
-                        style={{
-                          ...compactInput,
-                          color: "#dc2626",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                        }}
+                        style={compactInput}
                       >
                         Delete
                       </button>
@@ -364,8 +368,9 @@ function MemberPanel({ teamId }: MemberPanelProps) {
       style={{
         marginTop: "12px",
         padding: "12px",
-        border: "1px solid #333",
-        borderRadius: "8px",
+        border: "1px solid var(--color-border)",
+        borderRadius: "12px",
+        backgroundColor: "var(--color-surface-muted)",
       }}
     >
       <div style={{ marginBottom: "8px", fontWeight: 500 }}>Members</div>
@@ -387,14 +392,12 @@ function MemberPanel({ teamId }: MemberPanelProps) {
                   <span style={mutedText}> ({user.role})</span>
                 </span>
                 <button
+                  className="button-table-action button-table-danger"
                   onClick={() =>
                     removeMember.mutate({ teamId, userId: user.id })
                   }
                   style={{
-                    color: "#dc2626",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
+                    padding: "4px 8px",
                     fontSize: "12px",
                   }}
                 >
@@ -415,7 +418,7 @@ function MemberPanel({ teamId }: MemberPanelProps) {
         </p>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <input
+        <FormInput
           type="text"
           placeholder="Search users to add..."
           value={searchInput}
@@ -423,11 +426,11 @@ function MemberPanel({ teamId }: MemberPanelProps) {
             setSearchInput(e.target.value);
             setSelectedUserId("");
           }}
-          style={compactInput}
+          style={{ ...compactInput, width: "100%" }}
         />
         {debouncedSearch.trim() && (
           <div style={{ display: "flex", gap: "8px" }}>
-            <select
+            <FormSelect
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
               style={{ ...compactInput, flex: 1 }}
@@ -442,8 +445,9 @@ function MemberPanel({ teamId }: MemberPanelProps) {
                   {user.username}
                 </option>
               ))}
-            </select>
+            </FormSelect>
             <button
+              className="button-table-action"
               onClick={handleAddMember}
               disabled={!selectedUserId || addMember.isPending}
               style={compactInput}

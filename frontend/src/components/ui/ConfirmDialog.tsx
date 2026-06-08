@@ -23,16 +23,18 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <p style={{ margin: "0 0 24px 0", color: "#9ca3af" }}>{message}</p>
+      <p style={{ margin: "0 0 24px 0", color: "var(--color-muted)" }}>
+        {message}
+      </p>
       <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
         <button
           onClick={onClose}
           style={{
             padding: "8px 16px",
-            border: "1px solid #444",
+            border: "1px solid var(--color-border)",
             borderRadius: "6px",
-            background: "#2a2a2a",
-            color: "#e5e7eb",
+            background: "var(--color-surface)",
+            color: "var(--color-text)",
             cursor: "pointer",
           }}
         >
@@ -47,8 +49,10 @@ export function ConfirmDialog({
             padding: "8px 16px",
             border: "none",
             borderRadius: "6px",
-            background: isDestructive ? "#dc2626" : "#2563eb",
-            color: "white",
+            background: isDestructive
+              ? "var(--color-danger)"
+              : "var(--color-primary)",
+            color: isDestructive ? "#ffffff" : "var(--color-primary-text)",
             cursor: "pointer",
           }}
         >

@@ -91,7 +91,7 @@ export function SiteDetail() {
         />
         {updateSite.isError && <ErrorMessage error={updateSite.error} />}
         {updateSite.isSuccess && (
-          <p style={{ color: "#059669", margin: "8px 0" }}>
+          <p style={{ color: "var(--color-success)", margin: "8px 0" }}>
             Site updated successfully
           </p>
         )}
@@ -144,7 +144,7 @@ function OutageRow({ outage }: { outage: OutageResponse }) {
       <td
         style={{
           ...tableCell,
-          color: outage.ended_at ? undefined : "#dc2626",
+          color: outage.ended_at ? undefined : "var(--color-danger)",
         }}
       >
         {ended}

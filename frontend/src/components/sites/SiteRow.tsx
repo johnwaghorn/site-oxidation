@@ -52,12 +52,10 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
       {onDelete && (
         <td style={tableCellRight}>
           <button
+            className="button-table-action button-table-danger"
             onClick={() => onDelete(site)}
             style={{
-              color: "#991b1b",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
+              padding: "6px 8px",
             }}
           >
             Delete

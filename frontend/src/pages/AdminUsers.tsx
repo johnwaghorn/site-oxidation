@@ -260,12 +260,14 @@ export function AdminUsers() {
                       >
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button
+                            className="button-table-action"
                             onClick={() => handleToggleActive(user)}
                             style={compactInput}
                           >
                             {user.active ? "Deactivate" : "Activate"}
                           </button>
                           <button
+                            className="button-table-action"
                             onClick={() => {
                               setResettingUserId(
                                 resettingUserId === user.id ? null : user.id,
@@ -279,21 +281,16 @@ export function AdminUsers() {
                               : "Reset Password"}
                           </button>
                           <button
+                            className="button-table-action button-table-danger"
                             onClick={() => setUserToDelete(user)}
-                            style={{
-                              ...compactInput,
-                              color: "#dc2626",
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                            }}
+                            style={compactInput}
                           >
                             Delete
                           </button>
                         </div>
                         {resettingUserId === user.id && (
                           <div style={{ display: "flex", gap: "8px" }}>
-                            <input
+                            <FormInput
                               type="text"
                               placeholder="Temporary password (12+ chars)"
                               value={tempPassword}
@@ -302,6 +299,7 @@ export function AdminUsers() {
                               style={{ ...compactInput, flex: 1 }}
                             />
                             <button
+                              className="button-table-action"
                               onClick={() => handleResetPassword(user.id)}
                               disabled={resetPassword.isPending}
                               style={compactInput}
@@ -432,12 +430,18 @@ function CreateUserForm({
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           type="submit"
+          className="button-primary-action"
           disabled={isPending || (needsTeam && teamId === null)}
           style={formInput}
         >
           {isPending ? "Creating..." : "Create User"}
         </button>
-        <button type="button" onClick={onCancel} style={formInput}>
+        <button
+          type="button"
+          className="button-secondary-action"
+          onClick={onCancel}
+          style={formInput}
+        >
           Cancel
         </button>
       </div>

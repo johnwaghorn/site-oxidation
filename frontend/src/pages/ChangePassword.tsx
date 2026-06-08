@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import {
   formPageWrapper,
+  formCard,
   formColumn,
   formInput,
   errorBox,
@@ -57,53 +58,55 @@ export function ChangePassword({
 
   return (
     <div style={formPageWrapper}>
-      <h1 style={{ marginBottom: "8px" }}>Change Password</h1>
-      <p style={subtitle}>
-        {onCancel
-          ? "Enter your current password and choose a new one."
-          : "You must change your password before continuing."}
-      </p>
-      <form onSubmit={handleSubmit} style={formColumn}>
-        <FormInput
-          type="password"
-          placeholder="Current password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
-        <FormInput
-          type="password"
-          placeholder="New password (12+ characters)"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          required
-          minLength={12}
-          autoComplete="new-password"
-        />
-        <FormInput
-          type="password"
-          placeholder="Confirm new password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          minLength={12}
-          autoComplete="new-password"
-        />
-        {error && <p style={errorBox}>{error}</p>}
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{ ...formInput, cursor: isLoading ? "wait" : "pointer" }}
-        >
-          {isLoading ? "Changing..." : "Change Password"}
-        </button>
-        {onCancel && (
-          <button type="button" onClick={onCancel} style={formInput}>
-            Cancel
+      <div style={formCard}>
+        <h1 style={{ marginBottom: "8px" }}>Change Password</h1>
+        <p style={subtitle}>
+          {onCancel
+            ? "Enter your current password and choose a new one."
+            : "You must change your password before continuing."}
+        </p>
+        <form onSubmit={handleSubmit} style={formColumn}>
+          <FormInput
+            type="password"
+            placeholder="Current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <FormInput
+            type="password"
+            placeholder="New password (12+ characters)"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={12}
+            autoComplete="new-password"
+          />
+          <FormInput
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={12}
+            autoComplete="new-password"
+          />
+          {error && <p style={errorBox}>{error}</p>}
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{ ...formInput, cursor: isLoading ? "wait" : "pointer" }}
+          >
+            {isLoading ? "Changing..." : "Change Password"}
           </button>
-        )}
-      </form>
+          {onCancel && (
+            <button type="button" onClick={onCancel} style={formInput}>
+              Cancel
+            </button>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

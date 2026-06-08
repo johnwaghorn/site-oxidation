@@ -153,7 +153,12 @@ export function SiteForm({
         />
         Allow untrusted
       </label>
-      <button type="submit" disabled={isLoading} style={compactInput}>
+      <button
+        type="submit"
+        className={isEdit ? "button-secondary-action" : "button-primary-action"}
+        disabled={isLoading}
+        style={compactInput}
+      >
         {isLoading
           ? isEdit
             ? "Saving..."
@@ -163,7 +168,12 @@ export function SiteForm({
             : "Add Site"}
       </button>
       {onCancel && (
-        <button type="button" onClick={onCancel} style={compactInput}>
+        <button
+          type="button"
+          className="button-secondary-action"
+          onClick={onCancel}
+          style={compactInput}
+        >
           Cancel
         </button>
       )}

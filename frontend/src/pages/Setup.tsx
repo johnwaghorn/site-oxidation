@@ -45,6 +45,7 @@ export function Setup({ onSetupComplete }: SetupProps) {
         </>
       ) : (
         <button
+          className="button-primary-action"
           onClick={handleBootstrap}
           disabled={bootstrap.isPending}
           style={formInput}
@@ -68,8 +69,9 @@ function Credential({ value }: { value: string }) {
         marginBottom: "16px",
         maxWidth: "640px",
         padding: "8px",
-        borderRadius: "8px",
-        backgroundColor: "#161b22",
+        border: "1px solid var(--color-border)",
+        borderRadius: "10px",
+        backgroundColor: "var(--color-surface)",
       }}
     >
       <pre
@@ -77,7 +79,7 @@ function Credential({ value }: { value: string }) {
           margin: 0,
           padding: "4px 8px",
           overflowX: "auto",
-          color: "#e5e7eb",
+          color: "var(--color-text)",
         }}
       >
         {value}

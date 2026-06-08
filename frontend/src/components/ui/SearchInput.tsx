@@ -59,7 +59,7 @@ export function SearchInput({
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ flexShrink: 0, color: "#9ca3af" }}
+        style={{ flexShrink: 0, color: "var(--color-muted)" }}
       >
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" />
@@ -92,7 +92,7 @@ export function SearchInput({
             padding: "2px 4px",
             border: "none",
             background: "transparent",
-            color: "#9ca3af",
+            color: "var(--color-muted)",
             cursor: "pointer",
             fontSize: "18px",
             lineHeight: 1,

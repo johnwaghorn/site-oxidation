@@ -14,6 +14,7 @@ export function FormToggleButton({
   return (
     <button
       type="button"
+      className={isOpen ? "button-secondary-action" : "button-primary-action"}
       onClick={onClick}
       style={{ ...compactInput, padding: "10px 14px" }}
     >

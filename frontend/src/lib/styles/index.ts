@@ -1,6 +1,7 @@
 export {
   pageWrapper,
   formPageWrapper,
+  formCard,
   headerRow,
   centeredFullScreen,
   section,

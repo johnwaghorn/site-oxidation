@@ -5,10 +5,10 @@ export const pageTitle: CSSProperties = {
 };
 
 export const subtitle: CSSProperties = {
-  color: "#b2b7bf",
+  color: "var(--color-muted)",
   marginBottom: "24px",
 };
 
 export const mutedText: CSSProperties = {
-  color: "#6b7280",
+  color: "var(--color-muted)",
 };
