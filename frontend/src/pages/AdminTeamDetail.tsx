@@ -117,6 +117,7 @@ export function AdminTeamDetail() {
                   </td>
                   <td style={tableCellRight}>
                     <button
+                      className="button-table-action button-table-danger"
                       onClick={() => setSiteToUnassign(site)}
                       style={compactInput}
                     >

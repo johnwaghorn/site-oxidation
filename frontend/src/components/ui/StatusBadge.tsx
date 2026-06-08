@@ -10,28 +10,28 @@ const statusConfig = {
   pending: {
     label: "PENDING",
     title: "Not checked yet",
-    backgroundColor: "#dbeafe",
-    color: "#1e40af",
+    backgroundColor: "var(--color-warning-bg)",
+    color: "var(--color-warning-text)",
   },
   up: {
     label: "UP",
     title: "Responding as expected",
-    backgroundColor: "#dcfce7",
-    color: "#166534",
+    backgroundColor: "var(--color-success-bg)",
+    color: "var(--color-success-text)",
   },
   down: {
     label: "DOWN",
     title:
       "Not responding as expected (unreachable, wrong status code, or missing expected text)",
-    backgroundColor: "#fee2e2",
-    color: "#991b1b",
+    backgroundColor: "var(--color-danger-bg)",
+    color: "var(--color-danger-text)",
   },
   blocked: {
     label: "BLOCKED",
     title:
       "Probe skipped by policy, usually because the host resolves to a private/internal IP",
-    backgroundColor: "#f3f4f6",
-    color: "#6b7280",
+    backgroundColor: "var(--color-neutral-bg)",
+    color: "var(--color-neutral-text)",
   },
 };
 

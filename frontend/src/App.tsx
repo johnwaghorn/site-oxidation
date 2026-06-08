@@ -10,10 +10,12 @@ import { AdminTeamDetail } from "./pages/AdminTeamDetail";
 import { AdminUsers } from "./pages/AdminUsers";
 import { useAuth } from "./hooks/useAuth";
 import { useSetupStatus } from "./hooks/useSetup";
+import { useThemePreference } from "./hooks/useThemePreference";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { centeredFullScreen } from "./lib/styles";
 
 function App() {
+  const { themePreference, setThemePreference } = useThemePreference();
   const {
     isAuthenticated,
     isLoading: authLoading,
@@ -71,8 +73,10 @@ function App() {
               username={username}
               role={role}
               teams={teams}
+              themePreference={themePreference}
               onLogout={logout}
               onChangePassword={() => setChangingPassword(true)}
+              onThemePreferenceChange={setThemePreference}
             />
           }
         />

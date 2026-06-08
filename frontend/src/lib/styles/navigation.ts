@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 export const backLink: CSSProperties = {
-  color: "#6b7280",
+  color: "var(--color-muted)",
   textDecoration: "none",
   marginBottom: "16px",
   display: "inline-block",
@@ -23,11 +23,11 @@ const tabBase: CSSProperties = {
 
 export const activeTab: CSSProperties = {
   ...tabBase,
-  borderBottomColor: "#646cff",
-  color: "#646cff",
+  borderBottomColor: "var(--color-primary)",
+  color: "var(--color-primary)",
 };
 
 export const inactiveTab: CSSProperties = {
   ...tabBase,
-  color: "#6b7280",
+  color: "var(--color-muted)",
 };

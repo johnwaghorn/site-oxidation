@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import {
   formPageWrapper,
+  formCard,
   formColumn,
   formInput,
   errorBox,
@@ -48,33 +49,35 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
   return (
     <div style={formPageWrapper}>
-      <h1 style={{ marginBottom: "24px" }}>Site Oxidation</h1>
-      <form onSubmit={handleSubmit} style={formColumn}>
-        <FormInput
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          autoComplete="username"
-        />
-        <FormInput
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
-        {error && <p style={errorBox}>{error}</p>}
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{ ...formInput, cursor: isLoading ? "wait" : "pointer" }}
-        >
-          {isLoading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+      <div style={formCard}>
+        <h1 style={{ marginBottom: "24px" }}>Site Oxidation</h1>
+        <form onSubmit={handleSubmit} style={formColumn}>
+          <FormInput
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            autoComplete="username"
+          />
+          <FormInput
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          {error && <p style={errorBox}>{error}</p>}
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{ ...formInput, cursor: isLoading ? "wait" : "pointer" }}
+          >
+            {isLoading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

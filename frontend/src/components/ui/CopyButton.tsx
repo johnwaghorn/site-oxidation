@@ -48,8 +48,14 @@ export function CopyButton({ value }: CopyButtonProps) {
           style={{
             padding: "4px 8px",
             borderRadius: "5px",
-            backgroundColor: status === "copied" ? "#374151" : "#7f1d1d",
-            color: "white",
+            backgroundColor:
+              status === "copied"
+                ? "var(--color-success-bg)"
+                : "var(--color-danger-bg)",
+            color:
+              status === "copied"
+                ? "var(--color-success-text)"
+                : "var(--color-danger-text)",
             fontSize: "12px",
             fontWeight: 600,
           }}
@@ -68,10 +74,13 @@ export function CopyButton({ value }: CopyButtonProps) {
           width: "38px",
           height: "38px",
           padding: 0,
-          border: `1px solid ${status === "copied" ? "#16a34a" : "#4b5563"}`,
+          border: `1px solid ${
+            status === "copied" ? "var(--color-success)" : "var(--color-border)"
+          }`,
           borderRadius: "7px",
-          backgroundColor: "#1f2937",
-          color: status === "copied" ? "#22c55e" : "#d1d5db",
+          backgroundColor: "var(--color-surface-elevated)",
+          color:
+            status === "copied" ? "var(--color-success)" : "var(--color-muted)",
           cursor: "pointer",
         }}
       >

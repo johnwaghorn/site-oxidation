@@ -12,6 +12,7 @@ import { UserMenu } from "../components/ui/UserMenu";
 import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import type { ThemePreference } from "../hooks/useThemePreference";
 import {
   pageWrapper,
   headerRow,
@@ -29,16 +30,20 @@ interface DashboardProps {
   username: string | null;
   role: UserRole | null;
   teams: UserTeam[];
+  themePreference: ThemePreference;
   onLogout: () => void;
   onChangePassword: () => void;
+  onThemePreferenceChange: (preference: ThemePreference) => void;
 }
 
 export function Dashboard({
   username,
   role,
   teams,
+  themePreference,
   onLogout,
   onChangePassword,
+  onThemePreferenceChange,
 }: DashboardProps) {
   const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
@@ -75,8 +80,10 @@ export function Dashboard({
         <UserMenu
           username={username ?? ""}
           isAdmin={role === "admin"}
+          themePreference={themePreference}
           onChangePassword={onChangePassword}
           onLogout={onLogout}
+          onThemePreferenceChange={onThemePreferenceChange}
         />
       </div>
 
@@ -190,11 +197,11 @@ function GetStartedNudge({ onAddSite }: { onAddSite: () => void }) {
         maxWidth: "720px",
         marginTop: "8px",
         padding: "28px",
-        border: "1px solid GrayText",
+        border: "1px solid var(--color-border)",
         borderRadius: "14px",
         background:
-          "linear-gradient(135deg, rgba(100, 108, 255, 0.12), transparent 42%), Canvas",
-        boxShadow: "0 14px 34px rgba(0, 0, 0, 0.12)",
+          "linear-gradient(135deg, var(--color-primary-soft), transparent 48%), var(--color-surface)",
+        boxShadow: "var(--shadow-card)",
       }}
     >
       <p
@@ -220,12 +227,10 @@ function GetStartedNudge({ onAddSite }: { onAddSite: () => void }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
         <button
           type="button"
+          className="button-primary-action"
           onClick={onAddSite}
           style={{
             padding: "10px 16px",
-            borderColor: "#646cff",
-            backgroundColor: "#646cff",
-            color: "#ffffff",
           }}
         >
           Add your first site
@@ -236,9 +241,9 @@ function GetStartedNudge({ onAddSite }: { onAddSite: () => void }) {
             display: "inline-flex",
             alignItems: "center",
             padding: "10px 16px",
-            border: "1px solid GrayText",
+            border: "1px solid var(--color-border)",
             borderRadius: "8px",
-            color: "inherit",
+            color: "var(--color-text)",
             fontWeight: 500,
           }}
         >

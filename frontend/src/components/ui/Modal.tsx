@@ -15,7 +15,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        backgroundColor: "var(--color-overlay)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -25,13 +25,13 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     >
       <div
         style={{
-          backgroundColor: "#1a1a1a",
-          borderRadius: "8px",
+          backgroundColor: "var(--color-surface-elevated)",
+          borderRadius: "16px",
           padding: "24px",
           minWidth: "300px",
           maxWidth: "90vw",
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
-          border: "1px solid #333",
+          boxShadow: "var(--shadow-popover)",
+          border: "1px solid var(--color-border)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -51,7 +51,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
               border: "none",
               fontSize: "24px",
               cursor: "pointer",
-              color: "#9ca3af",
+              color: "var(--color-muted)",
             }}
           >
             ×

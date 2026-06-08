@@ -11,18 +11,42 @@ const statusConfig: Record<
   CertStatus,
   { label: string; backgroundColor: string; color: string }
 > = {
-  valid: { label: "VALID", backgroundColor: "#dcfce7", color: "#166534" },
-  expiring: { label: "EXPIRING", backgroundColor: "#fef9c3", color: "#854d0e" },
-  critical: { label: "CRITICAL", backgroundColor: "#fee2e2", color: "#991b1b" },
-  expired: { label: "EXPIRED", backgroundColor: "#fee2e2", color: "#991b1b" },
-  invalid: { label: "INVALID", backgroundColor: "#fee2e2", color: "#991b1b" },
-  none: { label: "NO TLS", backgroundColor: "#f3f4f6", color: "#6b7280" },
+  valid: {
+    label: "VALID",
+    backgroundColor: "var(--color-success-bg)",
+    color: "var(--color-success-text)",
+  },
+  expiring: {
+    label: "EXPIRING",
+    backgroundColor: "var(--color-warning-bg)",
+    color: "var(--color-warning-text)",
+  },
+  critical: {
+    label: "CRITICAL",
+    backgroundColor: "var(--color-danger-bg)",
+    color: "var(--color-danger-text)",
+  },
+  expired: {
+    label: "EXPIRED",
+    backgroundColor: "var(--color-danger-bg)",
+    color: "var(--color-danger-text)",
+  },
+  invalid: {
+    label: "INVALID",
+    backgroundColor: "var(--color-danger-bg)",
+    color: "var(--color-danger-text)",
+  },
+  none: {
+    label: "NO TLS",
+    backgroundColor: "var(--color-neutral-bg)",
+    color: "var(--color-neutral-text)",
+  },
 };
 
 const unknownConfig = {
   label: "-",
-  backgroundColor: "#f3f4f6",
-  color: "#6b7280",
+  backgroundColor: "var(--color-neutral-bg)",
+  color: "var(--color-neutral-text)",
 };
 
 function tooltip(

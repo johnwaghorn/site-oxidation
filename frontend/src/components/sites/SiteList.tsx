@@ -5,7 +5,6 @@ import {
   tableCellLeft,
   tableCellCenter,
   tableCellRight,
-  tableCell,
 } from "../../lib/styles";
 import { SiteRow } from "./SiteRow.tsx";
 
@@ -31,7 +30,7 @@ export function SiteList({ sites, onDelete }: SiteListProps) {
           <th style={tableCellCenter}>Cert</th>
           <th style={tableCellRight}>Latency</th>
           <th style={tableCellRight}>Last Checked</th>
-          {onDelete && <th style={tableCell}></th>}
+          {onDelete && <th style={tableCellRight}>Actions</th>}
         </tr>
       </thead>
       <tbody>

@@ -26,17 +26,17 @@ export const compactInput: CSSProperties = {
 export const polishedFieldChrome: CSSProperties = {
   boxSizing: "border-box",
   padding: "10px 12px",
-  border: "1px solid GrayText",
-  borderRadius: "8px",
-  backgroundColor: "Field",
-  color: "FieldText",
+  border: "1px solid var(--color-border)",
+  borderRadius: "10px",
+  backgroundColor: "var(--color-field-bg)",
+  color: "var(--color-text)",
   fontSize: "14px",
   transition: "border-color 150ms ease, box-shadow 150ms ease",
 };
 
 export const polishedFieldFocus: CSSProperties = {
-  borderColor: "#646cff",
-  boxShadow: "0 0 0 3px rgba(100, 108, 255, 0.2)",
+  borderColor: "var(--color-primary)",
+  boxShadow: "0 0 0 3px var(--color-focus-ring)",
   outline: "none",
 };
 
@@ -51,9 +51,10 @@ export const comboboxList: CSSProperties = {
   listStyle: "none",
   maxHeight: "200px",
   overflowY: "auto",
-  border: "1px solid GrayText",
-  borderRadius: "4px",
-  backgroundColor: "Canvas",
+  border: "1px solid var(--color-border)",
+  borderRadius: "10px",
+  backgroundColor: "var(--color-surface-elevated)",
+  boxShadow: "var(--shadow-popover)",
 };
 
 export const comboboxItem: CSSProperties = {
@@ -71,6 +72,6 @@ export const comboboxItem: CSSProperties = {
 };
 
 export const comboboxItemHovered: CSSProperties = {
-  backgroundColor: "Highlight",
-  color: "HighlightText",
+  backgroundColor: "var(--color-primary-soft)",
+  color: "var(--color-text)",
 };

@@ -9,9 +9,10 @@ export function ErrorMessage({ error }: ErrorMessageProps) {
       style={{
         marginTop: "16px",
         padding: "16px",
-        backgroundColor: "#fee2e2",
-        color: "#991b1b",
-        borderRadius: "4px",
+        backgroundColor: "var(--color-danger-bg)",
+        color: "var(--color-danger-text)",
+        border: "1px solid var(--color-danger)",
+        borderRadius: "10px",
       }}
     >
       Error: {error.message || "Something went wrong. Please try again."}
