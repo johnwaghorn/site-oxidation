@@ -439,6 +439,8 @@ export interface components {
                 /** Format: date-time */
                 cert_expires_at?: string | null;
                 cert_status?: null | components["schemas"]["CertStatus"];
+                /** Format: date-time */
+                created_at: string;
                 /** Format: int64 */
                 expected_status: number;
                 expected_text?: string | null;
@@ -487,6 +489,8 @@ export interface components {
             /** Format: date-time */
             cert_expires_at?: string | null;
             cert_status?: null | components["schemas"]["CertStatus"];
+            /** Format: date-time */
+            created_at: string;
             /** Format: int64 */
             expected_status: number;
             expected_text?: string | null;
@@ -1112,6 +1116,8 @@ export interface operations {
                             /** Format: date-time */
                             cert_expires_at?: string | null;
                             cert_status?: null | components["schemas"]["CertStatus"];
+                            /** Format: date-time */
+                            created_at: string;
                             /** Format: int64 */
                             expected_status: number;
                             expected_text?: string | null;
@@ -1913,6 +1919,8 @@ export interface operations {
                             /** Format: date-time */
                             cert_expires_at?: string | null;
                             cert_status?: null | components["schemas"]["CertStatus"];
+                            /** Format: date-time */
+                            created_at: string;
                             /** Format: int64 */
                             expected_status: number;
                             expected_text?: string | null;

@@ -51,7 +51,7 @@ pub const DELETE_TEAM: &str = concat!(
 pub const COUNT_TEAM_SITES: &str = "SELECT COUNT(*) FROM sites WHERE team_id = ?";
 
 pub const LIST_TEAM_SITES: &str = concat!(
-    "SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, ",
+    "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s ",

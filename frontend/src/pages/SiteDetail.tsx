@@ -69,12 +69,17 @@ export function SiteDetail() {
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
       </div>
 
-      {site.cert_expires_at && (
-        <p style={{ ...mutedText, marginTop: "-12px", marginBottom: "24px" }}>
-          Certificate expiry:{" "}
-          {new Date(site.cert_expires_at).toLocaleDateString()}
+      <div style={{ ...mutedText, marginTop: "-12px", marginBottom: "24px" }}>
+        <p style={{ margin: "0 0 4px 0" }}>
+          Monitoring since: {new Date(site.created_at).toLocaleString()}
         </p>
-      )}
+        {site.cert_expires_at && (
+          <p style={{ margin: 0 }}>
+            Certificate expiry:{" "}
+            {new Date(site.cert_expires_at).toLocaleDateString()}
+          </p>
+        )}
+      </div>
 
       <section style={section}>
         <h2>Edit Site</h2>

@@ -9,14 +9,14 @@ pub const CHECK_SITE_ACCESS_USER: &str = concat!(
 
 // Admin scoped
 pub const SELECT_SITE_ADMIN: &str = concat!(
-    "SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, ",
+    "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s LEFT JOIN teams t ON t.id = s.team_id WHERE s.id = ?"
 );
 
 pub const LIST_SITES_ADMIN: &str = concat!(
-    "SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, ",
+    "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s LEFT JOIN teams t ON t.id = s.team_id ",
@@ -34,7 +34,7 @@ pub const CHECK_TEAM_MEMBERSHIP: &str =
     "SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?)";
 
 pub const SELECT_SITE_USER: &str = concat!(
-    "SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, ",
+    "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s ",
@@ -44,7 +44,7 @@ pub const SELECT_SITE_USER: &str = concat!(
 );
 
 pub const LIST_SITES_USER: &str = concat!(
-    "SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, ",
+    "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s ",

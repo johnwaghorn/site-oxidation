@@ -29,6 +29,7 @@ async fn test_list_sites_returns_inserted_site(pool: SqlitePool) {
     let sites = body["data"].as_array().unwrap();
     assert_eq!(sites.len(), 1);
     assert!(sites[0]["name"].as_str().unwrap().contains(TEST_SITE_NAME));
+    assert!(!sites[0]["created_at"].as_str().unwrap().is_empty());
     assert_eq!(body["page"], 1);
     assert_eq!(body["per_page"], 20);
     assert_eq!(body["total"], 1);
@@ -118,6 +119,8 @@ async fn test_create_site(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
+    let body = parse_json_body(response).await;
+    assert!(!body["created_at"].as_str().unwrap().is_empty());
 }
 
 #[sqlx::test(migrations = "./migrations")]

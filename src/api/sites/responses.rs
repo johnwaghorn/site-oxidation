@@ -8,6 +8,7 @@ pub struct SiteResponse {
     pub id: i64,
     pub name: String,
     pub url: String,
+    pub created_at: DateTime<Utc>,
     pub expected_status: i64,
     pub expected_text: Option<String>,
     pub status: SiteStatus,
