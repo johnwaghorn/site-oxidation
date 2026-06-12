@@ -64,7 +64,7 @@ export function SiteDetail() {
           marginBottom: "24px",
         }}
       >
-        <h1 style={pageTitle}>{site.name}</h1>
+        <h1 style={{ ...pageTitle, margin: 0 }}>{site.name}</h1>
         <StatusBadge status={site.status} />
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
       </div>

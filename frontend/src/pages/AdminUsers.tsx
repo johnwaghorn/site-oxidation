@@ -16,7 +16,6 @@ import {
 } from "../hooks/useAdmin";
 import { usePagination } from "../hooks/usePagination";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { AdminNav } from "../components/ui/AdminNav";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Pagination } from "../components/ui/Pagination";
@@ -27,7 +26,7 @@ import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
 import {
   pageWrapper,
-  backLink,
+  pageTitle,
   table,
   tableHeaderRow,
   tableRow,
@@ -152,10 +151,7 @@ export function AdminUsers() {
 
   return (
     <div style={pageWrapper}>
-      <Link to="/" style={backLink}>
-        &larr; Back to Dashboard
-      </Link>
-      <AdminNav />
+      <h1 style={pageTitle}>Users</h1>
 
       {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
 

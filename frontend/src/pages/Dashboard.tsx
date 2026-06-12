@@ -8,13 +8,11 @@ import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { UserMenu } from "../components/ui/UserMenu";
 import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { FormSelect } from "../components/ui/FormControls";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import type { ThemePreference } from "../hooks/useThemePreference";
-import { pageWrapper, headerRow, pageTitle, mutedText } from "../lib/styles";
+import { pageWrapper, pageTitle, mutedText } from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
@@ -22,24 +20,11 @@ type UserTeam = components["schemas"]["UserTeam"];
 type UserRole = components["schemas"]["UserRole"];
 
 interface DashboardProps {
-  username: string | null;
   role: UserRole | null;
   teams: UserTeam[];
-  themePreference: ThemePreference;
-  onLogout: () => void;
-  onChangePassword: () => void;
-  onThemePreferenceChange: (preference: ThemePreference) => void;
 }
 
-export function Dashboard({
-  username,
-  role,
-  teams,
-  themePreference,
-  onLogout,
-  onChangePassword,
-  onThemePreferenceChange,
-}: DashboardProps) {
+export function Dashboard({ role, teams }: DashboardProps) {
   const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
@@ -70,17 +55,7 @@ export function Dashboard({
 
   return (
     <div style={pageWrapper}>
-      <div style={headerRow}>
-        <h1 style={pageTitle}>Site Oxidation</h1>
-        <UserMenu
-          username={username ?? ""}
-          isAdmin={role === "admin"}
-          themePreference={themePreference}
-          onChangePassword={onChangePassword}
-          onLogout={onLogout}
-          onThemePreferenceChange={onThemePreferenceChange}
-        />
-      </div>
+      <h1 style={pageTitle}>Sites</h1>
 
       <SearchToolbar
         action={

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 export const pageTitle: CSSProperties = {
-  margin: 0,
+  margin: "0 0 24px 0",
 };
 
 export const subtitle: CSSProperties = {

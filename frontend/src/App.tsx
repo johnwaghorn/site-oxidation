@@ -8,10 +8,13 @@ import { ChangePassword } from "./pages/ChangePassword";
 import { AdminTeams } from "./pages/AdminTeams";
 import { AdminTeamDetail } from "./pages/AdminTeamDetail";
 import { AdminUsers } from "./pages/AdminUsers";
+import { Notifications } from "./pages/Notifications";
+import { Backups } from "./pages/Backups";
 import { useAuth } from "./hooks/useAuth";
 import { useSetupStatus } from "./hooks/useSetup";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { AppShell } from "./components/ui/AppShell";
 import { centeredFullScreen } from "./lib/styles";
 
 function App() {
@@ -78,30 +81,28 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Dashboard
-              username={username}
-              role={role}
-              teams={teams}
-              themePreference={themePreference}
-              onLogout={logout}
-              onChangePassword={() => setChangingPassword(true)}
-              onThemePreferenceChange={handleThemePreferenceChange}
-            />
-          }
-        />
-        <Route path="/sites/:id" element={<SiteDetail />} />
-        {role === "admin" && (
-          <>
-            <Route path="/admin/teams" element={<AdminTeams />} />
-            <Route path="/admin/teams/:id" element={<AdminTeamDetail />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-          </>
-        )}
-      </Routes>
+      <AppShell
+        username={username ?? ""}
+        role={role}
+        themePreference={themePreference}
+        onLogout={logout}
+        onChangePassword={() => setChangingPassword(true)}
+        onThemePreferenceChange={handleThemePreferenceChange}
+      >
+        <Routes>
+          <Route path="/" element={<Dashboard role={role} teams={teams} />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/backups" element={<Backups />} />
+          <Route path="/sites/:id" element={<SiteDetail />} />
+          {role === "admin" && (
+            <>
+              <Route path="/admin/teams" element={<AdminTeams />} />
+              <Route path="/admin/teams/:id" element={<AdminTeamDetail />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+            </>
+          )}
+        </Routes>
+      </AppShell>
     </BrowserRouter>
   );
 }

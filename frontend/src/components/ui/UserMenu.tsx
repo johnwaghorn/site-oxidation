@@ -6,6 +6,8 @@ interface UserMenuProps {
   username: string;
   isAdmin: boolean;
   themePreference: ThemePreference;
+  variant?: "button" | "sidebar";
+  showAdminLink?: boolean;
   onChangePassword: () => void;
   onLogout: () => void;
   onThemePreferenceChange: (preference: ThemePreference) => void;
@@ -28,6 +30,8 @@ export function UserMenu({
   username,
   isAdmin,
   themePreference,
+  variant = "button",
+  showAdminLink = true,
   onChangePassword,
   onLogout,
   onThemePreferenceChange,
@@ -46,16 +50,34 @@ export function UserMenu({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const isSidebar = variant === "sidebar";
+
   return (
-    <div ref={menuRef} style={{ position: "relative" }}>
-      <button onClick={() => setIsOpen(!isOpen)}>{username} ▾</button>
+    <div
+      ref={menuRef}
+      style={{ position: "relative", width: isSidebar ? "100%" : undefined }}
+    >
+      <button
+        className={isSidebar ? "app-sidebar-account" : "button-user-menu"}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isSidebar && (
+          <span className="app-sidebar-account-avatar">
+            {username.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <span>{username}</span>
+        <span aria-hidden="true">▾</span>
+      </button>
       {isOpen && (
         <div
           style={{
             position: "absolute",
-            right: 0,
-            top: "100%",
-            marginTop: "4px",
+            right: isSidebar ? "auto" : 0,
+            left: isSidebar ? 0 : "auto",
+            top: isSidebar ? "auto" : "100%",
+            bottom: isSidebar ? "calc(100% + 8px)" : "auto",
+            marginTop: isSidebar ? 0 : "4px",
             minWidth: "220px",
             zIndex: 10,
             backgroundColor: "var(--color-surface-elevated)",
@@ -102,7 +124,7 @@ export function UserMenu({
               </select>
             </label>
           </div>
-          {isAdmin && (
+          {isAdmin && showAdminLink && (
             <button
               onClick={() => {
                 setIsOpen(false);

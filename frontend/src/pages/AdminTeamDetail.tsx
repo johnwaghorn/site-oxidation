@@ -6,7 +6,6 @@ import {
   useUnassignTeamSite,
 } from "../hooks/useAdmin";
 import { usePagination } from "../hooks/usePagination";
-import { AdminNav } from "../components/ui/AdminNav";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
@@ -69,7 +68,6 @@ export function AdminTeamDetail() {
       <Link to="/admin/teams" style={backLink}>
         &larr; Back to Teams
       </Link>
-      <AdminNav />
 
       <h1 style={pageTitle}>
         <Truncate text={team.name} maxWidth="90%" />

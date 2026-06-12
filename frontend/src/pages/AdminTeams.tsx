@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AdminNav } from "../components/ui/AdminNav";
 import {
   useAdminTeams,
   useAdminUsers,
@@ -22,7 +21,7 @@ import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
 import {
   pageWrapper,
-  backLink,
+  pageTitle,
   table,
   tableHeaderRow,
   tableRow,
@@ -104,10 +103,7 @@ export function AdminTeams() {
 
   return (
     <div style={pageWrapper}>
-      <Link to="/" style={backLink}>
-        &larr; Back to Dashboard
-      </Link>
-      <AdminNav />
+      <h1 style={pageTitle}>Teams</h1>
 
       {editingTeam && updateTeam.isError && (
         <ErrorMessage error={updateTeam.error} />
