@@ -1,20 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" shape-rendering="crispEdges">
   <defs>
-    <linearGradient id="rust3a" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#D2691E"/>
-      <stop offset="100%" stop-color="#6B3E1F"/>
+    <linearGradient id="pixelCogRustRoundTightNoHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="38%" stop-color="#ea580c"/>
+      <stop offset="66%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#431407"/>
     </linearGradient>
-    <linearGradient id="drip3a" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#6B3E1F"/>
-      <stop offset="100%" stop-color="#3D2314"/>
-    </linearGradient>
+    <mask id="centerHoleMask" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32">
+      <rect width="32" height="32" fill="#fff"/>
+      <rect x="14" y="12" width="4" height="4" fill="#000"/>
+    </mask>
   </defs>
-  <path fill="url(#rust3a)" d="M28 2 L36 2 L38 12 L48 8 L52 16 L44 22 L52 32 L48 42 L38 38 L36 48 L28 48 L26 38 L16 42 L12 32 L20 22 L12 16 L16 8 L26 12 Z"/>
-  <circle fill="#2D1810" cx="32" cy="25" r="9"/>
-  <ellipse fill="url(#drip3a)" cx="18" cy="50" rx="2" ry="4"/>
-  <ellipse fill="url(#drip3a)" cx="23" cy="35" rx="2" ry="4"/>
-  <ellipse fill="url(#drip3a)" cx="30" cy="48" rx="2" ry="4"/>
-  <ellipse fill="url(#drip3a)" cx="42" cy="42" rx="1.5" ry="2.5"/>
-  <ellipse fill="url(#drip3a)" cx="40" cy="50" rx="1.5" ry="2.5"/>
-  <ellipse fill="url(#drip3a)" cx="50" cy="36" rx="2" ry="3"/>
+  <g transform="scale(2)">
+    <g mask="url(#centerHoleMask)">
+      <path fill="#3d2314" d="M14 2h5v5l4-2 3 4-4 4 5 3-2 5-5-2-1 6h-5l-1-6-5 2-2-5 5-3-4-4 3-4 4 2z"/>
+      <path fill="url(#pixelCogRustRoundTightNoHighlight)" d="M13 1h6v5l5-2 4 5-5 4 5 3-3 6-5-2-1 6h-6l-1-6-5 2-3-6 5-3-5-4 4-5 5 2z"/>
+      <path fill="#fb923c" opacity=".78" d="M8 6l5 2-2 4H7L4 9z"/>
+      <path fill="#f59e0b" opacity=".58" d="M22 6l4 3-4 3-3-4z"/>
+      <path fill="#9a3412" opacity=".84" d="M23 16h5l-3 6-5-2 1-3z"/>
+      <path fill="#7c2d12" opacity=".9" d="M7 16h5l-1 4-4 2-3-6z"/>
+      <path fill="#6b3e1f" opacity=".9" d="M13 22h6v4h-6z"/>
+      <rect x="20" y="12" width="2" height="5" fill="#431407" opacity=".38"/>
+      <rect x="13" y="17" width="7" height="2" fill="#431407" opacity=".38"/>
+      <rect x="22" y="18" width="2" height="3" fill="#3d2314" opacity=".75"/>
+      <rect x="9" y="21" width="2" height="2" fill="#6b3e1f"/>
+    </g>
+    <rect x="13" y="10" width="6" height="2" fill="#2b170b"/>
+    <rect x="12" y="12" width="2" height="4" fill="#2b170b"/>
+    <rect x="18" y="12" width="2" height="4" fill="#2b170b"/>
+    <rect x="13" y="16" width="6" height="2" fill="#2b170b"/>
+    <rect x="12" y="11" width="1" height="1" fill="#2b170b"/>
+    <rect x="19" y="11" width="1" height="1" fill="#2b170b"/>
+    <rect x="12" y="16" width="1" height="1" fill="#2b170b"/>
+    <rect x="19" y="16" width="1" height="1" fill="#2b170b"/>
+  </g>
 </svg>
