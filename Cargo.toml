@@ -20,7 +20,7 @@ url = "2.5.8"
 anyhow = "1.0.102"
 thiserror = "2.0.18"
 axum-login = "0.18.0"
-tower-sessions = { version = "=0.14.0", features = ["signed"] }
+tower-sessions = { version = "=0.15.0", features = ["signed"] }
 tower-sessions-sqlx-store = { version = "=0.15.0", features = ["sqlite"] }
 password-auth = "1.0"
 time = "0.3"
