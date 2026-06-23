@@ -12,7 +12,7 @@ tracing-subscriber = "0.3"
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 chrono = { version = "0.4.45", features = ["serde"] }
-tower-http = { version = "0.6.8", features = ["cors", "fs"] }
+tower-http = { version = "0.7.0", features = ["cors", "fs"] }
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 futures = "0.3.31"
