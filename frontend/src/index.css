@@ -198,7 +198,6 @@ html {
   height: 38px;
   border-radius: 14px;
   display: block;
-  background-color: var(--color-background);
   image-rendering: pixelated;
 }
 
