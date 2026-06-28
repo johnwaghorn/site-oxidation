@@ -2,6 +2,12 @@
 
 Monitor the oxidation of your site. Prevent rust build up.
 
+> [!WARNING]
+> Site Oxidation is still pre 1.0. Database migrations may be squashed or
+> rewritten between releases, so existing databases are not guaranteed to
+> upgrade cleanly just yet. If you pull a new version and migrations fail,
+> wipe your local database and run setup again. Sorry!
+
 ## Quick Start
 
 ```bash
