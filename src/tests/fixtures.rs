@@ -51,7 +51,7 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
     .bind(TEST_SITE_NAME)
     .bind(TEST_SITE_URL)
     .bind(TEST_SITE_EXPECTED_STATUS)
-    .bind(&status)
+    .bind(status)
     .fetch_one(pool)
     .await
     .unwrap();
@@ -63,5 +63,10 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
         expected_text: None,
         status,
         tls_allow_untrusted: false,
+        slack_webhook_url: None,
+        cert_status: None,
+        notify_site_down: true,
+        notify_site_recovered: true,
+        notify_cert_expiring: true,
     }
 }

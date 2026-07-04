@@ -11,8 +11,9 @@ use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
-use crate::api::search::{SearchParams, normalize_search};
+use crate::api::search::{SearchParams, normalise_search};
 use crate::api::sites::responses::SiteResponse;
+use crate::api::text;
 
 #[derive(Deserialize)]
 pub struct ListTeamsQuery {
@@ -42,7 +43,7 @@ pub async fn list_teams(
     Query(params): Query<ListTeamsQuery>,
 ) -> Result<Json<PaginatedResponse<TeamResponse>>, ApiErrorResponse> {
     let pagination = PaginationParams::new(params.page, params.per_page);
-    let search = normalize_search(params.search.as_deref());
+    let search = normalise_search(params.search.as_deref());
     let teams = sqlx::query_as::<_, TeamResponse>(queries::LIST_TEAMS)
         .bind(search)
         .bind(pagination.per_page())
@@ -196,7 +197,7 @@ pub async fn list_team_options(
 ) -> Result<Json<Vec<TeamOption>>, ApiErrorResponse> {
     const LIMIT: i64 = 20;
     let options = sqlx::query_as::<_, TeamOption>(queries::SEARCH_TEAM_OPTIONS)
-        .bind(params.normalized())
+        .bind(params.normalised())
         .bind(LIMIT)
         .fetch_all(&pool)
         .await
@@ -223,12 +224,8 @@ pub async fn create_team(
     State(pool): State<SqlitePool>,
     Json(payload): Json<CreateTeamRequest>,
 ) -> Result<(StatusCode, Json<TeamResponse>), ApiErrorResponse> {
-    let name = payload.name.trim().to_owned();
-    if name.is_empty() || name.chars().count() > 60 {
-        return Err(ApiErrorResponse::validation(
-            "Team name must be between 1 and 60 characters",
-        ));
-    }
+    let name = text::required(&payload.name, "Team name", 60)
+        .map_err(|e| ApiErrorResponse::validation(&e))?;
     let id: i64 = sqlx::query_scalar(queries::INSERT_TEAM)
         .bind(&name)
         .fetch_one(&pool)
@@ -267,12 +264,8 @@ pub async fn update_team(
     Path(id): Path<i64>,
     Json(payload): Json<UpdateTeamRequest>,
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
-    let name = payload.name.trim().to_owned();
-    if name.is_empty() || name.chars().count() > 60 {
-        return Err(ApiErrorResponse::validation(
-            "Team name must be between 1 and 60 characters",
-        ));
-    }
+    let name = text::required(&payload.name, "Team name", 60)
+        .map_err(|e| ApiErrorResponse::validation(&e))?;
     let updated: Option<i64> = sqlx::query_scalar(queries::UPDATE_TEAM)
         .bind(&name)
         .bind(id)

@@ -8,7 +8,7 @@ use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::RequireAppAccess;
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
-use crate::api::search::{SearchParams, normalize_search};
+use crate::api::search::{SearchParams, normalise_search};
 use crate::models::user::UserRole;
 use crate::state::AppState;
 use axum::{
@@ -44,7 +44,7 @@ pub async fn list_sites(
     Query(params): Query<ListSitesQuery>,
 ) -> Result<Json<PaginatedResponse<SiteResponse>>, ApiErrorResponse> {
     let pagination = PaginationParams::new(params.page, params.per_page);
-    let search = normalize_search(params.search.as_deref());
+    let search = normalise_search(params.search.as_deref());
     let (sites, total) = if user.role == UserRole::Admin {
         let sites = sqlx::query_as::<_, SiteResponse>(LIST_SITES_ADMIN)
             .bind(search)

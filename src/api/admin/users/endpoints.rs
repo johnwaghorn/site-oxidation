@@ -16,7 +16,8 @@ use crate::api::errors::{
 };
 use crate::api::extractors::RequireAdmin;
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
-use crate::api::search::{SearchParams, normalize_search};
+use crate::api::search::{SearchParams, normalise_search};
+use crate::api::text;
 use crate::models::user::UserRole;
 use crate::security::password::{validate_password_bounds, validate_password_not_username};
 use crate::state::AdminLimiter;
@@ -52,7 +53,7 @@ pub async fn list_users(
     Query(params): Query<ListUsersQuery>,
 ) -> Result<Json<PaginatedResponse<UserResponse>>, ApiErrorResponse> {
     let pagination = PaginationParams::new(params.page, params.per_page);
-    let search = normalize_search(params.search.as_deref());
+    let search = normalise_search(params.search.as_deref());
     let users = sqlx::query_as::<_, UserResponse>(queries::LIST_USERS)
         .bind(search)
         .bind(params.team_id)
@@ -109,12 +110,8 @@ pub async fn create_user(
         ));
     }
     limiter.record_failure(&limiter_key);
-    let username = payload.username.trim().to_owned();
-    if username.is_empty() || username.chars().count() > 60 {
-        return Err(ApiErrorResponse::validation(
-            "Username must be between 1 and 60 characters",
-        ));
-    }
+    let username = text::required(&payload.username, "Username", 60)
+        .map_err(|e| ApiErrorResponse::validation(&e))?;
     validate_password_bounds(&payload.password)?;
     validate_password_not_username(&payload.password, &username)?;
     let team_id = match payload.role {

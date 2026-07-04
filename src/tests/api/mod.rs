@@ -7,3 +7,4 @@ mod test_api_setup;
 mod test_api_sites;
 mod test_api_sites_outages;
 mod test_api_sites_team_scoping;
+mod test_api_team_notifications;
