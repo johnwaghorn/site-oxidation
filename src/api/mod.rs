@@ -11,5 +11,7 @@ pub(crate) mod schema;
 pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod sites;
+pub(crate) mod teams;
+pub(crate) mod text;
 
 pub use schema::ApiDoc;

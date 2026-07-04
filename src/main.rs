@@ -4,6 +4,7 @@ mod config;
 mod db;
 mod jobs;
 mod models;
+mod notifications;
 mod probe;
 mod security;
 mod state;
@@ -100,11 +101,16 @@ async fn main() -> Result<()> {
         .tls_danger_accept_invalid_hostnames(true)
         .build()
         .context("Failed to build no-verify probe client for tls_allow_untrusted sites")?;
+    let notification_client = probe_builder()
+        .build()
+        .context("Failed to build notification client")?;
+    let notifier = notifications::Notifier::new(notification_client);
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));
     let health_routes = api::healthcheck::health_routes();
     let auth_routes = api::auth::auth_routes();
     let setup_routes = api::setup::setup_routes();
     let site_routes = api::sites::site_routes();
+    let team_routes = api::teams::team_routes();
     let admin_routes = api::admin::admin_routes();
     let mut app = Router::new()
         .nest("/api", health_routes)
@@ -114,6 +120,7 @@ async fn main() -> Result<()> {
             Router::new()
                 .merge(auth_routes)
                 .merge(site_routes)
+                .merge(team_routes)
                 .merge(admin_routes)
                 .layer(auth_layer),
         )
@@ -131,7 +138,8 @@ async fn main() -> Result<()> {
     tracing::info!("Server started on {}", addr);
     let checker_pool = pool.clone();
     let checker_config = config.clone();
-    // Background site checker: wakes every 10 seconds and probes any sites
+    let checker_notifier = notifier.clone();
+    // Background site checker: wakes every n seconds and probes any sites
     // whose configured check interval has elapsed.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
@@ -142,6 +150,7 @@ async fn main() -> Result<()> {
                 &untrusted_client,
                 &checker_pool,
                 &checker_config,
+                &checker_notifier,
             )
             .await;
         }

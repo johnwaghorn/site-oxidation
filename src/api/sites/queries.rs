@@ -29,10 +29,6 @@ pub const COUNT_SITES_ADMIN: &str = concat!(
     "WHERE (?1 IS NULL OR s.name LIKE '%' || ?1 || '%' OR s.url LIKE '%' || ?1 || '%')"
 );
 
-// Team scoped
-pub const CHECK_TEAM_MEMBERSHIP: &str =
-    "SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?)";
-
 pub const SELECT_SITE_USER: &str = concat!(
     "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",

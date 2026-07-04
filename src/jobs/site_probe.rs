@@ -1,13 +1,20 @@
 use crate::config::AppConfig;
-use crate::models::site::SiteRow;
+use crate::models::site::{CertStatus, SiteRow};
+use crate::notifications::Notifier;
 use crate::probe::cert::{CertCheck, CertExpiryWindows, check_certificate};
 use crate::probe::http::{CheckExpectation, ProbeResult, check_url};
 use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::Client;
 use sqlx::SqlitePool;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
+
+pub enum SiteTransition {
+    WentDown,
+    Recovered,
+    NoChange,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct ProbeGroupKey {
@@ -33,6 +40,7 @@ pub async fn check_all_sites(
     untrusted_client: &Client,
     pool: &SqlitePool,
     config: &AppConfig,
+    notifier: &Notifier,
 ) {
     if verifying_client
         .head(&config.canary_url)
@@ -46,8 +54,13 @@ pub async fn check_all_sites(
     }
     let sites = sqlx::query_as::<_, SiteRow>(
         r"
-            SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status, s.tls_allow_untrusted
+            SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status,
+                   s.tls_allow_untrusted, s.cert_status, n.slack_webhook_url,
+                   COALESCE(n.notify_site_down, 1) AS notify_site_down,
+                   COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered,
+                   COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring
             FROM sites s
+            LEFT JOIN team_notification_settings n ON n.team_id = s.team_id
             WHERE EXISTS (
                 SELECT 1
                 FROM sites due
@@ -86,6 +99,7 @@ pub async fn check_all_sites(
                 untrusted_client,
                 pool,
                 config,
+                notifier,
                 group_key,
                 group_sites,
             )
@@ -105,6 +119,7 @@ async fn check_site_group(
     untrusted_client: &Client,
     pool: &SqlitePool,
     config: &AppConfig,
+    notifier: &Notifier,
     group_key: ProbeGroupKey,
     group_sites: Vec<SiteRow>,
 ) {
@@ -154,8 +169,20 @@ async fn check_site_group(
             }
         }
     }
+    let mut went_down = Vec::new();
+    let mut recovered = Vec::new();
     for site in &group_sites {
-        update_site_status(pool, site, &probe_result).await;
+        match update_site_status(pool, site, &probe_result).await {
+            SiteTransition::WentDown => went_down.push(site),
+            SiteTransition::Recovered => recovered.push(site),
+            SiteTransition::NoChange => {}
+        }
+    }
+    for site in deduped_notification_targets(went_down) {
+        notifier.site_down(site, &probe_result).await;
+    }
+    for site in deduped_notification_targets(recovered) {
+        notifier.site_recovered(site).await;
     }
     if probe_result.status.is_blocked() {
         for site in &group_sites {
@@ -174,13 +201,42 @@ async fn check_site_group(
             },
         )
         .await;
+        let mut newly_expiring = Vec::new();
         for site in &group_sites {
+            if cert_newly_expiring(site, &cert) {
+                newly_expiring.push(site);
+            }
             update_site_cert_status(pool, site.id, &cert).await;
+        }
+        for site in deduped_notification_targets(newly_expiring) {
+            notifier.cert_expiring(site, &cert).await;
         }
     }
 }
 
-pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &ProbeResult) {
+fn deduped_notification_targets(sites: Vec<&SiteRow>) -> Vec<&SiteRow> {
+    let mut seen_webhooks: HashSet<&str> = HashSet::new();
+    sites
+        .into_iter()
+        .filter(|&site| match site.slack_webhook_url.as_deref() {
+            Some(webhook_url) => seen_webhooks.insert(webhook_url),
+            None => true,
+        })
+        .collect()
+}
+
+fn cert_newly_expiring(site: &SiteRow, cert: &CertCheck) -> bool {
+    matches!(
+        cert.status,
+        CertStatus::Expiring | CertStatus::Critical | CertStatus::Expired
+    ) && site.cert_status != Some(cert.status)
+}
+
+pub async fn update_site_status(
+    pool: &SqlitePool,
+    site: &SiteRow,
+    result: &ProbeResult,
+) -> SiteTransition {
     sqlx::query(
         "UPDATE sites SET status = ?, last_checked_at = ?, last_response_time_ms = ? WHERE id = ?",
     )
@@ -219,6 +275,7 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
             .await
             .map_err(|e| tracing::error!("Failed to insert outage for site {}: {}", site.id, e))
             .ok();
+        return SiteTransition::WentDown;
     }
     if site.status.is_down() && !result.status.is_down() {
         if result.status.is_blocked() {
@@ -236,7 +293,11 @@ pub async fn update_site_status(pool: &SqlitePool, site: &SiteRow, result: &Prob
             .await
             .map_err(|e| tracing::error!("Failed to close outage for site {}: {}", site.id, e))
             .ok();
+        if result.status.is_up() {
+            return SiteTransition::Recovered;
+        }
     }
+    SiteTransition::NoChange
 }
 
 pub async fn update_site_cert_status(pool: &SqlitePool, site_id: i64, cert: &CertCheck) {
@@ -338,7 +399,7 @@ mod tests {
         let client = Client::new();
         let mut config = test_config(true);
         config.canary_url = "not a url".to_owned();
-        check_all_sites(&client, &client, &pool, &config).await;
+        check_all_sites(&client, &client, &pool, &config, &Notifier::disabled()).await;
         assert!(logs_contain(
             "Canary check failed. Skipping sites check. Network issue?"
         ));
@@ -373,7 +434,14 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &probe_config(base_url),
+            &Notifier::disabled(),
+        )
+        .await;
         assert_eq!(server.request_count(), 1);
         let updated: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM sites WHERE status = 'up' AND last_checked_at IS NOT NULL",
@@ -420,7 +488,14 @@ mod tests {
             .await
             .unwrap();
         let client = Client::new();
-        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &probe_config(base_url),
+            &Notifier::disabled(),
+        )
+        .await;
         assert_eq!(server.request_count(), 1);
         let updated: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM sites WHERE status = 'up' AND last_checked_at IS NOT NULL",
@@ -459,7 +534,14 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &probe_config(base_url),
+            &Notifier::disabled(),
+        )
+        .await;
         assert_eq!(server.request_count(), 1);
         let outages: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
             .fetch_one(&pool)
@@ -486,9 +568,9 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        let mut config = probe_config(&base_url);
+        let mut config = probe_config(base_url);
         config.probe_retry_count = 1;
-        check_all_sites(&client, &client, &pool, &config).await;
+        check_all_sites(&client, &client, &pool, &config, &Notifier::disabled()).await;
         assert_eq!(server.request_count(), 2);
     }
 
@@ -520,9 +602,9 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        let mut config = probe_config(&base_url);
+        let mut config = probe_config(base_url);
         config.probe_retry_count = 1;
-        check_all_sites(&client, &client, &pool, &config).await;
+        check_all_sites(&client, &client, &pool, &config, &Notifier::disabled()).await;
         assert_eq!(server.request_count(), 1);
     }
 
@@ -567,7 +649,14 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        check_all_sites(&client, &client, &pool, &probe_config(&base_url)).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &probe_config(base_url),
+            &Notifier::disabled(),
+        )
+        .await;
         assert_eq!(server.request_count(), 5);
     }
 
@@ -635,5 +724,57 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count.0, 1);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_grouped_monitors_share_one_notification_per_webhook(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let dead_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.local_addr().unwrap().port()
+        };
+        let url = format!("http://127.0.0.1:{dead_port}/");
+        for (team_name, monitor_name) in [("Team Rocket", "Monitor A"), ("Team Aqua", "Monitor B")]
+        {
+            let team_id: i64 =
+                sqlx::query_scalar("INSERT INTO teams (name) VALUES (?) RETURNING id")
+                    .bind(team_name)
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap();
+            sqlx::query(
+                "INSERT INTO team_notification_settings (team_id, slack_webhook_url) VALUES (?, ?)",
+            )
+            .bind(team_id)
+            .bind(format!("{}/webhook", server.base_url()))
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO sites (
+                    name, url, expected_status, status,
+                    probe_interval_seconds, tls_allow_untrusted, team_id
+                ) VALUES (?, ?, 200, 'up', 60, 0, ?)",
+            )
+            .bind(monitor_name)
+            .bind(&url)
+            .bind(team_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        let client = Client::new();
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &probe_config(server.base_url()),
+            &Notifier::new(Client::new()),
+        )
+        .await;
+        assert_eq!(server.request_count(), 1);
+        let request = server.last_request().unwrap();
+        assert!(request.contains("POST /webhook"));
+        assert!(request.contains("is DOWN"));
     }
 }

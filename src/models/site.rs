@@ -38,6 +38,7 @@ pub enum CertStatus {
 }
 
 #[derive(sqlx::FromRow)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct SiteRow {
     pub id: i64,
     pub name: String,
@@ -46,4 +47,9 @@ pub struct SiteRow {
     pub expected_text: Option<String>,
     pub status: SiteStatus,
     pub tls_allow_untrusted: bool,
+    pub slack_webhook_url: Option<String>,
+    pub cert_status: Option<CertStatus>,
+    pub notify_site_down: bool,
+    pub notify_site_recovered: bool,
+    pub notify_cert_expiring: bool,
 }

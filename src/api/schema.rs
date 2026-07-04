@@ -6,11 +6,13 @@ use super::admin::schema::AdminApiDoc;
 use super::auth::schema::AuthApiDoc;
 use super::setup::schema::SetupApiDoc;
 use super::sites::schema::SitesApiDoc;
+use super::teams::schema::TeamsApiDoc;
 
 #[derive(OpenApi)]
 #[openapi(
     nest(
           (path = "/api", api = SitesApiDoc),
+          (path = "/api", api = TeamsApiDoc),
           (path = "/api", api = AdminApiDoc),
           (path = "/api", api = AuthApiDoc),
           (path = "/api", api = SetupApiDoc),

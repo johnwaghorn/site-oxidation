@@ -1,3 +1,4 @@
+use crate::api::text;
 use crate::security::ip::is_private_ip;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
@@ -20,14 +21,8 @@ impl<'de> Deserialize<'de> for SiteName {
     where
         D: Deserializer<'de>,
     {
-        let site_name = String::deserialize(deserializer)?;
-        let len = site_name.chars().count();
-        if len < 1 {
-            return Err(D::Error::custom("site name is too short"));
-        }
-        if len > 100 {
-            return Err(D::Error::custom("site name is too long"));
-        }
+        let site_name = text::required(&String::deserialize(deserializer)?, "site name", 100)
+            .map_err(D::Error::custom)?;
         Ok(SiteName(site_name))
     }
 }
@@ -55,20 +50,19 @@ impl<'de> Deserialize<'de> for SiteUrl {
     where
         D: Deserializer<'de>,
     {
-        let site_url = String::deserialize(deserializer)?;
-        let len = site_url.chars().count();
-        if len < 10 {
+        let raw = text::required(&String::deserialize(deserializer)?, "site url", 2000)
+            .map_err(D::Error::custom)?;
+        if raw.chars().count() < 10 {
             return Err(D::Error::custom("site url is too short"));
         }
-        if len > 2000 {
-            return Err(D::Error::custom("site url is too long"));
-        }
-        if !site_url.starts_with("http://") && !site_url.starts_with("https://") {
+        let parsed =
+            Url::parse(&raw).map_err(|_| D::Error::custom("site url must be a valid URL"))?;
+        if !matches!(parsed.scheme(), "http" | "https") {
             return Err(D::Error::custom(
                 "site url must start with https:// or http://",
             ));
         }
-        Ok(SiteUrl(site_url))
+        Ok(SiteUrl(raw))
     }
 }
 
@@ -116,15 +110,12 @@ impl<'de> Deserialize<'de> for ExpectedText {
     where
         D: Deserializer<'de>,
     {
-        let text = String::deserialize(deserializer)?;
-        let len = text.chars().count();
-        if len < 1 {
+        let expected_text = String::deserialize(deserializer)?;
+        if expected_text.is_empty() {
             return Err(D::Error::custom("text is too short"));
         }
-        if len > 500 {
-            return Err(D::Error::custom("text is too long"));
-        }
-        Ok(ExpectedText(text))
+        text::check_max_chars(&expected_text, "text", 500).map_err(D::Error::custom)?;
+        Ok(ExpectedText(expected_text))
     }
 }
 
@@ -180,6 +171,7 @@ mod tests {
     #[case("ftp://waghorn.tech", false)]
     #[case("http", false)]
     #[case(&"a".repeat(2001), false)]
+    #[case("http://[::1", false)]
     fn test_site_url(#[case] url: &str, #[case] valid: bool) {
         let result: Result<SiteUrl, _> = serde_json::from_value(json!(url));
         assert_eq!(result.is_ok(), valid);
