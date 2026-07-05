@@ -8,12 +8,18 @@
     <script>
       (function () {
         var prePaintThemeStorageKey = "site-oxidation-theme";
+        var theme = null;
         try {
-          var theme = localStorage.getItem(prePaintThemeStorageKey);
-          if (theme === "light" || theme === "dark") {
-            document.documentElement.dataset.theme = theme;
-          }
+          theme = localStorage.getItem(prePaintThemeStorageKey);
         } catch (_storageUnavailable) {}
+        if (theme === "system") {
+          theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        } else if (theme !== "light" && theme !== "dark") {
+          theme = "dark";
+        }
+        document.documentElement.dataset.theme = theme;
       })();
     </script>
   </head>
