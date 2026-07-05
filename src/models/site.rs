@@ -48,6 +48,7 @@ pub struct SiteRow {
     pub status: SiteStatus,
     pub tls_allow_untrusted: bool,
     pub slack_webhook_url: Option<String>,
+    pub microsoft_teams_webhook_url: Option<String>,
     pub cert_status: Option<CertStatus>,
     pub notify_site_down: bool,
     pub notify_site_recovered: bool,
