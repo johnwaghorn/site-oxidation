@@ -10,7 +10,7 @@ pub async fn site_down(client: &Client, webhook_url: &str, site: &SiteRow, resul
     webhook::post(
         client,
         webhook_url,
-        "Slack",
+        "Teams",
         &payloads::site_down(site, result),
     )
     .await;
@@ -20,7 +20,7 @@ pub async fn site_recovered(client: &Client, webhook_url: &str, site: &SiteRow) 
     webhook::post(
         client,
         webhook_url,
-        "Slack",
+        "Teams",
         &payloads::site_recovered(site),
     )
     .await;
@@ -30,7 +30,7 @@ pub async fn cert_expiring(client: &Client, webhook_url: &str, site: &SiteRow, c
     webhook::post(
         client,
         webhook_url,
-        "Slack",
+        "Teams",
         &payloads::cert_expiring(site, cert),
     )
     .await;

@@ -1,7 +1,7 @@
-use crate::models::site::{CertStatus, SiteRow};
+use crate::models::site::SiteRow;
+use crate::notifications::format;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
-use chrono::Utc;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -10,17 +10,14 @@ pub(super) struct SlackPayload {
 }
 
 pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> SlackPayload {
-    let status = result
-        .status_code
-        .map_or_else(|| "N/A".to_owned(), |status| status.as_u16().to_string());
-    let error = result
-        .error_message
-        .as_deref()
-        .unwrap_or("no error message");
     SlackPayload {
         text: format!(
             ":rotating_light: Site '{}' is DOWN\nURL: {}\nExpected status: {}\nActual status: {}\nError: {}",
-            site.name, site.url, site.expected_status, status, error
+            site.name,
+            site.url,
+            site.expected_status,
+            format::probe_status_code(result),
+            format::probe_error(result)
         ),
     }
 }
@@ -35,25 +32,13 @@ pub(super) fn site_recovered(site: &SiteRow) -> SlackPayload {
 }
 
 pub(super) fn cert_expiring(site: &SiteRow, cert: &CertCheck) -> SlackPayload {
-    let summary = if cert.status == CertStatus::Expired {
-        "has EXPIRED".to_owned()
-    } else {
-        cert.expires_at.map_or_else(
-            || "is expiring soon".to_owned(),
-            |expires_at| {
-                let days = expires_at.signed_duration_since(Utc::now()).num_days();
-                format!("expires in {days} day(s)")
-            },
-        )
-    };
-    let expiry = cert.expires_at.map_or_else(
-        || "unknown".to_owned(),
-        |expires_at| expires_at.format("%Y-%m-%d %H:%M UTC").to_string(),
-    );
     SlackPayload {
         text: format!(
             ":warning: TLS certificate for site '{}' {}\nURL: {}\nExpires: {}",
-            site.name, summary, site.url, expiry
+            site.name,
+            format::cert_summary(cert),
+            site.url,
+            format::cert_expiry(cert)
         ),
     }
 }
@@ -61,8 +46,8 @@ pub(super) fn cert_expiring(site: &SiteRow, cert: &CertCheck) -> SlackPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::site::{SiteRow, SiteStatus};
-    use chrono::Duration as ChronoDuration;
+    use crate::models::site::{CertStatus, SiteRow, SiteStatus};
+    use chrono::{Duration as ChronoDuration, Utc};
     use reqwest::StatusCode;
 
     fn site_row() -> SiteRow {
@@ -75,6 +60,7 @@ mod tests {
             status: SiteStatus::Up,
             tls_allow_untrusted: false,
             slack_webhook_url: Some("https://hooks.slack.test/services/test".to_owned()),
+            microsoft_teams_webhook_url: None,
             cert_status: None,
             notify_site_down: true,
             notify_site_recovered: true,
@@ -101,8 +87,7 @@ mod tests {
 
     #[test]
     fn site_recovered_payload_includes_site_context() {
-        let site = site_row();
-        let payload = site_recovered(&site);
+        let payload = site_recovered(&site_row());
         assert!(payload.text.contains("Waghorn Technology Ltd"));
         assert!(payload.text.contains("https://waghorn.tech"));
         assert!(payload.text.contains("back UP"));
@@ -110,12 +95,11 @@ mod tests {
 
     #[test]
     fn cert_expiring_payload_includes_days_remaining() {
-        let site = site_row();
         let cert = CertCheck {
             status: CertStatus::Expiring,
             expires_at: Some(Utc::now() + ChronoDuration::days(10)),
         };
-        let payload = cert_expiring(&site, &cert);
+        let payload = cert_expiring(&site_row(), &cert);
         assert!(payload.text.contains("Waghorn Technology Ltd"));
         assert!(
             payload.text.contains("expires in 9 day(s)")
@@ -125,12 +109,11 @@ mod tests {
 
     #[test]
     fn cert_expiring_payload_reports_expired_certs() {
-        let site = site_row();
         let cert = CertCheck {
             status: CertStatus::Expired,
             expires_at: Some(Utc::now() - ChronoDuration::days(1)),
         };
-        let payload = cert_expiring(&site, &cert);
+        let payload = cert_expiring(&site_row(), &cert);
         assert!(payload.text.contains("has EXPIRED"));
     }
 }

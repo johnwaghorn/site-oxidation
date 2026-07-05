@@ -56,6 +56,7 @@ pub async fn check_all_sites(
         r"
             SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status,
                    s.tls_allow_untrusted, s.cert_status, n.slack_webhook_url,
+                   n.microsoft_teams_webhook_url,
                    COALESCE(n.notify_site_down, 1) AS notify_site_down,
                    COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered,
                    COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring
@@ -215,12 +216,18 @@ async fn check_site_group(
 }
 
 fn deduped_notification_targets(sites: Vec<&SiteRow>) -> Vec<&SiteRow> {
-    let mut seen_webhooks: HashSet<&str> = HashSet::new();
+    let mut seen_webhooks: HashSet<(Option<&str>, Option<&str>)> = HashSet::new();
     sites
         .into_iter()
-        .filter(|&site| match site.slack_webhook_url.as_deref() {
-            Some(webhook_url) => seen_webhooks.insert(webhook_url),
-            None => true,
+        .filter(|&site| {
+            let webhooks = (
+                site.slack_webhook_url.as_deref(),
+                site.microsoft_teams_webhook_url.as_deref(),
+            );
+            if webhooks == (None, None) {
+                return true;
+            }
+            seen_webhooks.insert(webhooks)
         })
         .collect()
 }

@@ -64,6 +64,7 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
         status,
         tls_allow_untrusted: false,
         slack_webhook_url: None,
+        microsoft_teams_webhook_url: None,
         cert_status: None,
         notify_site_down: true,
         notify_site_recovered: true,
