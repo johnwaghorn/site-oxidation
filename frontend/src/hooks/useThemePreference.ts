@@ -8,7 +8,7 @@ function readThemePreference(): ThemePreference {
   const stored = window.localStorage.getItem(prePaintThemeStorageKey);
   return stored === "light" || stored === "dark" || stored === "system"
     ? stored
-    : "system";
+    : "dark";
 }
 
 export function useThemePreference() {
@@ -17,9 +17,16 @@ export function useThemePreference() {
 
   useEffect(() => {
     if (themePreference === "system") {
-      window.localStorage.removeItem(prePaintThemeStorageKey);
-      document.documentElement.removeAttribute("data-theme");
-      return;
+      window.localStorage.setItem(prePaintThemeStorageKey, themePreference);
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+      const applySystemTheme = () => {
+        document.documentElement.dataset.theme = media.matches
+          ? "dark"
+          : "light";
+      };
+      applySystemTheme();
+      media.addEventListener("change", applySystemTheme);
+      return () => media.removeEventListener("change", applySystemTheme);
     }
 
     window.localStorage.setItem(prePaintThemeStorageKey, themePreference);

@@ -8,6 +8,8 @@ export const queryKeys = {
   site: (id: number) => ["sites", id] as const,
   outages: (siteId: number, page: number, perPage: number) =>
     ["sites", siteId, "outages", { page, perPage }] as const,
+  teamNotifications: (teamId: number) =>
+    ["teams", teamId, "notifications"] as const,
   setupStatus: ["setup", "status"] as const,
   adminTeamsAll: ["admin", "teams"] as const,
   adminTeams: (page: number, perPage: number, search?: string) =>

@@ -1,0 +1,33 @@
+.card-disclosure {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: calc(100% + 16px);
+  margin: -8px;
+  padding: 8px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.card-disclosure:hover {
+  border: none;
+  background-color: var(--color-surface-muted);
+}
+
+.card-disclosure:focus {
+  outline: none;
+}
+
+.card-disclosure:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 0;
+}
+
+.card-disclosure-chevron {
+  transition: transform 0.2s ease;
+}

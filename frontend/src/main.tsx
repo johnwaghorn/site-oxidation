@@ -1,6 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./index.css";
+import "./styles/theme.css";
+import "./styles/base.css";
+import "./styles/shell.css";
+import "./styles/buttons.css";
+import "./styles/cards.css";
 import App from "./App.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setQueryClient } from "./lib/api.ts";

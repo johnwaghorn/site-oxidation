@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/{id}/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_notifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["update_notifications"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -377,6 +393,8 @@ export interface components {
             password: string;
             username: string;
         };
+        /** @example alerts@waghorn.tech */
+        EmailAddress: string;
         /**
          * Format: int64
          * @example 200
@@ -514,8 +532,44 @@ export interface components {
         SiteStatus: "pending" | "up" | "down" | "blocked";
         /** @example https://waghorn.tech */
         SiteUrl: string;
+        /** @example smtp.waghorn.tech */
+        SmtpHost: string;
+        /** @example secret */
+        SmtpPassword: string;
+        /**
+         * Format: int64
+         * @example 587
+         */
+        SmtpPort: number;
+        /**
+         * @example starttls
+         * @enum {string}
+         */
+        SmtpSecurity: "none" | "starttls" | "tls";
+        /** @example alerts@waghorn.tech */
+        SmtpUsername: string;
         SuccessResponse: {
             success: boolean;
+        };
+        TeamNotificationsResponse: {
+            microsoft_teams_webhook_url?: string | null;
+            notify_cert_expiring: boolean;
+            notify_site_down: boolean;
+            notify_site_recovered: boolean;
+            slack_webhook_url?: string | null;
+            smtp_auth: boolean;
+            smtp_from_email?: string | null;
+            smtp_host?: string | null;
+            smtp_password_set: boolean;
+            /** Format: int64 */
+            smtp_port?: number | null;
+            smtp_security: string;
+            smtp_to_email?: string | null;
+            smtp_username?: string | null;
+            /** Format: int64 */
+            team_id: number;
+            telegram_bot_token_set: boolean;
+            telegram_chat_id?: string | null;
         };
         TeamOption: {
             /** Format: int64 */
@@ -531,8 +585,29 @@ export interface components {
             /** Format: int64 */
             site_count: number;
         };
+        /** @example 123456:abc */
+        TelegramBotToken: string;
+        /** @example 123456789 */
+        TelegramChatId: string;
         /** @enum {string} */
         ThemePreference: "system" | "light" | "dark";
+        UpdateTeamNotificationsRequest: {
+            microsoft_teams_webhook_url?: null | components["schemas"]["WebhookUrl"];
+            notify_cert_expiring?: boolean | null;
+            notify_site_down?: boolean | null;
+            notify_site_recovered?: boolean | null;
+            slack_webhook_url?: null | components["schemas"]["WebhookUrl"];
+            smtp_auth?: boolean | null;
+            smtp_from_email?: null | components["schemas"]["EmailAddress"];
+            smtp_host?: null | components["schemas"]["SmtpHost"];
+            smtp_password?: null | components["schemas"]["SmtpPassword"];
+            smtp_port?: null | components["schemas"]["SmtpPort"];
+            smtp_security?: null | components["schemas"]["SmtpSecurity"];
+            smtp_to_email?: null | components["schemas"]["EmailAddress"];
+            smtp_username?: null | components["schemas"]["SmtpUsername"];
+            telegram_bot_token?: null | components["schemas"]["TelegramBotToken"];
+            telegram_chat_id?: null | components["schemas"]["TelegramChatId"];
+        };
         UpdateTeamRequest: {
             name: string;
         };
@@ -562,6 +637,8 @@ export interface components {
             id: number;
             name: string;
         };
+        /** @example https://hooks.slack.com/services/example */
+        WebhookUrl: string;
     };
     responses: never;
     parameters: never;
@@ -2303,6 +2380,137 @@ export interface operations {
             };
             /** @description Site not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_notifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Team notification settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamNotificationsResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Team membership required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    update_notifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Team ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamNotificationsRequest"];
+            };
+        };
+        responses: {
+            /** @description Team notification settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamNotificationsResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Team membership required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid Slack webhook URL */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -30,8 +30,8 @@ pub const COUNT_USERS: &str = concat!(
 );
 
 pub const INSERT_USER: &str = concat!(
-    "INSERT INTO users (username, password, role, must_change_password) ",
-    "VALUES (?, ?, ?, 1) RETURNING id"
+    "INSERT INTO users (username, password, role, must_change_password, theme_preference) ",
+    "VALUES (?, ?, ?, 1, 'dark') RETURNING id"
 );
 
 pub const TEAM_EXISTS: &str = "SELECT COUNT(*) FROM teams WHERE id = ?";
