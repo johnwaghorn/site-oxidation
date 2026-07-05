@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { inlineForm, compactInput } from "../../lib/styles";
 import { FormInput, FormSelect } from "../ui/FormControls";
 import type { components } from "../../generated/schema";
 
@@ -69,7 +68,7 @@ export function SiteForm({
   const isTeamRequired = role !== "admin";
 
   return (
-    <form onSubmit={handleSubmit} style={inlineForm}>
+    <form onSubmit={handleSubmit} className="inline-form">
       <FormInput
         type="text"
         placeholder="Site name"
@@ -155,9 +154,12 @@ export function SiteForm({
       </label>
       <button
         type="submit"
-        className={isEdit ? "button-secondary-action" : "button-primary-action"}
+        className={
+          isEdit
+            ? "button-secondary-action compact-input"
+            : "button-primary-action compact-input"
+        }
         disabled={isLoading}
-        style={compactInput}
       >
         {isLoading
           ? isEdit
@@ -170,9 +172,8 @@ export function SiteForm({
       {onCancel && (
         <button
           type="button"
-          className="button-secondary-action"
+          className="button-secondary-action compact-input"
           onClick={onCancel}
-          style={compactInput}
         >
           Cancel
         </button>

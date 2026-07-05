@@ -1,0 +1,22 @@
+/* Text styles */
+
+.page-title {
+  margin: 0 0 24px 0;
+}
+
+.page-subtitle {
+  color: var(--color-muted);
+  margin-bottom: 24px;
+}
+
+.muted-text {
+  color: var(--color-muted);
+}
+
+.eyebrow {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}

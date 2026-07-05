@@ -1,0 +1,28 @@
+/* Links and tab navigation */
+
+.back-link {
+  color: var(--color-muted);
+  text-decoration: none;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.tabs-nav {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+}
+
+.tab-link {
+  padding: 10px 20px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.tab-link.active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}

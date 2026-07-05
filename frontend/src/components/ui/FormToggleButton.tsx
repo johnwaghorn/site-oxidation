@@ -1,5 +1,3 @@
-import { compactInput } from "../../lib/styles";
-
 interface FormToggleButtonProps {
   isOpen: boolean;
   openLabel: string;
@@ -16,7 +14,7 @@ export function FormToggleButton({
       type="button"
       className={isOpen ? "button-secondary-action" : "button-primary-action"}
       onClick={onClick}
-      style={{ ...compactInput, padding: "10px 14px" }}
+      style={{ padding: "10px 14px" }}
     >
       {isOpen ? "Close Form" : openLabel}
     </button>

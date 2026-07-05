@@ -12,7 +12,6 @@ import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { FormSelect } from "../components/ui/FormControls";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { pageWrapper, pageTitle, mutedText } from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
@@ -54,8 +53,8 @@ export function Dashboard({ role, teams }: DashboardProps) {
   }, [debouncedSearch, resetPage]);
 
   return (
-    <div style={pageWrapper}>
-      <h1 style={pageTitle}>Sites</h1>
+    <div className="page-wrapper">
+      <h1 className="page-title">Sites</h1>
 
       <SearchToolbar
         action={
@@ -110,7 +109,7 @@ export function Dashboard({ role, teams }: DashboardProps) {
         ) : (
           <>
             {role === "admin" && orphanedCount > 0 && (
-              <p style={mutedText}>
+              <p className="muted-text">
                 {orphanedCount} site{orphanedCount === 1 ? "" : "s"} with no
                 team assigned
               </p>
@@ -162,34 +161,15 @@ export function Dashboard({ role, teams }: DashboardProps) {
 function GetStartedNudge({ onAddSite }: { onAddSite: () => void }) {
   return (
     <div
-      style={{
-        boxSizing: "border-box",
-        maxWidth: "720px",
-        marginTop: "8px",
-        padding: "28px",
-        border: "1px solid var(--color-border)",
-        borderRadius: "14px",
-        background:
-          "linear-gradient(135deg, var(--color-primary-soft), transparent 48%), var(--color-surface)",
-        boxShadow: "var(--shadow-card)",
-      }}
+      className="card-hero"
+      style={{ boxSizing: "border-box", maxWidth: "720px", marginTop: "8px" }}
     >
+      <p className="muted-text eyebrow">Welcome</p>
+      <h2>Start monitoring your first site</h2>
       <p
-        style={{
-          ...mutedText,
-          margin: "0 0 8px 0",
-          fontSize: "13px",
-          fontWeight: 600,
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-        }}
+        className="muted-text"
+        style={{ maxWidth: "560px", margin: "0 0 22px 0" }}
       >
-        Welcome
-      </p>
-      <h2 style={{ margin: "0 0 10px 0", fontSize: "28px", lineHeight: 1.2 }}>
-        Start monitoring your first site
-      </h2>
-      <p style={{ ...mutedText, maxWidth: "560px", margin: "0 0 22px 0" }}>
         Add a URL to begin tracking uptime and response history. Teams are
         optional for admins, so you can organise access now or come back to it
         later via the Admin Panel.

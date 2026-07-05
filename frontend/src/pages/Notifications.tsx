@@ -7,19 +7,12 @@ import {
   useTeamNotifications,
   useUpdateTeamNotifications,
 } from "../hooks/useTeamNotifications";
-import { formColumn, mutedText, pageTitle, pageWrapper } from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type UserTeam = components["schemas"]["UserTeam"];
 type TeamNotifications = components["schemas"]["TeamNotificationsResponse"];
 type UpdateTeamNotificationsRequest =
   components["schemas"]["UpdateTeamNotificationsRequest"];
-
-const cardSectionDivider = {
-  marginTop: "18px",
-  paddingTop: "16px",
-  borderTop: "1px solid var(--color-border)",
-} as const;
 
 function TeamNotificationsCard({
   team,
@@ -37,15 +30,7 @@ function TeamNotificationsCard({
   const hasWebhook = enabledChannels.length > 0;
 
   return (
-    <section
-      style={{
-        padding: "22px",
-        border: "1px solid var(--color-border)",
-        borderRadius: "18px",
-        backgroundColor: "var(--color-surface)",
-        boxShadow: "var(--shadow-card)",
-      }}
-    >
+    <section className="card">
       <button
         type="button"
         className="card-disclosure"
@@ -63,7 +48,7 @@ function TeamNotificationsCard({
           >
             {team.name}
           </span>
-          <span style={{ ...mutedText, display: "block" }}>
+          <span className="muted-text" style={{ display: "block" }}>
             {hasWebhook
               ? `${enabledChannels.join(" and ")} alerts are enabled.`
               : "No webhooks set."}
@@ -78,26 +63,14 @@ function TeamNotificationsCard({
           }}
         >
           <span
-            style={{
-              padding: "6px 10px",
-              borderRadius: "999px",
-              backgroundColor: hasWebhook
-                ? "var(--color-success-bg)"
-                : "var(--color-neutral-bg)",
-              color: hasWebhook
-                ? "var(--color-success-text)"
-                : "var(--color-neutral-text)",
-              fontSize: "12px",
-              fontWeight: 700,
-            }}
+            className={hasWebhook ? "pill pill-success" : "pill pill-neutral"}
           >
             {hasWebhook ? "Enabled" : "Disabled"}
           </span>
           <span
             aria-hidden="true"
-            className="card-disclosure-chevron"
+            className="card-disclosure-chevron muted-text"
             style={{
-              ...mutedText,
               fontSize: "14px",
               transform: isOpen ? "none" : "rotate(-90deg)",
             }}
@@ -124,7 +97,7 @@ function TeamNotificationsCard({
                 savedWebhookUrl={data?.slack_webhook_url ?? ""}
                 buildPayload={(url) => ({ slack_webhook_url: url })}
               />
-              <div style={cardSectionDivider}>
+              <div className="card-section">
                 <WebhookForm
                   key={`teams:${data?.microsoft_teams_webhook_url ?? ""}`}
                   teamId={team.id}
@@ -178,15 +151,12 @@ function NotificationEventToggles({
   const updateEvents = useUpdateTeamNotifications();
 
   return (
-    <div
-      style={{
-        marginTop: "18px",
-        paddingTop: "16px",
-        borderTop: "1px solid var(--color-border)",
-      }}
-    >
+    <div className="card-section">
       <h3 style={{ margin: "0 0 6px 0", fontSize: "16px" }}>Alert events</h3>
-      <p style={{ ...mutedText, margin: "0 0 12px 0", fontSize: "14px" }}>
+      <p
+        className="muted-text"
+        style={{ margin: "0 0 12px 0", fontSize: "14px" }}
+      >
         Choose which events send an alert to this team.
       </p>
       <div style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
@@ -236,7 +206,8 @@ function WebhookForm({
 
   return (
     <form
-      style={{ ...formColumn, gap: "12px" }}
+      className="form-column"
+      style={{ gap: "12px" }}
       onSubmit={(event) => {
         event.preventDefault();
         updateWebhook.mutate({
@@ -255,7 +226,7 @@ function WebhookForm({
           style={{ width: "100%" }}
         />
       </label>
-      <p style={{ ...mutedText, margin: 0, fontSize: "14px" }}>
+      <p className="muted-text" style={{ margin: 0, fontSize: "14px" }}>
         Leave this blank and save to disable {channel} notifications for this
         team.
       </p>
@@ -304,9 +275,12 @@ export function Notifications() {
   const { teams, isLoading } = useAuth();
 
   return (
-    <div style={pageWrapper}>
-      <h1 style={pageTitle}>Notifications</h1>
-      <p style={{ ...mutedText, maxWidth: "680px", margin: "0 0 24px 0" }}>
+    <div className="page-wrapper">
+      <h1 className="page-title">Notifications</h1>
+      <p
+        className="muted-text"
+        style={{ maxWidth: "680px", margin: "0 0 24px 0" }}
+      >
         Configure Slack and Microsoft Teams alerts for each team you can access
         and choose which events trigger them. Every monitored site assigned to
         that team will use the same webhooks.
@@ -315,23 +289,9 @@ export function Notifications() {
       {isLoading ? (
         <LoadingSpinner />
       ) : teams.length === 0 ? (
-        <section
-          style={{
-            maxWidth: "680px",
-            padding: "28px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "18px",
-            background:
-              "linear-gradient(135deg, var(--color-primary-soft), transparent 52%), var(--color-surface)",
-            boxShadow: "var(--shadow-card)",
-          }}
-        >
-          <h2
-            style={{ margin: "0 0 10px 0", fontSize: "28px", lineHeight: 1.2 }}
-          >
-            No teams available
-          </h2>
-          <p style={{ ...mutedText, maxWidth: "520px", margin: 0 }}>
+        <section className="card-hero" style={{ maxWidth: "680px" }}>
+          <h2>No teams available</h2>
+          <p className="muted-text" style={{ maxWidth: "520px", margin: 0 }}>
             Join or create a team before configuring notifications.
           </p>
         </section>

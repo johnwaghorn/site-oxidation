@@ -1,11 +1,4 @@
 import type { components } from "../../generated/schema";
-import {
-  table,
-  tableHeaderRow,
-  tableCellLeft,
-  tableCellCenter,
-  tableCellRight,
-} from "../../lib/styles";
 import { SiteRow } from "./SiteRow.tsx";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
@@ -20,17 +13,17 @@ export function SiteList({ sites, onDelete }: SiteListProps) {
     return <p>No sites configured. Add one!</p>;
   }
   return (
-    <table style={table}>
+    <table className="data-table">
       <thead>
-        <tr style={tableHeaderRow}>
-          <th style={tableCellLeft}>Name</th>
-          <th style={tableCellLeft}>URL</th>
-          <th style={tableCellLeft}>Team</th>
-          <th style={tableCellCenter}>Status</th>
-          <th style={tableCellCenter}>Cert</th>
-          <th style={tableCellRight}>Latency</th>
-          <th style={tableCellRight}>Last Checked</th>
-          {onDelete && <th style={tableCellRight}>Actions</th>}
+        <tr className="table-header-row">
+          <th className="table-cell-left">Name</th>
+          <th className="table-cell-left">URL</th>
+          <th className="table-cell-left">Team</th>
+          <th className="table-cell-center">Status</th>
+          <th className="table-cell-center">Cert</th>
+          <th className="table-cell-right">Latency</th>
+          <th className="table-cell-right">Last Checked</th>
+          {onDelete && <th className="table-cell-right">Actions</th>}
         </tr>
       </thead>
       <tbody>

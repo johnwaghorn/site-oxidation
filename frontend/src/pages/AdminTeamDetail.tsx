@@ -12,19 +12,6 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Pagination } from "../components/ui/Pagination";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { Truncate } from "../components/ui/Truncate";
-import {
-  backLink,
-  compactInput,
-  mutedText,
-  pageTitle,
-  pageWrapper,
-  table,
-  tableCell,
-  tableCellLeft,
-  tableCellRight,
-  tableHeaderRow,
-  tableRow,
-} from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
@@ -64,21 +51,21 @@ export function AdminTeamDetail() {
   const totalPages = sites ? Math.ceil(sites.total / sites.per_page) : 0;
 
   return (
-    <div style={pageWrapper}>
-      <Link to="/admin/teams" style={backLink}>
+    <div className="page-wrapper">
+      <Link to="/admin/teams" className="back-link">
         &larr; Back to Teams
       </Link>
 
-      <h1 style={pageTitle}>
+      <h1 className="page-title">
         <Truncate text={team.name} maxWidth="90%" />
       </h1>
-      <p style={mutedText}>
+      <p className="muted-text">
         {team.member_count} active member{team.member_count === 1 ? "" : "s"}{" "}
         and {team.site_count} assigned site{team.site_count === 1 ? "" : "s"}
       </p>
 
       <h2>Assigned Sites</h2>
-      <p style={mutedText}>
+      <p className="muted-text">
         Open a site to reassign it to another team, or remove its assignment
         here.
       </p>
@@ -89,22 +76,22 @@ export function AdminTeamDetail() {
         <ErrorMessage error={sitesError} />
       ) : sites && sites.data.length > 0 ? (
         <>
-          <table style={table}>
+          <table className="data-table">
             <thead>
-              <tr style={tableHeaderRow}>
-                <th style={tableCellLeft}>Name</th>
-                <th style={tableCellLeft}>URL</th>
-                <th style={tableCellLeft}>Status</th>
-                <th style={tableCellRight}>Actions</th>
+              <tr className="table-header-row">
+                <th className="table-cell-left">Name</th>
+                <th className="table-cell-left">URL</th>
+                <th className="table-cell-left">Status</th>
+                <th className="table-cell-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {sites.data.map((site) => (
-                <tr key={site.id} style={tableRow}>
-                  <td style={tableCell}>
+                <tr key={site.id} className="table-row">
+                  <td className="table-cell">
                     <Link to={`/sites/${site.id}`}>{site.name}</Link>
                   </td>
-                  <td style={tableCell}>
+                  <td className="table-cell">
                     <a
                       href={site.url}
                       target="_blank"
@@ -113,14 +100,13 @@ export function AdminTeamDetail() {
                       {site.url}
                     </a>
                   </td>
-                  <td style={tableCell}>
+                  <td className="table-cell">
                     <StatusBadge status={site.status} />
                   </td>
-                  <td style={tableCellRight}>
+                  <td className="table-cell-right">
                     <button
-                      className="button-table-action button-table-danger"
+                      className="button-table-action button-table-danger compact-input"
                       onClick={() => setSiteToUnassign(site)}
-                      style={compactInput}
                     >
                       Remove from team
                     </button>
@@ -136,7 +122,7 @@ export function AdminTeamDetail() {
           />
         </>
       ) : (
-        <p style={mutedText}>No sites are assigned to this team.</p>
+        <p className="muted-text">No sites are assigned to this team.</p>
       )}
 
       <ConfirmDialog

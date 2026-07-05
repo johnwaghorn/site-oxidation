@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useBootstrap } from "../hooks/useSetup";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { CopyButton } from "../components/ui/CopyButton";
-import { pageWrapper, formInput, subtitle } from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type BootstrapResponse = components["schemas"]["BootstrapResponse"];
@@ -24,9 +23,9 @@ export function Setup({ onSetupComplete }: SetupProps) {
   };
 
   return (
-    <div style={pageWrapper}>
+    <div className="page-wrapper">
       <h1 style={{ marginBottom: "8px" }}>Welcome to Site Oxidation</h1>
-      <p style={subtitle}>
+      <p className="page-subtitle">
         You are first. No admin account exists yet. Create one to get started.
       </p>
       {newAdmin ? (
@@ -39,16 +38,15 @@ export function Setup({ onSetupComplete }: SetupProps) {
           <Credential value={newAdmin.username} />
           <p style={{ marginBottom: "4px", fontWeight: 500 }}>Password</p>
           <Credential value={newAdmin.password} />
-          <button onClick={onSetupComplete} style={formInput}>
+          <button onClick={onSetupComplete} className="form-input">
             I saved my password, continue
           </button>
         </>
       ) : (
         <button
-          className="button-primary-action"
+          className="button-primary-action form-input"
           onClick={handleBootstrap}
           disabled={bootstrap.isPending}
-          style={formInput}
         >
           {bootstrap.isPending ? "Creating admin..." : "Create admin user"}
         </button>

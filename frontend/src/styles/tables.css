@@ -1,0 +1,39 @@
+/* Data tables */
+
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.table-header-row {
+  box-shadow: inset 0 -1px 0 var(--color-border-strong);
+}
+
+.table-row {
+  box-shadow: inset 0 -1px 0 var(--color-border);
+}
+
+.table-cell {
+  padding: 12px 14px;
+}
+
+.table-cell-left {
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.table-cell-center {
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.table-cell-right {
+  padding: 12px 14px;
+  text-align: right;
+}

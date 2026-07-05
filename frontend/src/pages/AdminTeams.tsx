@@ -19,19 +19,6 @@ import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
-import {
-  pageWrapper,
-  pageTitle,
-  table,
-  tableHeaderRow,
-  tableRow,
-  tableCellLeft,
-  tableCellCenter,
-  tableCell,
-  inlineForm,
-  compactInput,
-  mutedText,
-} from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type TeamResponse = components["schemas"]["TeamResponse"];
@@ -102,8 +89,8 @@ export function AdminTeams() {
   }, [debouncedSearch, resetPage]);
 
   return (
-    <div style={pageWrapper}>
-      <h1 style={pageTitle}>Teams</h1>
+    <div className="page-wrapper">
+      <h1 className="page-title">Teams</h1>
 
       {editingTeam && updateTeam.isError && (
         <ErrorMessage error={updateTeam.error} />
@@ -136,7 +123,7 @@ export function AdminTeams() {
 
       {showCreateForm && (
         <div>
-          <form onSubmit={handleCreateTeam} style={inlineForm}>
+          <form onSubmit={handleCreateTeam} className="inline-form">
             <FormInput
               type="text"
               placeholder="New team name"
@@ -147,21 +134,19 @@ export function AdminTeams() {
             />
             <button
               type="submit"
-              className="button-primary-action"
+              className="button-primary-action compact-input"
               disabled={createTeam.isPending}
-              style={compactInput}
             >
               {createTeam.isPending ? "Creating..." : "Create Team"}
             </button>
             <button
               type="button"
-              className="button-secondary-action"
+              className="button-secondary-action compact-input"
               onClick={() => {
                 createTeam.reset();
                 setNewTeamName("");
                 setShowCreateForm(false);
               }}
-              style={compactInput}
             >
               Cancel
             </button>
@@ -176,19 +161,19 @@ export function AdminTeams() {
         <ErrorMessage error={error} />
       ) : teamList.length > 0 ? (
         <>
-          <table style={table}>
+          <table className="data-table">
             <thead>
-              <tr style={tableHeaderRow}>
-                <th style={tableCellLeft}>Name</th>
-                <th style={tableCellCenter}>Members</th>
-                <th style={tableCellCenter}>Sites</th>
-                <th style={tableCellLeft}>Actions</th>
+              <tr className="table-header-row">
+                <th className="table-cell-left">Name</th>
+                <th className="table-cell-center">Members</th>
+                <th className="table-cell-center">Sites</th>
+                <th className="table-cell-left">Actions</th>
               </tr>
             </thead>
             <tbody>
               {teamList.map((team) => (
-                <tr key={team.id} style={tableRow}>
-                  <td style={tableCellLeft}>
+                <tr key={team.id} className="table-row">
+                  <td className="table-cell-left">
                     {editingTeam?.id === team.id ? (
                       <form
                         onSubmit={handleRename}
@@ -199,20 +184,19 @@ export function AdminTeams() {
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           required
-                          style={{ ...compactInput, minWidth: "180px" }}
+                          className="compact-input"
+                          style={{ minWidth: "180px" }}
                         />
                         <button
                           type="submit"
-                          className="button-table-action"
-                          style={compactInput}
+                          className="button-table-action compact-input"
                         >
                           Save
                         </button>
                         <button
                           type="button"
-                          className="button-table-action"
+                          className="button-table-action compact-input"
                           onClick={() => setEditingTeam(null)}
-                          style={compactInput}
                         >
                           Cancel
                         </button>
@@ -223,32 +207,29 @@ export function AdminTeams() {
                       </Link>
                     )}
                   </td>
-                  <td style={tableCellCenter}>{team.member_count}</td>
-                  <td style={tableCellCenter}>{team.site_count}</td>
-                  <td style={tableCell}>
+                  <td className="table-cell-center">{team.member_count}</td>
+                  <td className="table-cell-center">{team.site_count}</td>
+                  <td className="table-cell">
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button
-                        className="button-table-action"
+                        className="button-table-action compact-input"
                         onClick={() =>
                           setManagingTeam(
                             managingTeam?.id === team.id ? null : team,
                           )
                         }
-                        style={compactInput}
                       >
                         {managingTeam?.id === team.id ? "Close" : "Members"}
                       </button>
                       <button
-                        className="button-table-action"
+                        className="button-table-action compact-input"
                         onClick={() => startEditing(team)}
-                        style={compactInput}
                       >
                         Rename
                       </button>
                       <button
-                        className="button-table-action button-table-danger"
+                        className="button-table-action button-table-danger compact-input"
                         onClick={() => setTeamToDelete(team)}
-                        style={compactInput}
                       >
                         Delete
                       </button>
@@ -268,7 +249,7 @@ export function AdminTeams() {
           />
         </>
       ) : (
-        <p style={mutedText}>
+        <p className="muted-text">
           No teams yet. Create one above. Maybe a team just for admins!
         </p>
       )}
@@ -388,7 +369,7 @@ function MemberPanel({ teamId }: MemberPanelProps) {
               >
                 <span>
                   {user.username}
-                  <span style={mutedText}> ({user.role})</span>
+                  <span className="muted-text"> ({user.role})</span>
                 </span>
                 <button
                   className="button-table-action button-table-danger"
@@ -412,7 +393,10 @@ function MemberPanel({ teamId }: MemberPanelProps) {
           />
         </>
       ) : (
-        <p style={{ ...mutedText, margin: "0 0 12px 0", fontSize: "14px" }}>
+        <p
+          className="muted-text"
+          style={{ margin: "0 0 12px 0", fontSize: "14px" }}
+        >
           No members yet
         </p>
       )}
@@ -425,14 +409,16 @@ function MemberPanel({ teamId }: MemberPanelProps) {
             setSearchInput(e.target.value);
             setSelectedUserId("");
           }}
-          style={{ ...compactInput, width: "100%" }}
+          className="compact-input"
+          style={{ width: "100%" }}
         />
         {debouncedSearch.trim() && (
           <div style={{ display: "flex", gap: "8px" }}>
             <FormSelect
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              style={{ ...compactInput, flex: 1 }}
+              className="compact-input"
+              style={{ flex: 1 }}
             >
               <option value="">
                 {candidates.length > 0
@@ -446,17 +432,16 @@ function MemberPanel({ teamId }: MemberPanelProps) {
               ))}
             </FormSelect>
             <button
-              className="button-table-action"
+              className="button-table-action compact-input"
               onClick={handleAddMember}
               disabled={!selectedUserId || addMember.isPending}
-              style={compactInput}
             >
               Add
             </button>
           </div>
         )}
         {hasMoreResults && debouncedSearch.trim() && (
-          <p style={{ ...mutedText, fontSize: "12px", margin: 0 }}>
+          <p className="muted-text" style={{ fontSize: "12px", margin: 0 }}>
             Showing {candidatesData?.data.length} of {totalCandidates} results.
             Please refine your search
           </p>

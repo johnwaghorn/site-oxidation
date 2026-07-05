@@ -15,7 +15,6 @@ import { useSetupStatus } from "./hooks/useSetup";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { AppShell } from "./components/ui/AppShell";
-import { centeredFullScreen } from "./lib/styles";
 
 function App() {
   const { themePreference, setThemePreference } = useThemePreference();
@@ -51,7 +50,7 @@ function App() {
 
   if (authLoading || setupLoading) {
     return (
-      <div style={centeredFullScreen}>
+      <div className="centered-full-screen">
         <LoadingSpinner />
       </div>
     );

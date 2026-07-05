@@ -8,19 +8,6 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { CertBadge } from "../components/ui/CertBadge";
-import {
-  pageWrapper,
-  pageTitle,
-  backLink,
-  section,
-  mutedText,
-  table,
-  tableHeaderRow,
-  tableRow,
-  tableCell,
-  tableCellLeft,
-  tableCellCenter,
-} from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type OutageResponse = components["schemas"]["OutageResponse"];
@@ -51,8 +38,8 @@ export function SiteDetail() {
   if (!site) return <ErrorMessage error={new Error("Site not found")} />;
 
   return (
-    <div style={pageWrapper}>
-      <Link to="/" style={backLink}>
+    <div className="page-wrapper">
+      <Link to="/" className="back-link">
         &larr; Back to Dashboard
       </Link>
 
@@ -64,12 +51,17 @@ export function SiteDetail() {
           marginBottom: "24px",
         }}
       >
-        <h1 style={{ ...pageTitle, margin: 0 }}>{site.name}</h1>
+        <h1 className="page-title" style={{ margin: 0 }}>
+          {site.name}
+        </h1>
         <StatusBadge status={site.status} />
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
       </div>
 
-      <div style={{ ...mutedText, marginTop: "-12px", marginBottom: "24px" }}>
+      <div
+        className="muted-text"
+        style={{ marginTop: "-12px", marginBottom: "24px" }}
+      >
         <p style={{ margin: "0 0 4px 0" }}>
           Monitoring since: {new Date(site.created_at).toLocaleString()}
         </p>
@@ -81,7 +73,7 @@ export function SiteDetail() {
         )}
       </div>
 
-      <section style={section}>
+      <section className="page-section">
         <h2>Edit Site</h2>
         <SiteForm
           key={`${site.id}-${site.name}-${site.url}`}
@@ -108,14 +100,14 @@ export function SiteDetail() {
           <LoadingSpinner />
         ) : outagesData && outagesData.data.length > 0 ? (
           <>
-            <table style={table}>
+            <table className="data-table">
               <thead>
-                <tr style={tableHeaderRow}>
-                  <th style={tableCellLeft}>Started</th>
-                  <th style={tableCellLeft}>Ended</th>
-                  <th style={tableCellCenter}>Expected Status</th>
-                  <th style={tableCellCenter}>Actual Status</th>
-                  <th style={tableCellLeft}>Error</th>
+                <tr className="table-header-row">
+                  <th className="table-cell-left">Started</th>
+                  <th className="table-cell-left">Ended</th>
+                  <th className="table-cell-center">Expected Status</th>
+                  <th className="table-cell-center">Actual Status</th>
+                  <th className="table-cell-left">Error</th>
                 </tr>
               </thead>
               <tbody>
@@ -131,7 +123,7 @@ export function SiteDetail() {
             />
           </>
         ) : (
-          <p style={mutedText}>No outages recorded</p>
+          <p className="muted-text">No outages recorded</p>
         )}
       </section>
     </div>
@@ -145,33 +137,33 @@ function OutageRow({ outage }: { outage: OutageResponse }) {
     : "Ongoing";
 
   return (
-    <tr style={tableRow}>
-      <td style={tableCell}>{started}</td>
+    <tr className="table-row">
+      <td className="table-cell">{started}</td>
       <td
+        className="table-cell"
         style={{
-          ...tableCell,
           color: outage.ended_at ? undefined : "var(--color-danger)",
         }}
       >
         {ended}
       </td>
       <td
+        className="table-cell-center"
         style={{
-          ...tableCellCenter,
           fontFamily: "monospace",
         }}
       >
         {outage.expected_status ?? "-"}
       </td>
       <td
+        className="table-cell-center"
         style={{
-          ...tableCellCenter,
           fontFamily: "monospace",
         }}
       >
         {outage.http_status ?? "-"}
       </td>
-      <td style={{ ...tableCell, ...mutedText, fontSize: "14px" }}>
+      <td className="table-cell muted-text" style={{ fontSize: "14px" }}>
         {outage.error_message ?? "-"}
       </td>
     </tr>

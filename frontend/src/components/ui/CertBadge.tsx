@@ -80,12 +80,8 @@ export function CertBadge({ status, expiresAt }: CertBadgeProps) {
   return (
     <span
       title={tooltip(status, expiresAt)}
+      className="badge"
       style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: "4px",
-        fontSize: "12px",
-        fontWeight: 500,
         backgroundColor: config.backgroundColor,
         color: config.color,
       }}

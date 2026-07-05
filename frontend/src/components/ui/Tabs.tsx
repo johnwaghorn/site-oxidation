@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { tabsNav, activeTab, inactiveTab } from "../../lib/styles";
 
 export interface TabItem {
   to: string;
@@ -13,12 +12,14 @@ interface TabsProps {
 export function Tabs({ items }: TabsProps) {
   const location = useLocation();
   return (
-    <nav style={tabsNav}>
+    <nav className="tabs-nav">
       {items.map((item) => (
         <Link
           key={item.to}
           to={item.to}
-          style={location.pathname === item.to ? activeTab : inactiveTab}
+          className={
+            location.pathname === item.to ? "tab-link active" : "tab-link"
+          }
         >
           {item.label}
         </Link>

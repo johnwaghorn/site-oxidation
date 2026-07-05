@@ -1,12 +1,5 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
-import {
-  formPageWrapper,
-  formCard,
-  formColumn,
-  formInput,
-  errorBox,
-} from "../lib/styles";
 import { FormInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
@@ -48,10 +41,10 @@ export function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div style={formPageWrapper}>
-      <div style={formCard}>
+    <div className="form-page-wrapper">
+      <div className="form-card">
         <h1 style={{ marginBottom: "24px" }}>Site Oxidation</h1>
-        <form onSubmit={handleSubmit} style={formColumn}>
+        <form onSubmit={handleSubmit} className="form-column">
           <FormInput
             type="text"
             placeholder="Username"
@@ -68,11 +61,12 @@ export function Login({ onLoginSuccess }: LoginProps) {
             required
             autoComplete="current-password"
           />
-          {error && <p style={errorBox}>{error}</p>}
+          {error && <p className="error-box">{error}</p>}
           <button
             type="submit"
             disabled={isLoading}
-            style={{ ...formInput, cursor: isLoading ? "wait" : "pointer" }}
+            className="form-input"
+            style={{ cursor: isLoading ? "wait" : "pointer" }}
           >
             {isLoading ? "Logging in..." : "Login"}
           </button>

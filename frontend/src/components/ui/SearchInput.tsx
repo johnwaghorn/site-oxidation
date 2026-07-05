@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from "react";
-import { polishedFieldChrome, polishedFieldFocus } from "../../lib/styles";
+import type { ReactNode } from "react";
 
 interface SearchInputProps {
   value: string;
@@ -34,18 +33,15 @@ export function SearchInput({
   onChange,
   placeholder,
 }: SearchInputProps) {
-  const [isFocused, setIsFocused] = useState(false);
-
   return (
     <div
+      className="form-field"
       style={{
         display: "flex",
         alignItems: "center",
         flex: "1 1 320px",
         maxWidth: "480px",
         minWidth: 0,
-        ...polishedFieldChrome,
-        ...(isFocused ? polishedFieldFocus : null),
         padding: "0 10px",
       }}
     >
@@ -70,8 +66,6 @@ export function SearchInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         style={{
           width: "100%",
           minWidth: 0,

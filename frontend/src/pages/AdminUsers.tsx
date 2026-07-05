@@ -24,24 +24,6 @@ import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
-import {
-  pageWrapper,
-  pageTitle,
-  table,
-  tableHeaderRow,
-  tableRow,
-  tableCellLeft,
-  tableCellCenter,
-  tableCell,
-  compactInput,
-  mutedText,
-  formColumn,
-  formInput,
-  errorBox,
-  comboboxList,
-  comboboxItem,
-  comboboxItemHovered,
-} from "../lib/styles";
 import type { components } from "../generated/schema";
 
 type UserResponse = components["schemas"]["UserResponse"];
@@ -150,8 +132,8 @@ export function AdminUsers() {
   };
 
   return (
-    <div style={pageWrapper}>
-      <h1 style={pageTitle}>Users</h1>
+    <div className="page-wrapper">
+      <h1 className="page-title">Users</h1>
 
       {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
 
@@ -207,25 +189,25 @@ export function AdminUsers() {
           <ErrorMessage error={error} />
         ) : users && users.data.length > 0 ? (
           <>
-            <table style={table}>
+            <table className="data-table">
               <thead>
-                <tr style={tableHeaderRow}>
-                  <th style={tableCellLeft}>Username</th>
-                  <th style={tableCellCenter}>Role</th>
-                  <th style={tableCellCenter}>Active</th>
-                  <th style={tableCellLeft}>Teams</th>
-                  <th style={tableCellLeft}>Actions</th>
+                <tr className="table-header-row">
+                  <th className="table-cell-left">Username</th>
+                  <th className="table-cell-center">Role</th>
+                  <th className="table-cell-center">Active</th>
+                  <th className="table-cell-left">Teams</th>
+                  <th className="table-cell-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {users.data.map((user) => (
-                  <tr key={user.id} style={tableRow}>
-                    <td style={{ ...tableCellLeft, fontWeight: 500 }}>
+                  <tr key={user.id} className="table-row">
+                    <td className="table-cell-left" style={{ fontWeight: 500 }}>
                       {user.username}
                       {user.must_change_password && (
                         <span
+                          className="muted-text"
                           style={{
-                            ...mutedText,
                             fontSize: "12px",
                             marginLeft: "8px",
                           }}
@@ -234,14 +216,13 @@ export function AdminUsers() {
                         </span>
                       )}
                     </td>
-                    <td style={tableCellCenter}>{user.role}</td>
-                    <td style={tableCellCenter}>
+                    <td className="table-cell-center">{user.role}</td>
+                    <td className="table-cell-center">
                       {user.active ? "Yes" : "No"}
                     </td>
                     <td
+                      className="table-cell-left muted-text"
                       style={{
-                        ...tableCellLeft,
-                        ...mutedText,
                         fontSize: "14px",
                       }}
                     >
@@ -250,7 +231,7 @@ export function AdminUsers() {
                         maxWidth={260}
                       />
                     </td>
-                    <td style={tableCell}>
+                    <td className="table-cell">
                       <div
                         style={{
                           display: "flex",
@@ -260,30 +241,27 @@ export function AdminUsers() {
                       >
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button
-                            className="button-table-action"
+                            className="button-table-action compact-input"
                             onClick={() => handleToggleActive(user)}
-                            style={compactInput}
                           >
                             {user.active ? "Deactivate" : "Activate"}
                           </button>
                           <button
-                            className="button-table-action"
+                            className="button-table-action compact-input"
                             onClick={() => {
                               setResettingUserId(
                                 resettingUserId === user.id ? null : user.id,
                               );
                               setTempPassword("");
                             }}
-                            style={compactInput}
                           >
                             {resettingUserId === user.id
                               ? "Cancel"
                               : "Reset Password"}
                           </button>
                           <button
-                            className="button-table-action button-table-danger"
+                            className="button-table-action button-table-danger compact-input"
                             onClick={() => setUserToDelete(user)}
-                            style={compactInput}
                           >
                             Delete
                           </button>
@@ -296,13 +274,13 @@ export function AdminUsers() {
                               value={tempPassword}
                               onChange={(e) => setTempPassword(e.target.value)}
                               minLength={12}
-                              style={{ ...compactInput, flex: 1 }}
+                              className="compact-input"
+                              style={{ flex: 1 }}
                             />
                             <button
-                              className="button-table-action"
+                              className="button-table-action compact-input"
                               onClick={() => handleResetPassword(user.id)}
                               disabled={resetPassword.isPending}
-                              style={compactInput}
                             >
                               Set
                             </button>
@@ -311,8 +289,8 @@ export function AdminUsers() {
                       </div>
                       {updateUser.isError && (
                         <p
+                          className="error-box"
                           style={{
-                            ...errorBox,
                             marginTop: "4px",
                             fontSize: "12px",
                           }}
@@ -322,8 +300,8 @@ export function AdminUsers() {
                       )}
                       {resetPassword.isError && resettingUserId === user.id && (
                         <p
+                          className="error-box"
                           style={{
-                            ...errorBox,
                             marginTop: "4px",
                             fontSize: "12px",
                           }}
@@ -343,7 +321,7 @@ export function AdminUsers() {
             />
           </>
         ) : (
-          <p style={mutedText}>No users found.</p>
+          <p className="muted-text">No users found.</p>
         )}
       </div>
       <ConfirmDialog
@@ -390,9 +368,13 @@ function CreateUserForm({
 }: CreateUserFormProps) {
   const needsTeam = role === "user";
   return (
-    <form onSubmit={onSubmit} style={{ ...formColumn, maxWidth: "400px" }}>
+    <form
+      onSubmit={onSubmit}
+      className="form-column"
+      style={{ maxWidth: "400px" }}
+    >
       <label>
-        <span style={mutedText}>Username</span>
+        <span className="muted-text">Username</span>
         <FormInput
           type="text"
           placeholder="e.g. jsmith"
@@ -403,7 +385,7 @@ function CreateUserForm({
         />
       </label>
       <label>
-        <span style={mutedText}>Temporary password</span>
+        <span className="muted-text">Temporary password</span>
         <FormInput
           type="text"
           placeholder="12+ characters"
@@ -415,7 +397,7 @@ function CreateUserForm({
         />
       </label>
       <label>
-        <span style={mutedText}>Role</span>
+        <span className="muted-text">Role</span>
         <FormSelect
           value={role}
           onChange={(e) => onRoleChange(e.target.value as UserRole)}
@@ -426,21 +408,19 @@ function CreateUserForm({
         </FormSelect>
       </label>
       {needsTeam && <TeamCombobox teamId={teamId} onChange={onTeamChange} />}
-      {error && <p style={errorBox}>{error}</p>}
+      {error && <p className="error-box">{error}</p>}
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           type="submit"
-          className="button-primary-action"
+          className="button-primary-action form-input"
           disabled={isPending || (needsTeam && teamId === null)}
-          style={formInput}
         >
           {isPending ? "Creating..." : "Create User"}
         </button>
         <button
           type="button"
-          className="button-secondary-action"
+          className="button-secondary-action form-input"
           onClick={onCancel}
-          style={formInput}
         >
           Cancel
         </button>
@@ -504,7 +484,7 @@ function TeamCombobox({
 
   return (
     <label>
-      <span style={mutedText}>Team</span>
+      <span className="muted-text">Team</span>
       <div style={{ position: "relative" }}>
         <FormInput
           type="text"
@@ -533,7 +513,7 @@ function TeamCombobox({
             id={listboxId}
             role="listbox"
             aria-label="Teams"
-            style={comboboxList}
+            className="combobox-list"
           >
             {opts.map((t, i) => (
               <li
@@ -547,10 +527,9 @@ function TeamCombobox({
                 }}
                 onMouseEnter={() => setActiveIndex(i)}
                 title={t.name}
-                style={{
-                  ...comboboxItem,
-                  ...(i === activeIndex ? comboboxItemHovered : null),
-                }}
+                className={
+                  i === activeIndex ? "combobox-item active" : "combobox-item"
+                }
               >
                 {t.name}
               </li>
@@ -559,11 +538,13 @@ function TeamCombobox({
         )}
       </div>
       {teamId !== null && (
-        <span style={{ ...mutedText, fontSize: "12px" }}>Team selected</span>
+        <span className="muted-text" style={{ fontSize: "12px" }}>
+          Team selected
+        </span>
       )}
-      {error && <p style={errorBox}>Couldn't load teams - try again.</p>}
+      {error && <p className="error-box">Couldn't load teams - try again.</p>}
       {noTeams && (
-        <p style={mutedText}>
+        <p className="muted-text">
           No teams yet - <Link to="/admin/teams">create a team</Link> first.
         </p>
       )}

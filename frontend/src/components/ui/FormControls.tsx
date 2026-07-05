@@ -1,62 +1,25 @@
-import {
-  useState,
-  type InputHTMLAttributes,
-  type SelectHTMLAttributes,
-} from "react";
-import { polishedFieldChrome, polishedFieldFocus } from "../../lib/styles";
+import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
 
 export function FormInput({
-  style,
-  onFocus,
-  onBlur,
+  className,
   ...props
 }: InputHTMLAttributes<HTMLInputElement>) {
-  const [isFocused, setIsFocused] = useState(false);
-
   return (
     <input
       {...props}
-      onFocus={(e) => {
-        setIsFocused(true);
-        onFocus?.(e);
-      }}
-      onBlur={(e) => {
-        setIsFocused(false);
-        onBlur?.(e);
-      }}
-      style={{
-        ...polishedFieldChrome,
-        ...(isFocused ? polishedFieldFocus : null),
-        ...style,
-      }}
+      className={className ? `form-field ${className}` : "form-field"}
     />
   );
 }
 
 export function FormSelect({
-  style,
-  onFocus,
-  onBlur,
+  className,
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
-  const [isFocused, setIsFocused] = useState(false);
-
   return (
     <select
       {...props}
-      onFocus={(e) => {
-        setIsFocused(true);
-        onFocus?.(e);
-      }}
-      onBlur={(e) => {
-        setIsFocused(false);
-        onBlur?.(e);
-      }}
-      style={{
-        ...polishedFieldChrome,
-        ...(isFocused ? polishedFieldFocus : null),
-        ...style,
-      }}
+      className={className ? `form-field ${className}` : "form-field"}
     />
   );
 }
