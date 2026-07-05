@@ -51,7 +51,7 @@ function TeamNotificationsCard({
           <span className="muted-text" style={{ display: "block" }}>
             {hasWebhook
               ? `${enabledChannels.join(" and ")} alerts are enabled.`
-              : "No webhooks set."}
+              : "No notifications configured."}
           </span>
         </span>
         <span
@@ -281,9 +281,9 @@ export function Notifications() {
         className="muted-text"
         style={{ maxWidth: "680px", margin: "0 0 24px 0" }}
       >
-        Configure Slack and Microsoft Teams alerts for each team you can access
-        and choose which events trigger them. Every monitored site assigned to
-        that team will use the same webhooks.
+        Configure notifications for each team you can access and choose which
+        events trigger them. Every monitored site assigned to that team will use
+        the same notification configuration.
       </p>
 
       {isLoading ? (
