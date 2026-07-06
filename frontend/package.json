@@ -28,7 +28,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
-    "@tanstack/eslint-plugin-query": "^5.96.2",
+    "@tanstack/eslint-plugin-query": "^5.101.2",
     "@types/node": "^24.12.4",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
