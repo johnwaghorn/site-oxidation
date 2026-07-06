@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SearchIcon } from "../icons";
 
 interface SearchInputProps {
   value: string;
@@ -45,52 +46,23 @@ export function SearchInput({
         padding: "0 10px",
       }}
     >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        width="17"
-        height="17"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ flexShrink: 0, color: "var(--color-muted)" }}
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.5-3.5" />
-      </svg>
+      <SearchIcon style={{ flexShrink: 0, color: "var(--color-muted)" }} />
       <input
         type="text"
         aria-label={placeholder}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{
-          width: "100%",
-          minWidth: 0,
-          padding: "10px 8px",
-          border: "none",
-          outline: "none",
-          background: "transparent",
-          color: "inherit",
-          fontSize: "14px",
-        }}
+        className="form-field-inner"
+        style={{ padding: "10px 8px" }}
       />
       {value && (
         <button
           type="button"
           aria-label="Clear search"
           onClick={() => onChange("")}
-          style={{
-            padding: "2px 4px",
-            border: "none",
-            background: "transparent",
-            color: "var(--color-muted)",
-            cursor: "pointer",
-            fontSize: "18px",
-            lineHeight: 1,
-          }}
+          className="form-field-button"
+          style={{ padding: "2px 4px", fontSize: "18px", lineHeight: 1 }}
         >
           &times;
         </button>

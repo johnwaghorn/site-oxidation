@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
-import { FormInput } from "../components/ui/FormControls";
+import { FormInput, SecretInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
 type Credentials = components["schemas"]["Credentials"];
@@ -53,8 +53,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             required
             autoComplete="username"
           />
-          <FormInput
-            type="password"
+          <SecretInput
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

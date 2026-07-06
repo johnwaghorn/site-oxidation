@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
-import { FormInput } from "../components/ui/FormControls";
+import { SecretInput } from "../components/ui/FormControls";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -218,8 +218,7 @@ function WebhookForm({
     >
       <label style={{ display: "grid", gap: "8px" }}>
         <span style={{ fontWeight: 700 }}>{label}</span>
-        <FormInput
-          type="url"
+        <SecretInput
           value={webhookUrl}
           onChange={(event) => setWebhookUrl(event.target.value)}
           placeholder={placeholder}

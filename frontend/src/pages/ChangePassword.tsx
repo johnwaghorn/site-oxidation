@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
-import { FormInput } from "../components/ui/FormControls";
+import { SecretInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
 type ChangePasswordRequest = components["schemas"]["ChangePasswordRequest"];
@@ -58,16 +58,14 @@ export function ChangePassword({
             : "You must change your password before continuing."}
         </p>
         <form onSubmit={handleSubmit} className="form-column">
-          <FormInput
-            type="password"
+          <SecretInput
             placeholder="Current password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
             autoComplete="current-password"
           />
-          <FormInput
-            type="password"
+          <SecretInput
             placeholder="New password (12+ characters)"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -75,8 +73,7 @@ export function ChangePassword({
             minLength={12}
             autoComplete="new-password"
           />
-          <FormInput
-            type="password"
+          <SecretInput
             placeholder="Confirm new password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
