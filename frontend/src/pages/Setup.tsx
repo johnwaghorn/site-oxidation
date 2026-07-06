@@ -35,9 +35,9 @@ export function Setup({ onSetupComplete }: SetupProps) {
             password manager that encrypts your passwords if you can!
           </p>
           <p style={{ marginBottom: "4px", fontWeight: 500 }}>Username</p>
-          <Credential value={newAdmin.username} />
+          <Credential value={newAdmin.username} testId="generated-username" />
           <p style={{ marginBottom: "4px", fontWeight: 500 }}>Password</p>
-          <Credential value={newAdmin.password} />
+          <Credential value={newAdmin.password} testId="generated-password" />
           <button onClick={onSetupComplete} className="form-input">
             I saved my password, continue
           </button>
@@ -56,7 +56,7 @@ export function Setup({ onSetupComplete }: SetupProps) {
   );
 }
 
-function Credential({ value }: { value: string }) {
+function Credential({ value, testId }: { value: string; testId: string }) {
   return (
     <div
       style={{
@@ -73,6 +73,7 @@ function Credential({ value }: { value: string }) {
       }}
     >
       <pre
+        data-testid={testId}
         style={{
           margin: 0,
           padding: "4px 8px",
