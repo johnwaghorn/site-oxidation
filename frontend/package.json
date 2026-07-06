@@ -11,7 +11,12 @@
     "build": "tsc -b && vite build",
     "lint": "tsc -b --noEmit && eslint . && prettier --check src/",
     "format": "prettier --write src/",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
+    "e2e:server": "bash ../scripts/e2e-server.sh",
+    "e2e:headed": "playwright test --headed",
+    "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.16",
@@ -22,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "@tanstack/eslint-plugin-query": "^5.96.2",
     "@types/node": "^24.12.4",
     "@types/react": "^19.2.5",
