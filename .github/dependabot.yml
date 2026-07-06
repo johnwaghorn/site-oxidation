@@ -36,3 +36,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions-minor:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
