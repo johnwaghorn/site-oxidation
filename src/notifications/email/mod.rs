@@ -145,9 +145,7 @@ fn build_transport(
             25,
         ),
     };
-    let port = smtp.smtp_port.map_or(default_port_for_mode, |configured| {
-        u16::try_from(configured).unwrap_or(default_port_for_mode)
-    });
+    let port = smtp.smtp_port.unwrap_or(default_port_for_mode);
     let mut builder = builder
         .map_err(|error| format!("could not configure SMTP transport for '{host}': {error}"))?
         .timeout(Some(SEND_TIMEOUT))

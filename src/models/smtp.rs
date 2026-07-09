@@ -12,16 +12,6 @@ pub enum SmtpTlsMode {
     Tls,
 }
 
-impl SmtpTlsMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::StartTls => "starttls",
-            Self::Tls => "tls",
-        }
-    }
-}
-
 impl<'de> Deserialize<'de> for SmtpTlsMode {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -42,7 +32,7 @@ impl<'de> Deserialize<'de> for SmtpTlsMode {
 #[allow(clippy::struct_field_names)]
 pub struct SmtpSettings {
     pub smtp_host: Option<String>,
-    pub smtp_port: Option<i64>,
+    pub smtp_port: Option<u16>,
     pub smtp_tls_mode: SmtpTlsMode,
     pub smtp_auth: bool,
     pub smtp_username: Option<String>,

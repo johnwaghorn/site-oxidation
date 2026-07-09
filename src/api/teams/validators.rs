@@ -183,8 +183,8 @@ impl<'de> Deserialize<'de> for EmailAddress {
 pub struct SmtpPort(u16);
 
 impl SmtpPort {
-    pub fn as_i64(self) -> i64 {
-        i64::from(self.0)
+    pub fn as_u16(self) -> u16 {
+        self.0
     }
 }
 
