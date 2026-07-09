@@ -548,14 +548,14 @@ async fn test_self_guards_block_deactivate_and_demote(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_users_filters_by_team_id(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    let alice_id = insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;
+    let maddie_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     insert_test_user(&pool, "bob", TEST_PASSWORD, "user", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('engineering')")
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(alice_id)
+        .bind(maddie_id)
         .execute(&pool)
         .await
         .unwrap();
@@ -575,21 +575,21 @@ async fn test_list_users_filters_by_team_id(pool: SqlitePool) {
     let body = parse_json_body(response).await;
     let data = body["data"].as_array().unwrap();
     assert_eq!(data.len(), 1);
-    assert_eq!(data[0]["username"], "alice");
+    assert_eq!(data[0]["username"], "maddie");
     assert_eq!(body["total"], 1);
 }
 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_users_excludes_by_team_id(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    let alice_id = insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;
+    let maddie_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     insert_test_user(&pool, "bob", TEST_PASSWORD, "user", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('engineering')")
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(alice_id)
+        .bind(maddie_id)
         .execute(&pool)
         .await
         .unwrap();
@@ -613,7 +613,7 @@ async fn test_list_users_excludes_by_team_id(pool: SqlitePool) {
         .iter()
         .map(|u| u["username"].as_str().unwrap())
         .collect();
-    assert!(!names.contains(&"alice"));
+    assert!(!names.contains(&"maddie"));
     assert!(names.contains(&"admin"));
     assert!(names.contains(&"bob"));
 }
@@ -656,9 +656,9 @@ async fn test_list_users_filters_by_active_status(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_users_filters_by_search(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    insert_test_user(&pool, "alice", TEST_PASSWORD, "user", false).await;
+    insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     insert_test_user(&pool, "alastair", TEST_PASSWORD, "user", false).await;
-    insert_test_user(&pool, "bob", TEST_PASSWORD, "user", false).await;
+    insert_test_user(&pool, "alfie", TEST_PASSWORD, "user", false).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -680,8 +680,9 @@ async fn test_list_users_filters_by_search(pool: SqlitePool) {
         .iter()
         .map(|u| u["username"].as_str().unwrap())
         .collect();
-    assert!(names.contains(&"alice"));
     assert!(names.contains(&"alastair"));
+    assert!(names.contains(&"alfie"));
+    assert!(!names.contains(&"maddie"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

@@ -1,4 +1,5 @@
 use crate::models::site::SiteRow;
+use crate::notifications::TEST_MESSAGE_TITLE;
 use crate::notifications::format;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
@@ -7,6 +8,17 @@ use serde::Serialize;
 #[derive(Serialize)]
 pub(super) struct SlackPayload {
     text: String,
+}
+
+pub(super) fn test(triggered_by: &str) -> SlackPayload {
+    SlackPayload {
+        text: format!(
+            ":white_check_mark: {}\nTriggered by: {}\n{}",
+            TEST_MESSAGE_TITLE,
+            triggered_by,
+            env!("CARGO_PKG_REPOSITORY")
+        ),
+    }
 }
 
 pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> SlackPayload {
@@ -46,6 +58,7 @@ pub(super) fn cert_expiring(site: &SiteRow, cert: &CertCheck) -> SlackPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteRow, SiteStatus};
     use chrono::{Duration as ChronoDuration, Utc};
     use reqwest::StatusCode;
@@ -59,12 +72,11 @@ mod tests {
             expected_text: None,
             status: SiteStatus::Up,
             tls_allow_untrusted: false,
-            slack_webhook_url: Some("https://hooks.slack.test/services/test".to_owned()),
-            microsoft_teams_webhook_url: None,
             cert_status: None,
-            notify_site_down: true,
-            notify_site_recovered: true,
-            notify_cert_expiring: true,
+            notifications: TeamNotificationConfig {
+                slack_webhook_url: Some("https://hooks.slack.test/services/test".to_owned()),
+                ..TeamNotificationConfig::default()
+            },
         }
     }
 

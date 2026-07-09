@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_page_clamped_to_max() {
         let params = PaginationParams {
-            page: Some(999999999),
+            page: Some(999_999_999),
             per_page: None,
         };
         assert_eq!(params.page(), PaginationParams::MAX_PAGE)

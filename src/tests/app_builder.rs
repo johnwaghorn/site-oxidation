@@ -29,6 +29,7 @@ pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
         probe_timeout_secs: 30,
         probe_user_agent: "SiteOxidation/test".to_owned(),
         server_port: 8080,
+        smtp_allow_private_hosts: probe_allow_private_ips,
         session_key_path: std::path::PathBuf::from(":memory:/session.key"),
     }
 }
@@ -55,6 +56,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
             10,
             std::time::Duration::from_mins(1),
         )),
+        notifier: crate::notifications::Notifier::new(reqwest::Client::new(), allow_private_ips),
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();
@@ -106,6 +108,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
             10,
             std::time::Duration::from_mins(1),
         )),
+        notifier: crate::notifications::Notifier::new(reqwest::Client::new(), true),
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();

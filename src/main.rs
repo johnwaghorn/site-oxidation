@@ -78,12 +78,6 @@ async fn main() -> Result<()> {
     ));
     let pruner_limiter = Arc::clone(&login_limiter);
     let pruner_admin_limiter = Arc::clone(&admin_limiter);
-    let state = AppState {
-        pool: pool.clone(),
-        config: config.clone(),
-        login_limiter,
-        admin_limiter,
-    };
     let resolver: Arc<SafeResolver> = Arc::new(SafeResolver {
         allow_private: config.probe_allow_private_ips,
     });
@@ -104,7 +98,15 @@ async fn main() -> Result<()> {
     let notification_client = probe_builder()
         .build()
         .context("Failed to build notification client")?;
-    let notifier = notifications::Notifier::new(notification_client);
+    let notifier =
+        notifications::Notifier::new(notification_client, config.smtp_allow_private_hosts);
+    let state = AppState {
+        pool: pool.clone(),
+        config: config.clone(),
+        login_limiter,
+        admin_limiter,
+        notifier: notifier.clone(),
+    };
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));
     let health_routes = api::healthcheck::health_routes();
     let auth_routes = api::auth::auth_routes();

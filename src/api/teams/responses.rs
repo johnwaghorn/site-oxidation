@@ -1,3 +1,4 @@
+use crate::models::smtp::SmtpTlsMode;
 use serde::Serialize;
 use sqlx::FromRow;
 use utoipa::ToSchema;
@@ -12,7 +13,7 @@ pub struct TeamNotificationsResponse {
     pub telegram_chat_id: Option<String>,
     pub smtp_host: Option<String>,
     pub smtp_port: Option<i64>,
-    pub smtp_security: String,
+    pub smtp_tls_mode: SmtpTlsMode,
     pub smtp_auth: bool,
     pub smtp_username: Option<String>,
     pub smtp_from_email: Option<String>,

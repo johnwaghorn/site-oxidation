@@ -95,9 +95,17 @@ impl<'de> Deserialize<'de> for SmtpHost {
     where
         D: Deserializer<'de>,
     {
-        text::optional(&String::deserialize(deserializer)?, "SMTP host", 255)
-            .map(Self)
-            .map_err(D::Error::custom)
+        let Some(value) = text::optional(&String::deserialize(deserializer)?, "SMTP host", 255)
+            .map_err(D::Error::custom)?
+        else {
+            return Ok(Self(None));
+        };
+        if value.contains('/') || value.contains('@') || value.contains(char::is_whitespace) {
+            return Err(D::Error::custom(
+                "SMTP host must be a plain hostname, without a scheme, path, or credentials",
+            ));
+        }
+        Ok(Self(Some(value)))
     }
 }
 
@@ -158,9 +166,15 @@ impl<'de> Deserialize<'de> for EmailAddress {
     where
         D: Deserializer<'de>,
     {
-        text::optional(&String::deserialize(deserializer)?, "email address", 320)
-            .map(Self)
-            .map_err(D::Error::custom)
+        let Some(value) = text::optional(&String::deserialize(deserializer)?, "email address", 320)
+            .map_err(D::Error::custom)?
+        else {
+            return Ok(Self(None));
+        };
+        value
+            .parse::<lettre::message::Mailbox>()
+            .map_err(|_| D::Error::custom("email address must be valid"))?;
+        Ok(Self(Some(value)))
     }
 }
 
@@ -187,42 +201,10 @@ impl<'de> Deserialize<'de> for SmtpPort {
     }
 }
 
-#[derive(Debug, Clone, Copy, ToSchema)]
-#[schema(rename_all = "lowercase", example = "starttls")]
-pub enum SmtpSecurity {
-    None,
-    StartTls,
-    Tls,
-}
-
-impl SmtpSecurity {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::StartTls => "starttls",
-            Self::Tls => "tls",
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for SmtpSecurity {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        match String::deserialize(deserializer)?.trim() {
-            "" => Err(D::Error::custom("SMTP security is required")),
-            "none" => Ok(Self::None),
-            "starttls" => Ok(Self::StartTls),
-            "tls" => Ok(Self::Tls),
-            _ => Err(D::Error::custom("SMTP security must be a recognised value")),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::smtp::SmtpTlsMode;
     use rstest::rstest;
     use serde_json::json;
 
@@ -253,8 +235,32 @@ mod tests {
     #[case("starttls", true)]
     #[case("tls", true)]
     #[case("ssl", false)]
-    fn test_smtp_security(#[case] value: &str, #[case] valid: bool) {
-        let result: Result<SmtpSecurity, _> = serde_json::from_value(json!(value));
+    fn test_smtp_tls_mode(#[case] value: &str, #[case] valid: bool) {
+        let result: Result<SmtpTlsMode, _> = serde_json::from_value(json!(value));
+        assert_eq!(result.is_ok(), valid);
+    }
+
+    #[rstest]
+    #[case("alerts@waghorn.tech", true)]
+    #[case("Alerts <alerts@waghorn.tech>", true)]
+    #[case("not-an-email", false)]
+    #[case("missing@tld@double", false)]
+    #[case("", true)]
+    fn test_email_address(#[case] value: &str, #[case] valid: bool) {
+        let result: Result<EmailAddress, _> = serde_json::from_value(json!(value));
+        assert_eq!(result.is_ok(), valid);
+    }
+    #[rstest]
+    #[case("smtp.waghorn.tech", true)]
+    #[case("127.0.0.1", true)]
+    #[case("::1", true)]
+    #[case("https://smtp.waghorn.tech", false)]
+    #[case("smtp.waghorn.tech/relay", false)]
+    #[case("user@smtp.waghorn.tech", false)]
+    #[case("smtp waghorn", false)]
+    #[case("", true)]
+    fn test_smtp_host(#[case] value: &str, #[case] valid: bool) {
+        let result: Result<SmtpHost, _> = serde_json::from_value(json!(value));
         assert_eq!(result.is_ok(), valid);
     }
 }

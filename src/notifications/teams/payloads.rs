@@ -1,8 +1,20 @@
 use crate::models::site::SiteRow;
+use crate::notifications::TEST_MESSAGE_TITLE;
 use crate::notifications::format;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
 use serde_json::{Value, json};
+
+pub(super) fn test(triggered_by: &str) -> Value {
+    card(
+        TEST_MESSAGE_TITLE,
+        "Good",
+        &json!([
+            { "title": "Triggered by", "value": triggered_by },
+            { "title": "Source", "value": env!("CARGO_PKG_REPOSITORY") },
+        ]),
+    )
+}
 
 // Microsoft Teams workflow webhooks expect an Adaptive Card
 pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> Value {
@@ -72,6 +84,7 @@ fn card(title: &str, color: &str, facts: &Value) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteStatus};
     use chrono::{Duration as ChronoDuration, Utc};
     use reqwest::StatusCode;
@@ -85,12 +98,11 @@ mod tests {
             expected_text: None,
             status: SiteStatus::Up,
             tls_allow_untrusted: false,
-            slack_webhook_url: None,
-            microsoft_teams_webhook_url: Some("https://teams.waghorn.tech/webhook".to_owned()),
             cert_status: None,
-            notify_site_down: true,
-            notify_site_recovered: true,
-            notify_cert_expiring: true,
+            notifications: TeamNotificationConfig {
+                microsoft_teams_webhook_url: Some("https://teams.waghorn.tech/webhook".to_owned()),
+                ..TeamNotificationConfig::default()
+            },
         }
     }
 
