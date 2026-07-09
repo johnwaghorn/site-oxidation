@@ -80,7 +80,7 @@ pub async fn update_notifications(
         .bind(update.telegram_chat_id.value.as_deref())
         .bind(update.smtp_host.value.as_deref())
         .bind(update.smtp_port.value)
-        .bind(update.smtp_tls_mode.value.as_deref())
+        .bind(update.smtp_tls_mode.value)
         .bind(update.smtp_auth.value)
         .bind(update.smtp_username.value.as_deref())
         .bind(update.smtp_password.value.as_deref())

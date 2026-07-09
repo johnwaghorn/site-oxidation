@@ -377,7 +377,7 @@ mod tests {
     async fn test_broken_smtp_config_cannot_suppress_working_one() {
         let dead_port = {
             let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-            i64::from(listener.local_addr().unwrap().port())
+            listener.local_addr().unwrap().port()
         };
         let notifier = Notifier::new(Client::new(), true);
         let mut auth_without_credentials = site_row();

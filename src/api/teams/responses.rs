@@ -12,7 +12,7 @@ pub struct TeamNotificationsResponse {
     pub telegram_bot_token_set: bool,
     pub telegram_chat_id: Option<String>,
     pub smtp_host: Option<String>,
-    pub smtp_port: Option<i64>,
+    pub smtp_port: Option<u16>,
     pub smtp_tls_mode: SmtpTlsMode,
     pub smtp_auth: bool,
     pub smtp_username: Option<String>,

@@ -609,7 +609,7 @@ export interface components {
             smtp_from_email?: string | null;
             smtp_host?: string | null;
             smtp_password_set: boolean;
-            /** Format: int64 */
+            /** Format: int32 */
             smtp_port?: number | null;
             smtp_tls_mode: components["schemas"]["SmtpTlsMode"];
             smtp_to_email?: string | null;
