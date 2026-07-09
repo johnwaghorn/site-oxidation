@@ -1,5 +1,5 @@
 use crate::models::site::SiteStatus;
-use crate::security::resolver::{ResolveError, resolve_public_addrs};
+use crate::security::resolver::{ResolveError, resolve_public_addrs, warn_probe_private_host};
 use reqwest::{Client, StatusCode};
 use std::time::Duration;
 
@@ -28,7 +28,10 @@ pub async fn check_url(
     {
         let port = parsed.port_or_known_default().unwrap_or(443);
         // A DNS failure falls through so reqwest can surface the real error.
-        if let Err(ResolveError::PrivateIp { .. }) = resolve_public_addrs(host, port, false).await {
+        if let Err(ResolveError::PrivateIp { .. }) = resolve_public_addrs(host, port)
+            .await
+            .inspect_err(warn_probe_private_host)
+        {
             return ProbeResult {
                 status: SiteStatus::Blocked,
                 status_code: None,
@@ -85,6 +88,7 @@ mod tests {
     use std::sync::Arc;
 
     #[tokio::test]
+    #[tracing_test::traced_test]
     async fn test_check_url_blocks_literal_private_ip_when_private_ips_disabled() {
         let client = Client::new();
         let check = CheckExpectation {
@@ -96,6 +100,10 @@ mod tests {
             result.status.is_blocked(),
             "literal private IP should mark site as Blocked"
         );
+        assert!(logs_contain(
+            "Blocked '127.0.0.1': resolves to private/internal IP"
+        ));
+        assert!(logs_contain("PROBE_ALLOW_PRIVATE_IPS=true"));
     }
 
     #[tokio::test]

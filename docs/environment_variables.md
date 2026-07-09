@@ -112,6 +112,15 @@ Allow probing sites with private/internal IP addresses (e.g. `192.168.x.x`,
 - **Default:** `false`
 - **Example:** `PROBE_ALLOW_PRIVATE_IPS=true`
 
+### `SMTP_ALLOW_PRIVATE_HOSTS`
+
+Allow email notifications to be sent through an SMTP server on a
+private/internal IP address (e.g. a mail relay on your LAN). When disabled,
+SMTP hosts that resolve to private addresses are rejected before sending.
+
+- **Default:** `false`
+- **Example:** `SMTP_ALLOW_PRIVATE_HOSTS=true`
+
 ### `PROBE_USER_AGENT`
 
 User-Agent header sent with probe requests.

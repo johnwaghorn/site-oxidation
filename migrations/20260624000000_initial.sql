@@ -32,7 +32,7 @@ CREATE TABLE team_notification_settings (
     telegram_chat_id TEXT CHECK (telegram_chat_id IS NULL OR length(telegram_chat_id) BETWEEN 1 AND 255),
     smtp_host TEXT CHECK (smtp_host IS NULL OR length(smtp_host) BETWEEN 1 AND 255),
     smtp_port INTEGER CHECK (smtp_port IS NULL OR smtp_port BETWEEN 1 AND 65535),
-    smtp_security TEXT NOT NULL DEFAULT 'starttls' CHECK (smtp_security IN ('none', 'starttls', 'tls')),
+    smtp_tls_mode TEXT NOT NULL DEFAULT 'starttls' CHECK (smtp_tls_mode IN ('none', 'starttls', 'tls')),
     smtp_auth INTEGER NOT NULL DEFAULT 1 CHECK (smtp_auth IN (0, 1)),
     smtp_username TEXT CHECK (smtp_username IS NULL OR length(smtp_username) BETWEEN 1 AND 320),
     smtp_password TEXT CHECK (smtp_password IS NULL OR length(smtp_password) BETWEEN 1 AND 2048),

@@ -1,4 +1,5 @@
 use crate::config::AppConfig;
+use crate::notifications::Notifier;
 use crate::security::rate_limit::LoginRateLimiter;
 use axum::extract::FromRef;
 use sqlx::SqlitePool;
@@ -10,6 +11,7 @@ pub struct AppState {
     pub config: AppConfig,
     pub login_limiter: Arc<LoginRateLimiter>,
     pub admin_limiter: Arc<LoginRateLimiter>,
+    pub notifier: Notifier,
 }
 
 pub struct AdminLimiter(pub Arc<LoginRateLimiter>);

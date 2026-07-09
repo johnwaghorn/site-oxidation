@@ -1,3 +1,4 @@
+use crate::models::notifications::TeamNotificationConfig;
 use crate::models::site::{SiteRow, SiteStatus};
 use axum::Router;
 use password_auth::generate_hash;
@@ -63,11 +64,7 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
         expected_text: None,
         status,
         tls_allow_untrusted: false,
-        slack_webhook_url: None,
-        microsoft_teams_webhook_url: None,
         cert_status: None,
-        notify_site_down: true,
-        notify_site_recovered: true,
-        notify_cert_expiring: true,
+        notifications: TeamNotificationConfig::default(),
     }
 }

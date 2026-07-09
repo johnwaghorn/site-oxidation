@@ -1,5 +1,5 @@
 use crate::models::site::CertStatus;
-use crate::security::resolver::resolve_public_addrs;
+use crate::security::resolver::{resolve_addrs, resolve_public_addrs, warn_probe_private_host};
 use chrono::{DateTime, Utc};
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::crypto::CryptoProvider;
@@ -110,7 +110,13 @@ async fn inspect_certificate(
     allow_private_ips: bool,
     allow_untrusted: bool,
 ) -> anyhow::Result<CertFacts> {
-    let addrs = resolve_public_addrs(host, port, allow_private_ips).await?;
+    let addrs = if allow_private_ips {
+        resolve_addrs(host, port).await?
+    } else {
+        resolve_public_addrs(host, port)
+            .await
+            .inspect_err(warn_probe_private_host)?
+    };
     let stream = TcpStream::connect(addrs.as_slice()).await?;
     let config = no_verify_config().ok_or_else(|| anyhow::anyhow!("failed to build TLS config"))?;
     let connector = TlsConnector::from(config);

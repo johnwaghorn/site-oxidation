@@ -23,6 +23,7 @@ pub struct AppConfig {
     pub probe_timeout_secs: u64,
     pub probe_user_agent: String,
     pub server_port: u16,
+    pub smtp_allow_private_hosts: bool,
     pub session_key_path: PathBuf,
 }
 
@@ -108,6 +109,12 @@ impl AppConfig {
                 .with_context(|| format!("Invalid PROBE_ALLOW_PRIVATE_IPS value: {v}"))?,
             Err(_) => false,
         };
+        let smtp_allow_private_hosts = match env::var("SMTP_ALLOW_PRIVATE_HOSTS") {
+            Ok(v) => v
+                .parse::<bool>()
+                .with_context(|| format!("Invalid SMTP_ALLOW_PRIVATE_HOSTS value: {v}"))?,
+            Err(_) => false,
+        };
         let probe_max_concurrent_checks = match env::var("PROBE_MAX_CONCURRENT_CHECKS") {
             Ok(v) => v
                 .parse::<usize>()
@@ -134,9 +141,7 @@ impl AppConfig {
         };
         let probe_user_agent = match env::var("PROBE_USER_AGENT") {
             Ok(v) => v,
-            Err(_) => {
-                "SiteOxidation/1.0 (+https://github.com/johnwaghorn/site-oxidation)".to_owned()
-            }
+            Err(_) => concat!("SiteOxidation/1.0 (+", env!("CARGO_PKG_REPOSITORY"), ")").to_owned(),
         };
         let server_port = match env::var("SERVER_PORT") {
             Ok(v) => v
@@ -165,6 +170,7 @@ impl AppConfig {
             probe_timeout_secs,
             probe_user_agent,
             server_port,
+            smtp_allow_private_hosts,
             session_key_path,
         })
     }

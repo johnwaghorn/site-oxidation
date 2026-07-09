@@ -114,6 +114,16 @@ impl ApiErrorResponse {
             },
         }
     }
+
+    pub fn bad_gateway(message: &str) -> Self {
+        Self {
+            status: StatusCode::BAD_GATEWAY,
+            body: ApiError {
+                error: "bad_gateway".to_owned(),
+                message: message.to_owned(),
+            },
+        }
+    }
 }
 
 impl IntoResponse for ApiErrorResponse {

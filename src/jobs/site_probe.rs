@@ -7,7 +7,7 @@ use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::Client;
 use sqlx::SqlitePool;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::time::Duration;
 
 pub enum SiteTransition {
@@ -57,6 +57,10 @@ pub async fn check_all_sites(
             SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status,
                    s.tls_allow_untrusted, s.cert_status, n.slack_webhook_url,
                    n.microsoft_teams_webhook_url,
+                   n.smtp_host, n.smtp_port,
+                   COALESCE(n.smtp_tls_mode, 'starttls') AS smtp_tls_mode,
+                   COALESCE(n.smtp_auth, 1) AS smtp_auth,
+                   n.smtp_username, n.smtp_password, n.smtp_from_email, n.smtp_to_email,
                    COALESCE(n.notify_site_down, 1) AS notify_site_down,
                    COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered,
                    COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring
@@ -179,12 +183,8 @@ async fn check_site_group(
             SiteTransition::NoChange => {}
         }
     }
-    for site in deduped_notification_targets(went_down) {
-        notifier.site_down(site, &probe_result).await;
-    }
-    for site in deduped_notification_targets(recovered) {
-        notifier.site_recovered(site).await;
-    }
+    notifier.site_down(&went_down, &probe_result).await;
+    notifier.site_recovered(&recovered).await;
     if probe_result.status.is_blocked() {
         for site in &group_sites {
             clear_site_cert(pool, site.id).await;
@@ -209,27 +209,8 @@ async fn check_site_group(
             }
             update_site_cert_status(pool, site.id, &cert).await;
         }
-        for site in deduped_notification_targets(newly_expiring) {
-            notifier.cert_expiring(site, &cert).await;
-        }
+        notifier.cert_expiring(&newly_expiring, &cert).await;
     }
-}
-
-fn deduped_notification_targets(sites: Vec<&SiteRow>) -> Vec<&SiteRow> {
-    let mut seen_webhooks: HashSet<(Option<&str>, Option<&str>)> = HashSet::new();
-    sites
-        .into_iter()
-        .filter(|&site| {
-            let webhooks = (
-                site.slack_webhook_url.as_deref(),
-                site.microsoft_teams_webhook_url.as_deref(),
-            );
-            if webhooks == (None, None) {
-                return true;
-            }
-            seen_webhooks.insert(webhooks)
-        })
-        .collect()
 }
 
 fn cert_newly_expiring(site: &SiteRow, cert: &CertCheck) -> bool {
@@ -776,7 +757,7 @@ mod tests {
             &client,
             &pool,
             &probe_config(server.base_url()),
-            &Notifier::new(Client::new()),
+            &Notifier::new(Client::new(), true),
         )
         .await;
         assert_eq!(server.request_count(), 1);

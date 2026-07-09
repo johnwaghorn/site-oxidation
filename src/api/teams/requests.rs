@@ -2,9 +2,10 @@ use serde::Deserialize;
 use utoipa::ToSchema;
 
 use super::validators::{
-    EmailAddress, SmtpHost, SmtpPassword, SmtpPort, SmtpSecurity, SmtpUsername, TelegramBotToken,
-    TelegramChatId, WebhookUrl,
+    EmailAddress, SmtpHost, SmtpPassword, SmtpPort, SmtpUsername, TelegramBotToken, TelegramChatId,
+    WebhookUrl,
 };
+use crate::models::smtp::SmtpTlsMode;
 
 #[derive(Deserialize, ToSchema)]
 pub struct UpdateTeamNotificationsRequest {
@@ -14,7 +15,7 @@ pub struct UpdateTeamNotificationsRequest {
     pub telegram_chat_id: Option<TelegramChatId>,
     pub smtp_host: Option<SmtpHost>,
     pub smtp_port: Option<SmtpPort>,
-    pub smtp_security: Option<SmtpSecurity>,
+    pub smtp_tls_mode: Option<SmtpTlsMode>,
     pub smtp_auth: Option<bool>,
     pub smtp_username: Option<SmtpUsername>,
     pub smtp_password: Option<SmtpPassword>,
@@ -53,7 +54,7 @@ pub struct PreparedNotificationUpdate {
     pub telegram_chat_id: PatchValue<String>,
     pub smtp_host: PatchValue<String>,
     pub smtp_port: PatchValue<i64>,
-    pub smtp_security: PatchValue<String>,
+    pub smtp_tls_mode: PatchValue<String>,
     pub smtp_auth: PatchValue<bool>,
     pub smtp_username: PatchValue<String>,
     pub smtp_password: PatchValue<String>,
@@ -62,6 +63,19 @@ pub struct PreparedNotificationUpdate {
     pub notify_site_down: PatchValue<bool>,
     pub notify_site_recovered: PatchValue<bool>,
     pub notify_cert_expiring: PatchValue<bool>,
+}
+
+impl PreparedNotificationUpdate {
+    pub fn touches_smtp(&self) -> bool {
+        self.smtp_host.provided
+            || self.smtp_port.provided
+            || self.smtp_tls_mode.provided
+            || self.smtp_auth.provided
+            || self.smtp_username.provided
+            || self.smtp_password.provided
+            || self.smtp_from_email.provided
+            || self.smtp_to_email.provided
+    }
 }
 
 impl UpdateTeamNotificationsRequest {
@@ -76,7 +90,7 @@ impl UpdateTeamNotificationsRequest {
             telegram_chat_id: patch(self.telegram_chat_id, TelegramChatId::into_option),
             smtp_host: patch(self.smtp_host, SmtpHost::into_option),
             smtp_port: patch(self.smtp_port, |value| Some(value.as_i64())),
-            smtp_security: patch(self.smtp_security, |value| Some(value.as_str().to_owned())),
+            smtp_tls_mode: patch(self.smtp_tls_mode, |value| Some(value.as_str().to_owned())),
             smtp_auth: patch(self.smtp_auth, Some),
             smtp_username: patch(self.smtp_username, SmtpUsername::into_option),
             smtp_password: patch(self.smtp_password, SmtpPassword::into_option),
