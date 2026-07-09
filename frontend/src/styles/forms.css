@@ -123,3 +123,18 @@
   background-color: var(--color-primary-soft);
   color: var(--color-text);
 }
+
+.field-label {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label-text {
+  font-weight: 700;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}

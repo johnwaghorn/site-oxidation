@@ -1,10 +1,18 @@
 import { useState } from "react";
+import type { UseMutationResult } from "@tanstack/react-query";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
-import { SecretInput } from "../components/ui/FormControls";
+import {
+  FormInput,
+  FormSelect,
+  SecretInput,
+} from "../components/ui/FormControls";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { useAuth } from "../hooks/useAuth";
 import {
   useTeamNotifications,
+  useTestEmailNotification,
+  useTestSlackNotification,
+  useTestTeamsNotification,
   useUpdateTeamNotifications,
 } from "../hooks/useTeamNotifications";
 import type { components } from "../generated/schema";
@@ -13,6 +21,13 @@ type UserTeam = components["schemas"]["UserTeam"];
 type TeamNotifications = components["schemas"]["TeamNotificationsResponse"];
 type UpdateTeamNotificationsRequest =
   components["schemas"]["UpdateTeamNotificationsRequest"];
+type SmtpTlsMode = components["schemas"]["SmtpTlsMode"];
+type SuccessResponse = components["schemas"]["SuccessResponse"];
+type TestNotificationMutation = UseMutationResult<
+  SuccessResponse,
+  Error,
+  number
+>;
 
 function TeamNotificationsCard({
   team,
@@ -22,12 +37,18 @@ function TeamNotificationsCard({
   defaultOpen: boolean;
 }) {
   const { data, isLoading, error } = useTeamNotifications(team.id);
+  const testSlack = useTestSlackNotification();
+  const testTeams = useTestTeamsNotification();
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const emailConfigured = Boolean(
+    data?.smtp_host && data?.smtp_from_email && data?.smtp_to_email,
+  );
   const enabledChannels = [
     data?.slack_webhook_url ? "Slack" : null,
     data?.microsoft_teams_webhook_url ? "Microsoft Teams" : null,
+    emailConfigured ? "Email" : null,
   ].filter((channel): channel is string => channel !== null);
-  const hasWebhook = enabledChannels.length > 0;
+  const hasChannel = enabledChannels.length > 0;
 
   return (
     <section className="card">
@@ -49,8 +70,8 @@ function TeamNotificationsCard({
             {team.name}
           </span>
           <span className="muted-text" style={{ display: "block" }}>
-            {hasWebhook
-              ? `${enabledChannels.join(" and ")} alerts are enabled.`
+            {hasChannel
+              ? `${enabledChannels.join(", ")} alerts are enabled.`
               : "No notifications configured."}
           </span>
         </span>
@@ -63,9 +84,9 @@ function TeamNotificationsCard({
           }}
         >
           <span
-            className={hasWebhook ? "pill pill-success" : "pill pill-neutral"}
+            className={hasChannel ? "pill pill-success" : "pill pill-neutral"}
           >
-            {hasWebhook ? "Enabled" : "Disabled"}
+            {hasChannel ? "Enabled" : "Disabled"}
           </span>
           <span
             aria-hidden="true"
@@ -92,6 +113,7 @@ function TeamNotificationsCard({
                 key={`slack:${data?.slack_webhook_url ?? ""}`}
                 teamId={team.id}
                 channel="Slack"
+                sendTest={testSlack}
                 label="Slack webhook URL"
                 placeholder="https://hooks.slack.com/services/..."
                 savedWebhookUrl={data?.slack_webhook_url ?? ""}
@@ -102,12 +124,22 @@ function TeamNotificationsCard({
                   key={`teams:${data?.microsoft_teams_webhook_url ?? ""}`}
                   teamId={team.id}
                   channel="Microsoft Teams"
+                  sendTest={testTeams}
                   label="Microsoft Teams webhook URL"
                   placeholder="https://prod-00.westus.logic.azure.com/workflows/..."
                   savedWebhookUrl={data?.microsoft_teams_webhook_url ?? ""}
                   buildPayload={(url) => ({ microsoft_teams_webhook_url: url })}
                 />
               </div>
+              {data && (
+                <div className="card-section">
+                  <SmtpForm
+                    key={`smtp:${smtpFingerprint(data)}`}
+                    teamId={team.id}
+                    settings={data}
+                  />
+                </div>
+              )}
               {data && (
                 <NotificationEventToggles teamId={team.id} settings={data} />
               )}
@@ -188,6 +220,7 @@ function NotificationEventToggles({
 function WebhookForm({
   teamId,
   channel,
+  sendTest,
   label,
   placeholder,
   savedWebhookUrl,
@@ -195,6 +228,7 @@ function WebhookForm({
 }: {
   teamId: number;
   channel: string;
+  sendTest: TestNotificationMutation;
   label: string;
   placeholder: string;
   savedWebhookUrl: string;
@@ -216,8 +250,8 @@ function WebhookForm({
         });
       }}
     >
-      <label style={{ display: "grid", gap: "8px" }}>
-        <span style={{ fontWeight: 700 }}>{label}</span>
+      <label className="field-label">
+        <span className="field-label-text">{label}</span>
         <SecretInput
           value={webhookUrl}
           onChange={(event) => setWebhookUrl(event.target.value)}
@@ -231,15 +265,11 @@ function WebhookForm({
       </p>
       {updateWebhook.isError && <ErrorMessage error={updateWebhook.error} />}
       {updateWebhook.isSuccess && (
-        <p
-          style={{
-            margin: 0,
-            color: "var(--color-success-text)",
-            fontWeight: 700,
-          }}
-        >
-          {channel} webhook saved.
-        </p>
+        <p className="form-success-text">{channel} webhook saved.</p>
+      )}
+      {sendTest.isError && <ErrorMessage error={sendTest.error} />}
+      {sendTest.isSuccess && (
+        <p className="form-success-text">{channel} test message sent.</p>
       )}
       <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
         <button
@@ -249,6 +279,16 @@ function WebhookForm({
         >
           {updateWebhook.isPending ? "Saving..." : "Save webhook"}
         </button>
+        {hasWebhook && (
+          <button
+            className="button-secondary-action"
+            type="button"
+            disabled={sendTest.isPending}
+            onClick={() => sendTest.mutate(teamId)}
+          >
+            {sendTest.isPending ? "Sending..." : "Send test message"}
+          </button>
+        )}
         {hasWebhook && (
           <button
             className="button-secondary-action"
@@ -263,6 +303,242 @@ function WebhookForm({
             }}
           >
             Disable {channel}
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function listMissingFields(fields: string[]) {
+  if (fields.length === 1) {
+    return fields[0];
+  }
+  return `${fields.slice(0, -1).join(", ")} and ${fields[fields.length - 1]}`;
+}
+
+function smtpFingerprint(settings: TeamNotifications) {
+  return [
+    settings.smtp_host,
+    settings.smtp_port,
+    settings.smtp_tls_mode,
+    settings.smtp_auth,
+    settings.smtp_username,
+    settings.smtp_password_set,
+    settings.smtp_from_email,
+    settings.smtp_to_email,
+  ].join("|");
+}
+
+function SmtpForm({
+  teamId,
+  settings,
+}: {
+  teamId: number;
+  settings: TeamNotifications;
+}) {
+  const updateSmtp = useUpdateTeamNotifications();
+  const sendTest = useTestEmailNotification();
+  const [host, setHost] = useState(settings.smtp_host ?? "");
+  const [port, setPort] = useState(settings.smtp_port?.toString() ?? "");
+  const [tlsMode, setTlsMode] = useState(settings.smtp_tls_mode);
+  const [smtpAuth, setSmtpAuth] = useState(settings.smtp_auth);
+  const [username, setUsername] = useState(settings.smtp_username ?? "");
+  const [password, setPassword] = useState("");
+  const [fromEmail, setFromEmail] = useState(settings.smtp_from_email ?? "");
+  const [toEmail, setToEmail] = useState(settings.smtp_to_email ?? "");
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const emailConfigured = Boolean(
+    settings.smtp_host && settings.smtp_from_email && settings.smtp_to_email,
+  );
+
+  const findMissingFields = () => {
+    const disablingEmail =
+      host.trim() === "" && fromEmail.trim() === "" && toEmail.trim() === "";
+    if (disablingEmail) {
+      return [];
+    }
+    const missing = [];
+    if (host.trim() === "") {
+      missing.push("SMTP host");
+    }
+    if (fromEmail.trim() === "") {
+      missing.push("from address");
+    }
+    if (toEmail.trim() === "") {
+      missing.push("to address");
+    }
+    if (smtpAuth && username.trim() === "") {
+      missing.push("username");
+    }
+    if (smtpAuth && password === "" && !settings.smtp_password_set) {
+      missing.push("password");
+    }
+    return missing;
+  };
+
+  return (
+    <form
+      className="form-column"
+      style={{ gap: "12px" }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        const missing = findMissingFields();
+        setMissingFields(missing);
+        if (missing.length > 0) {
+          return;
+        }
+        const payload: UpdateTeamNotificationsRequest = {
+          smtp_host: host,
+          smtp_tls_mode: tlsMode,
+          smtp_auth: smtpAuth,
+          smtp_username: username,
+          smtp_from_email: fromEmail,
+          smtp_to_email: toEmail,
+        };
+        if (port !== "") {
+          payload.smtp_port = Number(port);
+        }
+        if (password !== "") {
+          payload.smtp_password = password;
+        }
+        updateSmtp.mutate({ teamId, payload });
+      }}
+    >
+      <h3 style={{ margin: "0 0 6px 0", fontSize: "16px" }}>Email</h3>
+      <p className="muted-text" style={{ margin: 0, fontSize: "14px" }}>
+        Send alerts by email through your own SMTP server.
+      </p>
+      <div className="field-row">
+        <label className="field-label">
+          <span className="field-label-text">SMTP host</span>
+          <FormInput
+            value={host}
+            onChange={(event) => setHost(event.target.value)}
+            placeholder="smtp.waghorn.tech"
+          />
+        </label>
+        <label className="field-label">
+          <span className="field-label-text">Port</span>
+          <FormInput
+            type="number"
+            min={1}
+            max={65535}
+            value={port}
+            onChange={(event) => setPort(event.target.value)}
+            placeholder="Default for the TLS mode"
+          />
+        </label>
+        <label className="field-label">
+          <span className="field-label-text">TLS mode</span>
+          <FormSelect
+            value={tlsMode}
+            onChange={(event) => setTlsMode(event.target.value as SmtpTlsMode)}
+          >
+            <option value="starttls">STARTTLS</option>
+            <option value="tls">TLS</option>
+            <option value="none">None</option>
+          </FormSelect>
+        </label>
+      </div>
+      <div className="field-row">
+        <label className="field-label">
+          <span className="field-label-text">From address</span>
+          <FormInput
+            value={fromEmail}
+            onChange={(event) => setFromEmail(event.target.value)}
+            placeholder="alerts@waghorn.tech"
+          />
+        </label>
+        <label className="field-label">
+          <span className="field-label-text">To address</span>
+          <FormInput
+            value={toEmail}
+            onChange={(event) => setToEmail(event.target.value)}
+            placeholder="on-call@waghorn.tech"
+          />
+        </label>
+      </div>
+      <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <input
+          type="checkbox"
+          checked={smtpAuth}
+          onChange={(event) => setSmtpAuth(event.target.checked)}
+        />
+        Sign in with a username and password
+      </label>
+      {smtpAuth && (
+        <div className="field-row">
+          <label className="field-label">
+            <span className="field-label-text">Username</span>
+            <FormInput
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <label className="field-label">
+            <span className="field-label-text">Password</span>
+            <SecretInput
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={
+                settings.smtp_password_set
+                  ? "Leave blank to keep the saved password"
+                  : ""
+              }
+            />
+          </label>
+        </div>
+      )}
+      <p className="muted-text" style={{ margin: 0, fontSize: "14px" }}>
+        Leave the host blank and save to disable email notifications for this
+        team. Without a port, 465 is used for TLS, 587 for STARTTLS and 25 with
+        TLS off.
+      </p>
+      {missingFields.length > 0 && (
+        <p className="error-box">
+          Fill in the {listMissingFields(missingFields)} to enable email
+          notifications.
+        </p>
+      )}
+      {updateSmtp.isError && <ErrorMessage error={updateSmtp.error} />}
+      {updateSmtp.isSuccess && (
+        <p className="form-success-text">Email settings saved.</p>
+      )}
+      {sendTest.isError && <ErrorMessage error={sendTest.error} />}
+      {sendTest.isSuccess && (
+        <p className="form-success-text">Test email sent.</p>
+      )}
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+        <button
+          className="button-primary-action"
+          type="submit"
+          disabled={updateSmtp.isPending}
+        >
+          {updateSmtp.isPending ? "Saving..." : "Save email settings"}
+        </button>
+        {emailConfigured && (
+          <button
+            className="button-secondary-action"
+            type="button"
+            disabled={sendTest.isPending}
+            onClick={() => sendTest.mutate(teamId)}
+          >
+            {sendTest.isPending ? "Sending..." : "Send test email"}
+          </button>
+        )}
+        {emailConfigured && (
+          <button
+            className="button-secondary-action"
+            type="button"
+            disabled={updateSmtp.isPending}
+            onClick={() => {
+              setHost("");
+              updateSmtp.mutate({ teamId, payload: { smtp_host: "" } });
+            }}
+          >
+            Disable email
           </button>
         )}
       </div>

@@ -20,6 +20,45 @@ export function useTeamNotifications(teamId: number) {
   });
 }
 
+export function useTestEmailNotification() {
+  return useMutation({
+    mutationFn: async (teamId: number) => {
+      const { data, error } = await api.POST(
+        "/api/teams/{id}/notifications/test/email",
+        { params: { path: { id: teamId } } },
+      );
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+  });
+}
+
+export function useTestSlackNotification() {
+  return useMutation({
+    mutationFn: async (teamId: number) => {
+      const { data, error } = await api.POST(
+        "/api/teams/{id}/notifications/test/slack",
+        { params: { path: { id: teamId } } },
+      );
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+  });
+}
+
+export function useTestTeamsNotification() {
+  return useMutation({
+    mutationFn: async (teamId: number) => {
+      const { data, error } = await api.POST(
+        "/api/teams/{id}/notifications/test/teams",
+        { params: { path: { id: teamId } } },
+      );
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+  });
+}
+
 export function useUpdateTeamNotifications() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -46,6 +46,78 @@ test("save a Slack webhook", async ({ page }) => {
   });
 });
 
+test("save SMTP email settings", async ({ page }) => {
+  await test.step("When I open the Ops notification card", async () => {
+    await page.goto("/notifications");
+    await expandNotificationCard(page, "Ops");
+  });
+
+  await test.step("Then saving with only a host is rejected", async () => {
+    const emailForm = page.locator("form").filter({ hasText: "SMTP host" });
+    await emailForm
+      .getByPlaceholder("smtp.waghorn.tech")
+      .fill("mail.waghorn.tech");
+    await emailForm
+      .getByRole("button", { name: "Save email settings" })
+      .click();
+    await expect(
+      emailForm.getByText(
+        "Fill in the from address, to address, username and password to enable email notifications.",
+      ),
+    ).toBeVisible();
+  });
+
+  await test.step("And I save the SMTP email settings", async () => {
+    const emailForm = page.locator("form").filter({ hasText: "SMTP host" });
+    await emailForm.getByPlaceholder("Default for the TLS mode").fill("2525");
+    await emailForm.getByLabel("TLS mode").selectOption("tls");
+    await emailForm
+      .getByPlaceholder("alerts@waghorn.tech")
+      .fill("alerts@waghorn.tech");
+    await emailForm
+      .getByPlaceholder("on-call@waghorn.tech")
+      .fill("john@waghorn.tech");
+    await emailForm
+      .getByLabel("Sign in with a username and password")
+      .uncheck();
+    await emailForm
+      .getByRole("button", { name: "Save email settings" })
+      .click();
+  });
+
+  await test.step("Then the Ops card shows email alerts are enabled", async () => {
+    const card = page.locator("section").filter({ hasText: "Ops" });
+    await expect(
+      card.getByText("Slack, Email alerts are enabled.", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      card.getByRole("button", { name: "Send test email" }),
+    ).toBeVisible();
+  });
+
+  await test.step("And the settings survive a reload", async () => {
+    await page.reload();
+    await expandNotificationCard(page, "Ops");
+    const emailForm = page.locator("form").filter({ hasText: "SMTP host" });
+    await expect(emailForm.getByPlaceholder("smtp.waghorn.tech")).toHaveValue(
+      "mail.waghorn.tech",
+    );
+    await expect(
+      emailForm.getByPlaceholder("Default for the TLS mode"),
+    ).toHaveValue("2525");
+    await expect(emailForm.getByLabel("TLS mode")).toHaveValue("tls");
+    await expect(emailForm.getByPlaceholder("alerts@waghorn.tech")).toHaveValue(
+      "alerts@waghorn.tech",
+    );
+    await expect(
+      emailForm.getByPlaceholder("on-call@waghorn.tech"),
+    ).toHaveValue("john@waghorn.tech");
+    await expect(
+      emailForm.getByLabel("Sign in with a username and password"),
+    ).not.toBeChecked();
+  });
+});
+
 test("turn off the site recovered alert", async ({ page }) => {
   await test.step("When I open the Ops notification card", async () => {
     await page.goto("/notifications");
