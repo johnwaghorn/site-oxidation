@@ -10,14 +10,14 @@ use super::params::ListUsersParams;
 use super::queries;
 use super::requests::{CreateUserRequest, ResetPasswordRequest, UpdateUserRequest};
 use super::responses::{CreateUserResponse, UserResponse};
+use super::rules;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{
     ApiError, ApiErrorResponse, foreign_key_err, internal_err, unique_conflict_err,
 };
-use crate::api::extractors::RequireAdmin;
+use crate::api::extractors::{DeferredJsonPayload, JsonPayload, RequireAdmin};
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
 use crate::api::search::{SearchParams, normalise_search};
-use crate::api::text;
 use crate::models::user::UserRole;
 use crate::security::password::{validate_password_bounds, validate_password_not_username};
 use crate::state::AdminLimiter;
@@ -91,6 +91,7 @@ pub async fn list_users(
         (status = 404, description = "Team not found", body = ApiError),
         (status = 409, description = "Username already exists", body = ApiError),
         (status = 422, description = "Validation error (e.g. missing team for a non-admin user)", body = ApiError),
+        (status = 429, description = "Too many admin actions", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/users",
@@ -100,7 +101,7 @@ pub async fn create_user(
     RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     State(AdminLimiter(limiter)): State<AdminLimiter>,
-    Json(payload): Json<CreateUserRequest>,
+    payload: DeferredJsonPayload<CreateUserRequest>,
 ) -> Result<(StatusCode, Json<CreateUserResponse>), ApiErrorResponse> {
     let limiter_key = format!("create_user:{}", admin.id);
     if limiter.is_blocked(&limiter_key) {
@@ -110,27 +111,10 @@ pub async fn create_user(
         ));
     }
     limiter.record_failure(&limiter_key);
-    let username = text::required(&payload.username, "Username", 60)
-        .map_err(|e| ApiErrorResponse::validation(&e))?;
+    let payload = payload.validated()?;
     validate_password_bounds(&payload.password)?;
-    validate_password_not_username(&payload.password, &username)?;
-    let team_id = match payload.role {
-        UserRole::User => {
-            let team_id = payload.team_id.ok_or_else(|| {
-                ApiErrorResponse::validation("A team is required for non-admin users")
-            })?;
-            let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
-                .bind(team_id)
-                .fetch_one(&pool)
-                .await
-                .map_err(|e| internal_err("Failed to check team", e))?;
-            if team_exists == 0 {
-                return Err(ApiErrorResponse::not_found("Team"));
-            }
-            Some(team_id)
-        }
-        UserRole::Admin => None,
-    };
+    validate_password_not_username(&payload.password, payload.username.as_str())?;
+    let team_id = rules::resolve_team_for_role(&pool, payload.role, payload.team_id).await?;
 
     let password = payload.password;
     let hash = task::spawn_blocking(move || generate_hash(&password))
@@ -145,7 +129,7 @@ pub async fn create_user(
         .await
         .map_err(|e| internal_err("Failed to start user creation", e))?;
     let id: i64 = sqlx::query_scalar(queries::INSERT_USER)
-        .bind(&username)
+        .bind(payload.username.as_str())
         .bind(&hash)
         .bind(role_str)
         .fetch_one(&mut *tx)
@@ -167,7 +151,7 @@ pub async fn create_user(
         StatusCode::CREATED,
         Json(CreateUserResponse {
             id,
-            username,
+            username: payload.username.into_string(),
             role: payload.role,
         }),
     ))
@@ -184,6 +168,7 @@ pub async fn create_user(
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 404, description = "User not found", body = ApiError),
         (status = 409, description = "Cannot deactivate self or last admin, or demote an admin without a team", body = ApiError),
+        (status = 422, description = "User payload validation error", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/users",
@@ -193,33 +178,12 @@ pub async fn update_user(
     RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
-    Json(payload): Json<UpdateUserRequest>,
+    JsonPayload(payload): JsonPayload<UpdateUserRequest>,
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
-    if id == admin.id && !payload.active {
-        return Err(ApiErrorResponse::conflict(
-            "Cannot deactivate your own account",
-        ));
+    if let Some(message) = rules::self_update_error(&admin, id, &payload) {
+        return Err(ApiErrorResponse::conflict(message));
     }
-    if id == admin.id && payload.role != UserRole::Admin {
-        return Err(ApiErrorResponse::conflict("Cannot demote your own account"));
-    }
-    if payload.role != UserRole::Admin || !payload.active {
-        let active_admins: i64 = sqlx::query_scalar(queries::COUNT_ACTIVE_ADMINS)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to count active admins", e))?;
-        let is_target_active_admin: bool = sqlx::query_scalar(queries::IS_ACTIVE_ADMIN)
-            .bind(id)
-            .fetch_optional(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to check user status", e))?
-            .unwrap_or(false);
-        if is_target_active_admin && active_admins <= 1 {
-            return Err(ApiErrorResponse::conflict(
-                "Cannot demote or deactivate the last active admin",
-            ));
-        }
-    }
+    rules::ensure_not_last_active_admin(&pool, id, &payload).await?;
     let role_str = match payload.role {
         UserRole::Admin => "admin",
         UserRole::User => "user",
@@ -232,19 +196,13 @@ pub async fn update_user(
         .await
         .map_err(|e| internal_err("Failed to update user", e))?;
 
-    if updated.is_none() {
-        let user_exists: bool = sqlx::query_scalar(queries::USER_EXISTS)
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to check user", e))?;
-        if user_exists {
-            return Err(ApiErrorResponse::conflict(
-                "Cannot demote an admin without assigning at least one team",
-            ));
-        }
-        return Err(ApiErrorResponse::not_found("User"));
-    }
+    rules::ensure_user_mutation_applied(
+        &pool,
+        id,
+        updated,
+        "Cannot demote an admin without assigning at least one team",
+    )
+    .await?;
     Ok(Json(SuccessResponse { success: true }))
 }
 
@@ -268,27 +226,16 @@ pub async fn delete_user(
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiErrorResponse> {
-    if id == admin.id {
-        return Err(ApiErrorResponse::conflict("Cannot delete your own account"));
+    if let Some(message) = rules::self_delete_error(&admin, id) {
+        return Err(ApiErrorResponse::conflict(message));
     }
     let deleted: Option<i64> = sqlx::query_scalar(queries::DELETE_USER)
         .bind(id)
         .fetch_optional(&pool)
         .await
         .map_err(|e| internal_err("Failed to delete user", e))?;
-    if deleted.is_none() {
-        let user_exists: bool = sqlx::query_scalar(queries::USER_EXISTS)
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to check user", e))?;
-        if user_exists {
-            return Err(ApiErrorResponse::conflict(
-                "Cannot delete the last active admin",
-            ));
-        }
-        return Err(ApiErrorResponse::not_found("User"));
-    }
+    rules::ensure_user_mutation_applied(&pool, id, deleted, "Cannot delete the last active admin")
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -302,6 +249,8 @@ pub async fn delete_user(
         (status = 401, description = "Unauthorized", body = ApiError),
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 404, description = "User not found", body = ApiError),
+        (status = 422, description = "Password validation failed", body = ApiError),
+        (status = 429, description = "Too many admin actions", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/users",
@@ -312,7 +261,7 @@ pub async fn reset_password(
     State(pool): State<SqlitePool>,
     State(AdminLimiter(limiter)): State<AdminLimiter>,
     Path(id): Path<i64>,
-    Json(payload): Json<ResetPasswordRequest>,
+    payload: DeferredJsonPayload<ResetPasswordRequest>,
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
     let limiter_key = format!("reset_password:{}", admin.id);
     if limiter.is_blocked(&limiter_key) {
@@ -322,6 +271,7 @@ pub async fn reset_password(
         ));
     }
     limiter.record_failure(&limiter_key);
+    let payload = payload.validated()?;
     validate_password_bounds(&payload.temp_password)?;
     let password = payload.temp_password;
     let hash = task::spawn_blocking(move || generate_hash(&password))

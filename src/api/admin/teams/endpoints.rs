@@ -7,13 +7,13 @@ use sqlx::SqlitePool;
 use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
 use super::responses::{TeamOption, TeamResponse};
+use super::rules;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
-use crate::api::extractors::RequireAdmin;
+use crate::api::extractors::{JsonPayload, RequireAdmin};
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::api::sites::responses::SiteResponse;
-use crate::api::text;
 
 #[derive(Deserialize)]
 pub struct ListTeamsQuery {
@@ -214,6 +214,7 @@ pub async fn list_team_options(
         (status = 401, description = "Unauthorized", body = ApiError),
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 409, description = "Team name already exists", body = ApiError),
+        (status = 422, description = "Team name validation error", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/teams",
@@ -222,12 +223,10 @@ pub async fn list_team_options(
 pub async fn create_team(
     RequireAdmin(_admin): RequireAdmin,
     State(pool): State<SqlitePool>,
-    Json(payload): Json<CreateTeamRequest>,
+    JsonPayload(payload): JsonPayload<CreateTeamRequest>,
 ) -> Result<(StatusCode, Json<TeamResponse>), ApiErrorResponse> {
-    let name = text::required(&payload.name, "Team name", 60)
-        .map_err(|e| ApiErrorResponse::validation(&e))?;
     let id: i64 = sqlx::query_scalar(queries::INSERT_TEAM)
-        .bind(&name)
+        .bind(payload.name.as_str())
         .fetch_one(&pool)
         .await
         .map_err(|e| unique_conflict_err("Team name already exists", "Failed to create team", e))?;
@@ -235,7 +234,7 @@ pub async fn create_team(
         StatusCode::CREATED,
         Json(TeamResponse {
             id,
-            name,
+            name: payload.name.into_string(),
             member_count: 0,
             site_count: 0,
         }),
@@ -253,6 +252,7 @@ pub async fn create_team(
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 404, description = "Team not found", body = ApiError),
         (status = 409, description = "Team name already exists", body = ApiError),
+        (status = 422, description = "Team name validation error", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/teams",
@@ -262,12 +262,10 @@ pub async fn update_team(
     RequireAdmin(_admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
-    Json(payload): Json<UpdateTeamRequest>,
+    JsonPayload(payload): JsonPayload<UpdateTeamRequest>,
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
-    let name = text::required(&payload.name, "Team name", 60)
-        .map_err(|e| ApiErrorResponse::validation(&e))?;
     let updated: Option<i64> = sqlx::query_scalar(queries::UPDATE_TEAM)
-        .bind(&name)
+        .bind(payload.name.as_str())
         .bind(id)
         .fetch_optional(&pool)
         .await
@@ -299,34 +297,13 @@ pub async fn delete_team(
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiErrorResponse> {
-    let site_count: i64 = sqlx::query_scalar(queries::COUNT_TEAM_SITES)
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(|e| internal_err("Failed to check team sites", e))?;
-    if site_count > 0 {
-        return Err(ApiErrorResponse::conflict(
-            "Cannot delete team with assigned sites",
-        ));
-    }
+    rules::ensure_team_has_no_sites(&pool, id).await?;
     let deleted: Option<i64> = sqlx::query_scalar(queries::DELETE_TEAM)
         .bind(id)
         .fetch_optional(&pool)
         .await
         .map_err(|e| internal_err("Failed to delete team", e))?;
-    if deleted.is_none() {
-        let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to check team", e))?;
-        if team_exists > 0 {
-            return Err(ApiErrorResponse::conflict(
-                "Cannot delete the last team assigned to a non-admin user",
-            ));
-        }
-        return Err(ApiErrorResponse::not_found("Team"));
-    }
+    rules::ensure_team_deleted(&pool, id, deleted).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -342,6 +319,7 @@ pub async fn delete_team(
         (status = 403, description = "Admin access required", body = ApiError),
         (status = 404, description = "Team or user not found", body = ApiError),
         (status = 409, description = "User already a member", body = ApiError),
+        (status = 422, description = "Member payload validation error", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
     tag = "admin/teams",
@@ -351,7 +329,7 @@ pub async fn add_team_member(
     RequireAdmin(_admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(team_id): Path<i64>,
-    Json(payload): Json<AddMemberRequest>,
+    JsonPayload(payload): JsonPayload<AddMemberRequest>,
 ) -> Result<(StatusCode, Json<SuccessResponse>), ApiErrorResponse> {
     let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
         .bind(team_id)
@@ -414,19 +392,6 @@ pub async fn remove_team_member(
         .await
         .map_err(|e| internal_err("Failed to remove team member", e))?;
 
-    if deleted.is_none() {
-        let membership_exists: bool = sqlx::query_scalar(queries::MEMBERSHIP_EXISTS)
-            .bind(team_id)
-            .bind(user_id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to check team membership", e))?;
-        if membership_exists {
-            return Err(ApiErrorResponse::conflict(
-                "Cannot remove a non-admin user's last team",
-            ));
-        }
-        return Err(ApiErrorResponse::not_found("Membership"));
-    }
+    rules::ensure_membership_removed(&pool, team_id, user_id, deleted).await?;
     Ok(StatusCode::NO_CONTENT)
 }

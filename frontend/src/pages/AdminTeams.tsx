@@ -130,6 +130,7 @@ export function AdminTeams() {
               value={newTeamName}
               onChange={(e) => setNewTeamName(e.target.value)}
               required
+              maxLength={60}
               style={{ flex: 1 }}
             />
             <button
@@ -184,6 +185,7 @@ export function AdminTeams() {
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           required
+                          maxLength={60}
                           className="compact-input"
                           style={{ minWidth: "180px" }}
                         />

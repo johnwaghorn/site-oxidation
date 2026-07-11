@@ -115,6 +115,21 @@ impl ApiErrorResponse {
         }
     }
 
+    pub fn from_status(status: StatusCode, message: &str) -> Self {
+        let error = status
+            .canonical_reason()
+            .unwrap_or("error")
+            .to_lowercase()
+            .replace(' ', "_");
+        Self {
+            status,
+            body: ApiError {
+                error,
+                message: message.to_owned(),
+            },
+        }
+    }
+
     pub fn bad_gateway(message: &str) -> Self {
         Self {
             status: StatusCode::BAD_GATEWAY,

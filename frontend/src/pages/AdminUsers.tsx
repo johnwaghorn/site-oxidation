@@ -381,6 +381,7 @@ function CreateUserForm({
           value={username}
           onChange={(e) => onUsernameChange(e.target.value)}
           required
+          maxLength={60}
           style={{ display: "block", width: "100%" }}
         />
       </label>

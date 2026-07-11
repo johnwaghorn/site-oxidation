@@ -1,14 +1,15 @@
+use super::fields::TeamName;
 use serde::Deserialize;
 use utoipa::ToSchema;
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreateTeamRequest {
-    pub name: String,
+    pub name: TeamName,
 }
 
 #[derive(Deserialize, ToSchema)]
 pub struct UpdateTeamRequest {
-    pub name: String,
+    pub name: TeamName,
 }
 
 #[derive(Deserialize, ToSchema)]

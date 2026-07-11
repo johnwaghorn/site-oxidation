@@ -7,7 +7,7 @@ use super::responses::TeamNotificationsResponse;
 use super::rules;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
-use crate::api::extractors::RequireAppAccess;
+use crate::api::extractors::{JsonPayload, RequireAppAccess};
 use crate::api::teams::access::{ensure_team_access, ensure_team_exists};
 use crate::models::smtp::SmtpSettings;
 use crate::state::AppState;
@@ -62,7 +62,7 @@ pub async fn update_notifications(
     RequireAppAccess(user): RequireAppAccess,
     State(state): State<AppState>,
     Path(id): Path<i64>,
-    Json(payload): Json<UpdateTeamNotificationsRequest>,
+    JsonPayload(payload): JsonPayload<UpdateTeamNotificationsRequest>,
 ) -> Result<Json<TeamNotificationsResponse>, ApiErrorResponse> {
     ensure_team_exists(&state, id).await?;
     ensure_team_access(&state.pool, id, &user).await?;

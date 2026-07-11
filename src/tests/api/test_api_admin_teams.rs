@@ -318,6 +318,35 @@ async fn test_create_team_rejects_name_longer_than_60_chars(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_create_team_validation_error_uses_api_error_envelope(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/admin/teams")
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":""}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["error"], "validation_error");
+    assert!(
+        body["message"]
+            .as_str()
+            .unwrap()
+            .contains("team name is required")
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_rename_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Old Name')")

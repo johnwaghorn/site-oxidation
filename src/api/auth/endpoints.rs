@@ -11,7 +11,7 @@ use super::responses::{
     ChangePasswordSuccess, LoginSuccess, MeSuccess, UpdateThemePreferenceSuccess, UserTeam,
 };
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
-use crate::api::extractors::RequireAuth;
+use crate::api::extractors::{JsonPayload, RequireAuth};
 use crate::auth_backend::{AuthSession, Credentials};
 use crate::models::user::UserRole;
 use crate::security::password::{
@@ -26,6 +26,7 @@ use crate::security::rate_limit::LoginRateLimiter;
     responses(
         (status = 200, description = "Login successful", body = LoginSuccess),
         (status = 401, description = "Invalid credentials", body = ApiError),
+        (status = 422, description = "Credentials payload validation error", body = ApiError),
         (status = 429, description = "Too many login attempts", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
@@ -35,7 +36,7 @@ pub async fn login(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(limiter): State<Arc<LoginRateLimiter>>,
     mut auth_session: AuthSession,
-    Json(creds): Json<Credentials>,
+    JsonPayload(creds): JsonPayload<Credentials>,
 ) -> Result<Json<LoginSuccess>, ApiErrorResponse> {
     let attempted_username = creds.username.clone();
     let key = format!("{}:{}", addr.ip(), creds.username.to_lowercase());
@@ -154,7 +155,7 @@ pub async fn me(
 pub async fn update_theme_preference(
     RequireAuth(user): RequireAuth,
     State(pool): State<SqlitePool>,
-    Json(payload): Json<UpdateThemePreferenceRequest>,
+    JsonPayload(payload): JsonPayload<UpdateThemePreferenceRequest>,
 ) -> Result<Json<UpdateThemePreferenceSuccess>, ApiErrorResponse> {
     sqlx::query(super::queries::UPDATE_THEME_PREFERENCE)
         .bind(payload.theme_preference)
@@ -190,7 +191,7 @@ pub async fn change_password(
     RequireAuth(user): RequireAuth,
     State(pool): State<SqlitePool>,
     mut auth_session: AuthSession,
-    Json(payload): Json<ChangePasswordRequest>,
+    JsonPayload(payload): JsonPayload<ChangePasswordRequest>,
 ) -> Result<Json<ChangePasswordSuccess>, ApiErrorResponse> {
     validate_password_bounds(&payload.new_password)?;
     validate_password_not_username(&payload.new_password, &user.username)?;
