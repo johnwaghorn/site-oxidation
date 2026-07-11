@@ -1,10 +1,11 @@
+use super::fields::Username;
 use crate::models::user::UserRole;
 use serde::Deserialize;
 use utoipa::ToSchema;
 
 #[derive(Deserialize, ToSchema)]
 pub struct CreateUserRequest {
-    pub username: String,
+    pub username: Username,
     pub password: String,
     pub role: UserRole,
     /// Ignored for role `admin`.

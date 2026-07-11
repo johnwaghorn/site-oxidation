@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use super::validators::{
+use super::fields::{
     EmailAddress, SmtpHost, SmtpPassword, SmtpPort, SmtpUsername, TelegramBotToken, TelegramChatId,
     WebhookUrl,
 };

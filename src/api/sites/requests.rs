@@ -1,4 +1,4 @@
-use super::validators::{CheckInterval, ExpectedStatus, ExpectedText, SiteName, SiteUrl};
+use super::fields::{CheckInterval, ExpectedStatus, ExpectedText, SiteName, SiteUrl};
 use serde::Deserialize;
 use utoipa::ToSchema;
 

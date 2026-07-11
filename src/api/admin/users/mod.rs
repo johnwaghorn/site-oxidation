@@ -1,8 +1,10 @@
 mod endpoints;
+mod fields;
 pub mod params;
 mod queries;
 pub mod requests;
 pub mod responses;
+mod rules;
 pub mod schema;
 
 use axum::Router;

@@ -1,10 +1,11 @@
 mod access;
 mod endpoints;
+mod fields;
 mod queries;
 pub mod requests;
 pub mod responses;
+mod rules;
 pub mod schema;
-mod validators;
 
 use crate::state::AppState;
 use axum::{Router, routing::get};

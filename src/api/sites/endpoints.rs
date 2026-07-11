@@ -1,12 +1,13 @@
 use super::access::{ensure_site_access, resolve_team_id};
+use super::fields::ExpectedText;
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, DELETE_SITE, INSERT_SITE, LIST_OUTAGES,
     LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN, SELECT_SITE_USER, UPDATE_SITE,
 };
-use super::validators::ExpectedText;
+use super::rules;
 use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
-use crate::api::extractors::RequireAppAccess;
+use crate::api::extractors::{JsonPayload, RequireAppAccess};
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::models::user::UserRole;
@@ -198,14 +199,10 @@ pub async fn get_site_outages(
 pub async fn create_site(
     RequireAppAccess(user): RequireAppAccess,
     State(state): State<AppState>,
-    Json(payload): Json<SitePayload>,
+    JsonPayload(payload): JsonPayload<SitePayload>,
 ) -> Result<(StatusCode, Json<SiteResponse>), ApiErrorResponse> {
     let team_id = resolve_team_id(&state.pool, &user, payload.team_id).await?;
-    if !state.config.probe_allow_private_ips && payload.url.has_private_ip() {
-        return Err(ApiErrorResponse::validation(
-            "Private/internal IP addresses are not allowed",
-        ));
-    }
+    rules::ensure_site_url_allowed(&payload.url, state.config.probe_allow_private_ips)?;
     let id: i64 = sqlx::query_scalar(INSERT_SITE)
         .bind(payload.name.as_str())
         .bind(payload.url.as_str())
@@ -248,15 +245,11 @@ pub async fn update_site(
     RequireAppAccess(user): RequireAppAccess,
     State(state): State<AppState>,
     Path(id): Path<i64>,
-    Json(payload): Json<SitePayload>,
+    JsonPayload(payload): JsonPayload<SitePayload>,
 ) -> Result<Json<SiteResponse>, ApiErrorResponse> {
     ensure_site_access(&state.pool, id, &user).await?;
     let team_id = resolve_team_id(&state.pool, &user, payload.team_id).await?;
-    if !state.config.probe_allow_private_ips && payload.url.has_private_ip() {
-        return Err(ApiErrorResponse::validation(
-            "Private/internal IP addresses are not allowed",
-        ));
-    }
+    rules::ensure_site_url_allowed(&payload.url, state.config.probe_allow_private_ips)?;
     let updated: Option<i64> = sqlx::query_scalar(UPDATE_SITE)
         .bind(payload.name.as_str())
         .bind(payload.url.as_str())

@@ -419,7 +419,7 @@ export interface components {
          */
         CheckInterval: number;
         CreateTeamRequest: {
-            name: string;
+            name: components["schemas"]["TeamName"];
         };
         CreateUserRequest: {
             password: string;
@@ -429,7 +429,7 @@ export interface components {
              * @description Ignored for role `admin`.
              */
             team_id?: number | null;
-            username: string;
+            username: components["schemas"]["Username"];
         };
         CreateUserResponse: {
             /** Format: int64 */
@@ -599,6 +599,8 @@ export interface components {
         SuccessResponse: {
             success: boolean;
         };
+        /** @example Platform Team */
+        TeamName: string;
         TeamNotificationsResponse: {
             microsoft_teams_webhook_url?: string | null;
             notify_cert_expiring: boolean;
@@ -657,7 +659,7 @@ export interface components {
             telegram_chat_id?: null | components["schemas"]["TelegramChatId"];
         };
         UpdateTeamRequest: {
-            name: string;
+            name: components["schemas"]["TeamName"];
         };
         UpdateThemePreferenceRequest: {
             theme_preference: components["schemas"]["ThemePreference"];
@@ -685,6 +687,8 @@ export interface components {
             id: number;
             name: string;
         };
+        /** @example john */
+        Username: string;
         /** @example https://hooks.slack.com/services/example */
         WebhookUrl: string;
     };
@@ -808,6 +812,15 @@ export interface operations {
             };
             /** @description Team name already exists */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Team name validation error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1062,6 +1075,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description Team name validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -1127,6 +1149,15 @@ export interface operations {
             };
             /** @description User already a member */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Member payload validation error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1511,6 +1542,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description Too many admin actions */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -1649,6 +1689,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            /** @description User payload validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -1705,6 +1754,24 @@ export interface operations {
             };
             /** @description User not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Password validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Too many admin actions */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1798,6 +1865,15 @@ export interface operations {
             };
             /** @description Invalid credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Credentials payload validation error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
