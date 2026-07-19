@@ -1,6 +1,6 @@
 use crate::models::site::SiteRow;
-use crate::notifications::TEST_MESSAGE_TITLE;
 use crate::notifications::format;
+use crate::notifications::providers::TEST_NOTIFICATION_TITLE;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
 use serde::Serialize;
@@ -14,7 +14,7 @@ pub(super) fn test(triggered_by: &str) -> SlackPayload {
     SlackPayload {
         text: format!(
             ":white_check_mark: {}\nTriggered by: {}\n{}",
-            TEST_MESSAGE_TITLE,
+            TEST_NOTIFICATION_TITLE,
             triggered_by,
             env!("CARGO_PKG_REPOSITORY")
         ),

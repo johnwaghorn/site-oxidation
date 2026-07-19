@@ -1,12 +1,12 @@
 use crate::config::AppConfig;
 use crate::models::site::{CertStatus, SiteRow};
-use crate::notifications::Notifier;
+use crate::notifications::{Notifier, planning};
 use crate::probe::cert::{CertCheck, CertExpiryWindows, check_certificate};
 use crate::probe::http::{CheckExpectation, ProbeResult, check_url};
 use chrono::Utc;
 use futures::stream::{self, StreamExt};
 use reqwest::Client;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -52,7 +52,7 @@ pub async fn check_all_sites(
         tracing::warn!("Canary check failed. Skipping sites check. Network issue?");
         return;
     }
-    let sites = sqlx::query_as::<_, SiteRow>(
+    let sites = match sqlx::query_as::<_, SiteRow>(
         r"
             SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status,
                    s.tls_allow_untrusted, s.cert_status, n.slack_webhook_url,
@@ -83,7 +83,13 @@ pub async fn check_all_sites(
     )
     .fetch_all(pool)
     .await
-    .unwrap_or_default();
+    {
+        Ok(sites) => sites,
+        Err(error) => {
+            tracing::error!("Failed to load sites due for probing: {error}");
+            return;
+        }
+    };
     if sites.is_empty() {
         tracing::info!("No sites due for a probe");
         return;
@@ -112,6 +118,7 @@ pub async fn check_all_sites(
         .buffer_unordered(config.probe_max_concurrent_checks)
         .collect::<Vec<()>>()
         .await;
+    notifier.process_outbox(pool).await;
     tracing::info!(
         "Finished checking {} sites in {} probes",
         site_count,
@@ -174,17 +181,13 @@ async fn check_site_group(
             }
         }
     }
-    let mut went_down = Vec::new();
-    let mut recovered = Vec::new();
-    for site in &group_sites {
-        match update_site_status(pool, site, &probe_result).await {
-            SiteTransition::WentDown => went_down.push(site),
-            SiteTransition::Recovered => recovered.push(site),
-            SiteTransition::NoChange => {}
-        }
+    if let Err(error) = persist_site_statuses(pool, &group_sites, &probe_result, notifier).await {
+        tracing::error!(
+            "Failed to persist probe result for '{}': {error}",
+            group_key.url
+        );
+        return;
     }
-    notifier.site_down(&went_down, &probe_result).await;
-    notifier.site_recovered(&recovered).await;
     if probe_result.status.is_blocked() {
         for site in &group_sites {
             clear_site_cert(pool, site.id).await;
@@ -202,15 +205,83 @@ async fn check_site_group(
             },
         )
         .await;
-        let mut newly_expiring = Vec::new();
-        for site in &group_sites {
-            if cert_newly_expiring(site, &cert) {
-                newly_expiring.push(site);
-            }
-            update_site_cert_status(pool, site.id, &cert).await;
+        if let Err(error) = persist_site_cert_results(pool, &group_sites, &cert, notifier).await {
+            tracing::error!(
+                "Failed to persist certificate result for '{}': {error}",
+                group_key.url
+            );
         }
-        notifier.cert_expiring(&newly_expiring, &cert).await;
     }
+}
+
+async fn persist_site_statuses(
+    pool: &SqlitePool,
+    sites: &[SiteRow],
+    result: &ProbeResult,
+    notifier: &Notifier,
+) -> anyhow::Result<()> {
+    let mut transaction = pool.begin().await?;
+    let mut went_down = Vec::new();
+    let mut recovered = Vec::new();
+    let mut blocked = Vec::new();
+    for site in sites {
+        match update_site_status(&mut transaction, site, result).await? {
+            SiteTransition::WentDown => went_down.push(site),
+            SiteTransition::Recovered => recovered.push(site),
+            SiteTransition::NoChange => {
+                if site.status.is_down() && result.status.is_blocked() {
+                    blocked.push(site);
+                }
+            }
+        }
+    }
+    let mut deliveries = planning::site_down(&went_down, result)?;
+    deliveries.extend(planning::site_recovered(&recovered)?);
+    notifier.enqueue(&mut transaction, &deliveries).await?;
+    transaction.commit().await?;
+    for site in went_down {
+        tracing::warn!(
+            "Site '{}' is DOWN (status: {}) - {}",
+            site.name,
+            result
+                .status_code
+                .map_or_else(|| "N/A".to_owned(), |code| code.to_string()),
+            result
+                .error_message
+                .as_deref()
+                .unwrap_or("no error message")
+        );
+    }
+    for site in recovered {
+        tracing::info!("Site '{}' is back UP", site.name);
+    }
+    for site in blocked {
+        tracing::info!(
+            "Site '{}' outage closed - probe is now blocked (see prior warning for reason)",
+            site.name
+        );
+    }
+    Ok(())
+}
+
+async fn persist_site_cert_results(
+    pool: &SqlitePool,
+    sites: &[SiteRow],
+    cert: &CertCheck,
+    notifier: &Notifier,
+) -> anyhow::Result<()> {
+    let mut transaction = pool.begin().await?;
+    let newly_expiring: Vec<&SiteRow> = sites
+        .iter()
+        .filter(|site| cert_newly_expiring(site, cert))
+        .collect();
+    for site in sites {
+        update_site_cert_status(&mut transaction, site.id, cert).await?;
+    }
+    let deliveries = planning::cert_expiring(&newly_expiring, cert)?;
+    notifier.enqueue(&mut transaction, &deliveries).await?;
+    transaction.commit().await?;
+    Ok(())
 }
 
 fn cert_newly_expiring(site: &SiteRow, cert: &CertCheck) -> bool {
@@ -221,10 +292,10 @@ fn cert_newly_expiring(site: &SiteRow, cert: &CertCheck) -> bool {
 }
 
 pub async fn update_site_status(
-    pool: &SqlitePool,
+    transaction: &mut Transaction<'_, Sqlite>,
     site: &SiteRow,
     result: &ProbeResult,
-) -> SiteTransition {
+) -> sqlx::Result<SiteTransition> {
     sqlx::query(
         "UPDATE sites SET status = ?, last_checked_at = ?, last_response_time_ms = ? WHERE id = ?",
     )
@@ -236,22 +307,9 @@ pub async fn update_site_status(
             .map(|ms| i64::try_from(ms).unwrap_or(i64::MAX)),
     )
     .bind(site.id)
-    .execute(pool)
-    .await
-    .map_err(|e| tracing::error!("Failed to update site status for site {}: {}", site.id, e))
-    .ok();
+    .execute(&mut **transaction)
+    .await?;
     if !site.status.is_down() && result.status.is_down() {
-        tracing::warn!(
-            "Site '{}' is DOWN (status: {}) - {}",
-            site.name,
-            result
-                .status_code
-                .map_or_else(|| "N/A".to_owned(), |c| c.to_string()),
-            result
-                .error_message
-                .as_deref()
-                .unwrap_or("no error message")
-        );
         sqlx::query(
             "INSERT INTO outages (site_id, http_status, error_message, expected_status) VALUES (?, ?, ?, ?)",
         )
@@ -259,36 +317,28 @@ pub async fn update_site_status(
             .bind(result.status_code.map(|c| i64::from(c.as_u16())))
             .bind(&result.error_message)
             .bind(site.expected_status)
-            .execute(pool)
-            .await
-            .map_err(|e| tracing::error!("Failed to insert outage for site {}: {}", site.id, e))
-            .ok();
-        return SiteTransition::WentDown;
+            .execute(&mut **transaction)
+            .await?;
+        return Ok(SiteTransition::WentDown);
     }
     if site.status.is_down() && !result.status.is_down() {
-        if result.status.is_blocked() {
-            tracing::info!(
-                "Site '{}' outage closed - probe is now blocked (see prior warning for reason)",
-                site.name
-            );
-        } else {
-            tracing::info!("Site '{}' is back UP", site.name);
-        }
         sqlx::query("UPDATE outages SET ended_at = ? WHERE site_id = ? AND ended_at IS NULL")
             .bind(Utc::now())
             .bind(site.id)
-            .execute(pool)
-            .await
-            .map_err(|e| tracing::error!("Failed to close outage for site {}: {}", site.id, e))
-            .ok();
+            .execute(&mut **transaction)
+            .await?;
         if result.status.is_up() {
-            return SiteTransition::Recovered;
+            return Ok(SiteTransition::Recovered);
         }
     }
-    SiteTransition::NoChange
+    Ok(SiteTransition::NoChange)
 }
 
-pub async fn update_site_cert_status(pool: &SqlitePool, site_id: i64, cert: &CertCheck) {
+async fn update_site_cert_status(
+    transaction: &mut Transaction<'_, Sqlite>,
+    site_id: i64,
+    cert: &CertCheck,
+) -> sqlx::Result<()> {
     sqlx::query(
         "UPDATE sites SET cert_status = ?, cert_expires_at = ?, cert_checked_at = ? WHERE id = ?",
     )
@@ -296,10 +346,9 @@ pub async fn update_site_cert_status(pool: &SqlitePool, site_id: i64, cert: &Cer
     .bind(cert.expires_at)
     .bind(Utc::now())
     .bind(site_id)
-    .execute(pool)
-    .await
-    .map_err(|e| tracing::error!("Failed to update cert status for site {}: {}", site_id, e))
-    .ok();
+    .execute(&mut **transaction)
+    .await?;
+    Ok(())
 }
 
 async fn clear_site_cert(pool: &SqlitePool, site_id: i64) {
@@ -387,7 +436,14 @@ mod tests {
         let client = Client::new();
         let mut config = test_config(true);
         config.canary_url = "not a url".to_owned();
-        check_all_sites(&client, &client, &pool, &config, &Notifier::disabled()).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
         assert!(logs_contain(
             "Canary check failed. Skipping sites check. Network issue?"
         ));
@@ -422,12 +478,13 @@ mod tests {
         )
         .await;
         let client = Client::new();
+        let config = probe_config(base_url);
         check_all_sites(
             &client,
             &client,
             &pool,
-            &probe_config(base_url),
-            &Notifier::disabled(),
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
         )
         .await;
         assert_eq!(server.request_count(), 1);
@@ -476,12 +533,13 @@ mod tests {
             .await
             .unwrap();
         let client = Client::new();
+        let config = probe_config(base_url);
         check_all_sites(
             &client,
             &client,
             &pool,
-            &probe_config(base_url),
-            &Notifier::disabled(),
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
         )
         .await;
         assert_eq!(server.request_count(), 1);
@@ -522,12 +580,13 @@ mod tests {
         )
         .await;
         let client = Client::new();
+        let config = probe_config(base_url);
         check_all_sites(
             &client,
             &client,
             &pool,
-            &probe_config(base_url),
-            &Notifier::disabled(),
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
         )
         .await;
         assert_eq!(server.request_count(), 1);
@@ -558,7 +617,14 @@ mod tests {
         let client = Client::new();
         let mut config = probe_config(base_url);
         config.probe_retry_count = 1;
-        check_all_sites(&client, &client, &pool, &config, &Notifier::disabled()).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
         assert_eq!(server.request_count(), 2);
     }
 
@@ -592,7 +658,14 @@ mod tests {
         let client = Client::new();
         let mut config = probe_config(base_url);
         config.probe_retry_count = 1;
-        check_all_sites(&client, &client, &pool, &config, &Notifier::disabled()).await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
         assert_eq!(server.request_count(), 1);
     }
 
@@ -637,12 +710,13 @@ mod tests {
         )
         .await;
         let client = Client::new();
+        let config = probe_config(base_url);
         check_all_sites(
             &client,
             &client,
             &pool,
-            &probe_config(base_url),
-            &Notifier::disabled(),
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
         )
         .await;
         assert_eq!(server.request_count(), 5);
@@ -652,7 +726,15 @@ mod tests {
     #[traced_test]
     async fn test_outage_created_when_site_goes_down(pool: SqlitePool) {
         let site = insert_test_site(&pool, SiteStatus::Up).await;
-        update_site_status(&pool, &site, &mock_site_down_result()).await;
+        let config = test_config(true);
+        persist_site_statuses(
+            &pool,
+            std::slice::from_ref(&site),
+            &mock_site_down_result(),
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await
+        .unwrap();
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages WHERE site_id = ?")
             .bind(site.id)
             .fetch_one(&pool)
@@ -680,7 +762,15 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        update_site_status(&pool, &site, &mock_site_up_result()).await;
+        let config = test_config(true);
+        persist_site_statuses(
+            &pool,
+            std::slice::from_ref(&site),
+            &mock_site_up_result(),
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await
+        .unwrap();
         let outage_ended: Option<String> =
             sqlx::query_scalar("SELECT ended_at FROM outages WHERE site_id = ?")
                 .bind(site.id)
@@ -694,7 +784,15 @@ mod tests {
     #[sqlx::test(migrations = "./migrations")]
     async fn test_no_duplicate_outage_when_already_down(pool: SqlitePool) {
         let site = insert_test_site(&pool, SiteStatus::Down).await;
-        update_site_status(&pool, &site, &mock_site_down_result()).await;
+        let config = test_config(true);
+        persist_site_statuses(
+            &pool,
+            std::slice::from_ref(&site),
+            &mock_site_down_result(),
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await
+        .unwrap();
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages")
             .fetch_one(&pool)
             .await
@@ -703,9 +801,37 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "./migrations")]
+    async fn test_status_update_rolls_back_when_outage_insert_fails(pool: SqlitePool) {
+        let site = insert_test_site(&pool, SiteStatus::Up).await;
+        sqlx::query("INSERT INTO outages (site_id) VALUES (?)")
+            .bind(site.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let mut transaction = pool.begin().await.unwrap();
+        let result = update_site_status(&mut transaction, &site, &mock_site_down_result()).await;
+        assert!(result.is_err());
+        transaction.rollback().await.unwrap();
+        let status: SiteStatus = sqlx::query_scalar("SELECT status FROM sites WHERE id = ?")
+            .bind(site.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(status, SiteStatus::Up);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
     async fn test_outage_created_when_pending_site_goes_down(pool: SqlitePool) {
         let site = insert_test_site(&pool, SiteStatus::Pending).await;
-        update_site_status(&pool, &site, &mock_site_down_result()).await;
+        let config = test_config(true);
+        persist_site_statuses(
+            &pool,
+            std::slice::from_ref(&site),
+            &mock_site_down_result(),
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await
+        .unwrap();
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages WHERE site_id = ?")
             .bind(site.id)
             .fetch_one(&pool)
@@ -752,12 +878,13 @@ mod tests {
             .unwrap();
         }
         let client = Client::new();
+        let config = probe_config(server.base_url());
         check_all_sites(
             &client,
             &client,
             &pool,
-            &probe_config(server.base_url()),
-            &Notifier::new(Client::new(), true),
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
         )
         .await;
         assert_eq!(server.request_count(), 1);
