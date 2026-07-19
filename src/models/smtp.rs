@@ -28,7 +28,7 @@ impl<'de> Deserialize<'de> for SmtpTlsMode {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, sqlx::FromRow)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::FromRow)]
 #[allow(clippy::struct_field_names)]
 pub struct SmtpSettings {
     pub smtp_host: Option<String>,

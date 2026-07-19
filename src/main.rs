@@ -141,6 +141,8 @@ async fn main() -> Result<()> {
     let checker_pool = pool.clone();
     let checker_config = config.clone();
     let checker_notifier = notifier.clone();
+    let outbox_pool = pool.clone();
+    let outbox_notifier = notifier.clone();
     // Background site checker: wakes every n seconds and probes any sites
     // whose configured check interval has elapsed.
     tokio::spawn(async move {
@@ -157,7 +159,16 @@ async fn main() -> Result<()> {
             .await;
         }
     });
-    // Rate-limit cleanup worker: periodically removes expired login/admin
+    // Notification delivery is independent of probe transitions so queued
+    // alerts survive transient failures and process restarts.
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            outbox_notifier.process_outbox(&outbox_pool).await;
+        }
+    });
+    // Rate-limit cleanup worker periodically removes expired login/admin
     // limiter entries from memory.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_mins(5));

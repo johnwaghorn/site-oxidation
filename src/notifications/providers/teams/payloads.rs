@@ -1,13 +1,13 @@
 use crate::models::site::SiteRow;
-use crate::notifications::TEST_MESSAGE_TITLE;
 use crate::notifications::format;
+use crate::notifications::providers::TEST_NOTIFICATION_TITLE;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
 use serde_json::{Value, json};
 
 pub(super) fn test(triggered_by: &str) -> Value {
     card(
-        TEST_MESSAGE_TITLE,
+        TEST_NOTIFICATION_TITLE,
         "Good",
         &json!([
             { "title": "Triggered by", "value": triggered_by },

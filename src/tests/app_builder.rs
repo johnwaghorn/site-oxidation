@@ -45,9 +45,14 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
         .with_signed(key);
     let backend = Backend::new(pool.clone(), dummy_hash);
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let config = test_config(allow_private_ips);
+    let notifier = crate::notifications::Notifier::new(
+        reqwest::Client::new(),
+        config.smtp_allow_private_hosts,
+    );
     let state = AppState {
         pool,
-        config: test_config(allow_private_ips),
+        config,
         login_limiter: std::sync::Arc::new(crate::security::rate_limit::LoginRateLimiter::new(
             5,
             std::time::Duration::from_mins(1),
@@ -56,7 +61,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
             10,
             std::time::Duration::from_mins(1),
         )),
-        notifier: crate::notifications::Notifier::new(reqwest::Client::new(), allow_private_ips),
+        notifier,
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();
@@ -97,6 +102,10 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
         .with_signed(key);
     let backend = Backend::new(pool.clone(), dummy_hash);
     let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let notifier = crate::notifications::Notifier::new(
+        reqwest::Client::new(),
+        config.smtp_allow_private_hosts,
+    );
     let state = AppState {
         pool,
         config,
@@ -108,7 +117,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
             10,
             std::time::Duration::from_mins(1),
         )),
-        notifier: crate::notifications::Notifier::new(reqwest::Client::new(), true),
+        notifier,
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();

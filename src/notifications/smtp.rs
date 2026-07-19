@@ -1,9 +1,4 @@
-mod payloads;
-
-use crate::models::site::SiteRow;
 use crate::models::smtp::{SmtpSettings, SmtpTlsMode};
-use crate::probe::cert::CertCheck;
-use crate::probe::http::ProbeResult;
 use crate::security::resolver::{ResolveError, resolve_public_addrs};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
@@ -12,67 +7,7 @@ use std::time::Duration;
 
 const SEND_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub async fn test(
-    smtp: &SmtpSettings,
-    triggered_by: &str,
-    allow_private_hosts: bool,
-) -> Result<(), String> {
-    try_send(
-        smtp,
-        payloads::test_subject(),
-        payloads::test_body(triggered_by),
-        allow_private_hosts,
-    )
-    .await
-}
-
-pub async fn site_down(
-    smtp: &SmtpSettings,
-    site: &SiteRow,
-    result: &ProbeResult,
-    allow_private_hosts: bool,
-) {
-    send(
-        smtp,
-        &payloads::site_down_subject(site),
-        payloads::site_down_body(site, result),
-        allow_private_hosts,
-    )
-    .await;
-}
-
-pub async fn site_recovered(smtp: &SmtpSettings, site: &SiteRow, allow_private_hosts: bool) {
-    send(
-        smtp,
-        &payloads::site_recovered_subject(site),
-        payloads::site_recovered_body(site),
-        allow_private_hosts,
-    )
-    .await;
-}
-
-pub async fn cert_expiring(
-    smtp: &SmtpSettings,
-    site: &SiteRow,
-    cert: &CertCheck,
-    allow_private_hosts: bool,
-) {
-    send(
-        smtp,
-        &payloads::cert_expiring_subject(site, cert),
-        payloads::cert_expiring_body(site, cert),
-        allow_private_hosts,
-    )
-    .await;
-}
-
-async fn send(smtp: &SmtpSettings, subject: &str, body: String, allow_private_hosts: bool) {
-    if let Err(error) = try_send(smtp, subject, body, allow_private_hosts).await {
-        tracing::warn!("Failed to send email notification: {error}");
-    }
-}
-
-async fn try_send(
+pub(super) async fn send(
     smtp: &SmtpSettings,
     subject: &str,
     body: String,

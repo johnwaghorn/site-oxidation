@@ -1,11 +1,11 @@
 use crate::models::site::SiteRow;
-use crate::notifications::TEST_MESSAGE_TITLE;
 use crate::notifications::format;
+use crate::notifications::providers::TEST_NOTIFICATION_TITLE;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
 
 pub(super) fn test_subject() -> &'static str {
-    TEST_MESSAGE_TITLE
+    TEST_NOTIFICATION_TITLE
 }
 
 pub(super) fn test_body(triggered_by: &str) -> String {

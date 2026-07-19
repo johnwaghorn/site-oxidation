@@ -4,7 +4,7 @@ use std::time::Duration;
 
 const SEND_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub(super) async fn post<T: Serialize>(
+pub(in crate::notifications) async fn post<T: Serialize>(
     client: &Client,
     webhook_url: &str,
     payload: &T,

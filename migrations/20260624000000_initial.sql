@@ -49,6 +49,15 @@ CREATE TABLE team_notification_settings (
     )
 );
 
+CREATE TABLE notification_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    delivery TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+    next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_error TEXT CHECK(last_error IS NULL OR length(last_error) <= 500),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 100),
@@ -81,3 +90,4 @@ CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NU
 CREATE INDEX idx_team_members_user_id ON team_members(user_id);
 CREATE UNIQUE INDEX idx_sites_team_url ON sites(team_id, url);
 CREATE UNIQUE INDEX idx_sites_url_no_team ON sites(url) WHERE team_id IS NULL;
+CREATE INDEX idx_notification_outbox_due ON notification_outbox(next_attempt_at, id);
