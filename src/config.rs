@@ -139,6 +139,15 @@ impl AppConfig {
                 .with_context(|| format!("Invalid PROBE_TIMEOUT_SECS value: {v}"))?,
             Err(_) => 30,
         };
+        if probe_max_concurrent_checks == 0 {
+            anyhow::bail!("PROBE_MAX_CONCURRENT_CHECKS must be greater than 0");
+        }
+        if probe_timeout_secs == 0 {
+            anyhow::bail!("PROBE_TIMEOUT_SECS must be greater than 0");
+        }
+        if canary_timeout_secs == 0 {
+            anyhow::bail!("CANARY_TIMEOUT_SECS must be greater than 0");
+        }
         let probe_user_agent = match env::var("PROBE_USER_AGENT") {
             Ok(v) => v,
             Err(_) => concat!("SiteOxidation/1.0 (+", env!("CARGO_PKG_REPOSITORY"), ")").to_owned(),
