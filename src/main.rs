@@ -147,6 +147,7 @@ async fn main() -> Result<()> {
     // whose configured check interval has elapsed.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             check_all_sites(
@@ -163,6 +164,7 @@ async fn main() -> Result<()> {
     // alerts survive transient failures and process restarts.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             outbox_notifier.process_outbox(&outbox_pool).await;
@@ -172,6 +174,7 @@ async fn main() -> Result<()> {
     // limiter entries from memory.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_mins(5));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
             pruner_limiter.prune_expired();
