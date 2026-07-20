@@ -1,6 +1,6 @@
 use crate::models::site::CertStatus;
 use crate::probe::cert::CertCheck;
-use crate::probe::http::ProbeResult;
+use crate::probe::http::{ProbeResult, UNKNOWN_PROBE_ERROR_MESSAGE};
 use chrono::Utc;
 
 pub(super) fn probe_status_code(result: &ProbeResult) -> String {
@@ -13,7 +13,7 @@ pub(super) fn probe_error(result: &ProbeResult) -> &str {
     result
         .error_message
         .as_deref()
-        .unwrap_or("no error message")
+        .unwrap_or(UNKNOWN_PROBE_ERROR_MESSAGE)
 }
 
 pub(super) fn cert_summary(cert: &CertCheck) -> String {
