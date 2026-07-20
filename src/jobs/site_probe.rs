@@ -8,7 +8,7 @@ use futures::stream::{self, StreamExt};
 use reqwest::Client;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 pub enum SiteTransition {
     WentDown,
@@ -33,6 +33,18 @@ impl From<&SiteRow> for ProbeGroupKey {
             expected_text: site.expected_text.clone(),
             tls_allow_untrusted: site.tls_allow_untrusted,
         }
+    }
+}
+
+fn result_is_stale(
+    started_at: SystemTime,
+    completed_at: SystemTime,
+    expected_duration: Duration,
+) -> bool {
+    let max_age = expected_duration.saturating_add(Duration::from_secs(5));
+    match completed_at.duration_since(started_at) {
+        Ok(age) => age > max_age,
+        Err(_) => true,
     }
 }
 
@@ -150,6 +162,10 @@ async fn check_site_group(
         expected_status: u16::try_from(group_key.expected_status).unwrap_or(200),
         expected_text: group_key.expected_text.clone(),
     };
+    let probe_timeout = Duration::from_secs(config.probe_timeout_secs);
+    let retry_delay = Duration::from_millis(config.probe_retry_delay_ms);
+    let mut expected_probe_duration = probe_timeout;
+    let probe_started_at = SystemTime::now();
     let mut probe_result = check_url(
         probe_client,
         &group_key.url,
@@ -168,7 +184,10 @@ async fn check_site_group(
                 config.probe_retry_count,
                 config.probe_retry_delay_ms
             );
-            tokio::time::sleep(Duration::from_millis(config.probe_retry_delay_ms)).await;
+            tokio::time::sleep(retry_delay).await;
+            expected_probe_duration = expected_probe_duration
+                .saturating_add(retry_delay)
+                .saturating_add(probe_timeout);
             probe_result = check_url(
                 probe_client,
                 &group_key.url,
@@ -184,6 +203,10 @@ async fn check_site_group(
             }
         }
     }
+    if result_is_stale(probe_started_at, SystemTime::now(), expected_probe_duration) {
+        tracing::warn!("Discarding stale probe result for '{}'", group_key.url);
+        return;
+    }
     if let Err(error) = persist_site_statuses(pool, &group_sites, &probe_result, notifier).await {
         tracing::error!(
             "Failed to persist probe result for '{}': {error}",
@@ -195,25 +218,33 @@ async fn check_site_group(
         for site in &group_sites {
             clear_site_cert(pool, site.id).await;
         }
-    } else {
-        let cert = check_certificate(
-            &group_key.url,
-            group_key.tls_allow_untrusted,
-            config.probe_allow_private_ips,
-            Duration::from_secs(config.probe_timeout_secs),
-            Utc::now(),
-            CertExpiryWindows {
-                warn_days: config.cert_warn_days,
-                critical_days: config.cert_critical_days,
-            },
-        )
-        .await;
-        if let Err(error) = persist_site_cert_results(pool, &group_sites, &cert, notifier).await {
-            tracing::error!(
-                "Failed to persist certificate result for '{}': {error}",
-                group_key.url
-            );
-        }
+        return;
+    }
+    let cert_started_at = SystemTime::now();
+    let cert = check_certificate(
+        &group_key.url,
+        group_key.tls_allow_untrusted,
+        config.probe_allow_private_ips,
+        probe_timeout,
+        Utc::now(),
+        CertExpiryWindows {
+            warn_days: config.cert_warn_days,
+            critical_days: config.cert_critical_days,
+        },
+    )
+    .await;
+    if result_is_stale(cert_started_at, SystemTime::now(), probe_timeout) {
+        tracing::warn!(
+            "Discarding stale certificate result for '{}'",
+            group_key.url
+        );
+        return;
+    }
+    if let Err(error) = persist_site_cert_results(pool, &group_sites, &cert, notifier).await {
+        tracing::error!(
+            "Failed to persist certificate result for '{}': {error}",
+            group_key.url
+        );
     }
 }
 
@@ -445,6 +476,27 @@ mod tests {
             latency_ms: None,
             error_message: Some(PRIVATE_IP_BLOCKED_MESSAGE.to_owned()),
         }
+    }
+
+    #[test]
+    fn test_result_is_stale_after_grace_or_backward_clock_change() {
+        let started_at = SystemTime::UNIX_EPOCH;
+        let expected_duration = Duration::from_secs(30);
+        let grace_boundary = started_at.checked_add(Duration::from_secs(35)).unwrap();
+        let beyond_grace = started_at
+            .checked_add(Duration::from_millis(35_001))
+            .unwrap();
+        assert!(!result_is_stale(
+            started_at,
+            grace_boundary,
+            expected_duration
+        ));
+        assert!(result_is_stale(started_at, beyond_grace, expected_duration));
+        assert!(result_is_stale(
+            grace_boundary,
+            started_at,
+            expected_duration
+        ));
     }
 
     #[sqlx::test(migrations = "./migrations")]
