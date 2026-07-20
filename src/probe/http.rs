@@ -80,11 +80,10 @@ async fn validate_probe_response(
     validate_expected_text(response, expected_text, body_size_limit_bytes).await
 }
 
-pub async fn check_url(
+async fn execute_probe(
     client: &Client,
     url: &str,
     check: &CheckExpectation,
-    timeout_secs: u64,
     body_size_limit_bytes: usize,
     allow_private_ips: bool,
 ) -> ProbeResult {
@@ -107,12 +106,7 @@ pub async fn check_url(
         }
     }
     let start = std::time::Instant::now();
-    match client
-        .get(url)
-        .timeout(Duration::from_secs(timeout_secs))
-        .send()
-        .await
-    {
+    match client.get(url).send().await {
         Ok(response) => {
             let status_code = response.status();
             let latency_ms = start.elapsed().as_millis();
@@ -139,16 +133,49 @@ pub async fn check_url(
     }
 }
 
+pub async fn check_url(
+    client: &Client,
+    url: &str,
+    check: &CheckExpectation,
+    timeout_secs: u64,
+    body_size_limit_bytes: usize,
+    allow_private_ips: bool,
+) -> ProbeResult {
+    let probe = execute_probe(client, url, check, body_size_limit_bytes, allow_private_ips);
+    match tokio::time::timeout(Duration::from_secs(timeout_secs), probe).await {
+        Ok(result) => result,
+        Err(_) => ProbeResult {
+            status: SiteStatus::Down,
+            status_code: None,
+            latency_ms: None,
+            error_message: Some(format!("Probe timed out after {timeout_secs} seconds")),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::security::resolver::SafeResolver;
     use crate::tests::TestHttpServer;
+    use reqwest::dns::{Addrs, Name, Resolve, Resolving};
     use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
     const TEST_BODY_SIZE_LIMIT_BYTES: usize = 1_024;
+
+    struct SlowResolver;
+
+    impl Resolve for SlowResolver {
+        fn resolve(&self, _name: Name) -> Resolving {
+            Box::pin(async {
+                tokio::time::sleep(Duration::from_secs(60)).await;
+                let addrs: Addrs = Box::new(std::iter::empty());
+                Ok(addrs)
+            })
+        }
+    }
 
     async fn raw_response_url(response: &'static [u8]) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -251,6 +278,32 @@ mod tests {
         assert!(allowed.status.is_up());
         assert_eq!(allowed.status_code, Some(StatusCode::OK));
         assert_eq!(server.request_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_check_url_timeout_covers_dns_resolution() {
+        let client = Client::builder()
+            .dns_resolver(Arc::new(SlowResolver))
+            .build()
+            .unwrap();
+        let check = CheckExpectation {
+            expected_status: 200,
+            expected_text: None,
+        };
+        let result = check_url(
+            &client,
+            "http://slow.example",
+            &check,
+            0,
+            TEST_BODY_SIZE_LIMIT_BYTES,
+            true,
+        )
+        .await;
+        assert!(result.status.is_down());
+        assert_eq!(
+            result.error_message.as_deref(),
+            Some("Probe timed out after 0 seconds")
+        );
     }
 
     #[tokio::test]
