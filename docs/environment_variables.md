@@ -83,6 +83,14 @@ Timeout in seconds for each site probe request.
 - **Default:** `30`
 - **Example:** `PROBE_TIMEOUT_SECS=10`
 
+### `PROBE_BODY_SIZE_LIMIT_BYTES`
+
+Maximum response body bytes inspected when a site probe has an expected-text
+check. The probe stops reading as soon as the expected text is found.
+
+- **Default:** `1048576` (1 MiB)
+- **Example:** `PROBE_BODY_SIZE_LIMIT_BYTES=2097152`
+
 ### `PROBE_RETRY_COUNT`
 
 Number of retries after a failed probe before marking the site as down.

@@ -155,6 +155,7 @@ async fn check_site_group(
         &group_key.url,
         &check,
         config.probe_timeout_secs,
+        config.probe_body_size_limit_bytes,
         config.probe_allow_private_ips,
     )
     .await;
@@ -173,6 +174,7 @@ async fn check_site_group(
                 &group_key.url,
                 &check,
                 config.probe_timeout_secs,
+                config.probe_body_size_limit_bytes,
                 config.probe_allow_private_ips,
             )
             .await;

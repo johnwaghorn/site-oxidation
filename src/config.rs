@@ -17,6 +17,7 @@ pub struct AppConfig {
     pub database_path: PathBuf,
     pub enable_swagger_ui: bool,
     pub probe_allow_private_ips: bool,
+    pub probe_body_size_limit_bytes: usize,
     pub probe_max_concurrent_checks: usize,
     pub probe_retry_count: u32,
     pub probe_retry_delay_ms: u64,
@@ -109,6 +110,12 @@ impl AppConfig {
                 .with_context(|| format!("Invalid PROBE_ALLOW_PRIVATE_IPS value: {v}"))?,
             Err(_) => false,
         };
+        let probe_body_size_limit_bytes = match env::var("PROBE_BODY_SIZE_LIMIT_BYTES") {
+            Ok(v) => v
+                .parse::<usize>()
+                .with_context(|| format!("Invalid PROBE_BODY_SIZE_LIMIT_BYTES value: {v}"))?,
+            Err(_) => 1_048_576,
+        };
         let smtp_allow_private_hosts = match env::var("SMTP_ALLOW_PRIVATE_HOSTS") {
             Ok(v) => v
                 .parse::<bool>()
@@ -142,6 +149,9 @@ impl AppConfig {
         if probe_max_concurrent_checks == 0 {
             anyhow::bail!("PROBE_MAX_CONCURRENT_CHECKS must be greater than 0");
         }
+        if probe_body_size_limit_bytes == 0 {
+            anyhow::bail!("PROBE_BODY_SIZE_LIMIT_BYTES must be greater than 0");
+        }
         if probe_timeout_secs == 0 {
             anyhow::bail!("PROBE_TIMEOUT_SECS must be greater than 0");
         }
@@ -173,6 +183,7 @@ impl AppConfig {
             database_path,
             enable_swagger_ui,
             probe_allow_private_ips,
+            probe_body_size_limit_bytes,
             probe_max_concurrent_checks,
             probe_retry_count,
             probe_retry_delay_ms,

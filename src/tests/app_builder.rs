@@ -23,6 +23,7 @@ pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
         database_path: std::path::PathBuf::from(":memory:"),
         enable_swagger_ui: false,
         probe_allow_private_ips,
+        probe_body_size_limit_bytes: 1_048_576,
         probe_max_concurrent_checks: 20,
         probe_retry_count: 2,
         probe_retry_delay_ms: 3000,
