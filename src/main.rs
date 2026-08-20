@@ -3,8 +3,8 @@ mod auth_backend;
 mod canary;
 mod config;
 mod db;
-mod jobs;
 mod models;
+mod monitoring;
 mod notifications;
 mod probe;
 mod security;
@@ -19,7 +19,7 @@ use api::ApiDoc;
 use axum::Router;
 use axum_login::AuthManagerLayerBuilder;
 use config::AppConfig;
-use jobs::check_all_sites;
+use monitoring::run_due_site_checks;
 use password_auth::generate_hash;
 use reqwest::Client;
 use state::AppState;
@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
-            check_all_sites(
+            run_due_site_checks(
                 &verifying_client,
                 &untrusted_client,
                 &checker_pool,
