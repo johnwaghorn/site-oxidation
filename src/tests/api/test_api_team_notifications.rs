@@ -161,8 +161,6 @@ async fn test_get_notifications_returns_defaults_without_settings_row(pool: Sqli
     assert_eq!(body["team_id"], team_id);
     assert!(body["slack_webhook_url"].is_null());
     assert!(body["microsoft_teams_webhook_url"].is_null());
-    assert_eq!(body["telegram_bot_token_set"], false);
-    assert!(body["telegram_chat_id"].is_null());
     assert_eq!(body["smtp_tls_mode"], "starttls");
     assert_eq!(body["smtp_auth"], true);
     assert_eq!(body["smtp_password_set"], false);
@@ -198,8 +196,6 @@ async fn test_can_update_non_slack_notification_settings(pool: SqlitePool) {
                 .body(Body::from(
                     r#"{
                         "microsoft_teams_webhook_url":" https://teams.waghorn.tech/webhook ",
-                        "telegram_bot_token":" token-123 ",
-                        "telegram_chat_id":" 12345 ",
                         "smtp_host":" smtp.waghorn.tech ",
                         "smtp_port":587,
                         "smtp_tls_mode":"tls",
@@ -224,8 +220,6 @@ async fn test_can_update_non_slack_notification_settings(pool: SqlitePool) {
         body["microsoft_teams_webhook_url"],
         "https://teams.waghorn.tech/webhook"
     );
-    assert_eq!(body["telegram_bot_token_set"], true);
-    assert_eq!(body["telegram_chat_id"], "12345");
     assert_eq!(body["smtp_host"], "smtp.waghorn.tech");
     assert_eq!(body["smtp_port"], 587);
     assert_eq!(body["smtp_tls_mode"], "tls");
@@ -255,15 +249,13 @@ async fn test_partial_update_preserves_existing_notification_settings(pool: Sqli
         .unwrap();
     sqlx::query(
         "INSERT INTO team_notification_settings (
-            team_id, microsoft_teams_webhook_url, telegram_bot_token, telegram_chat_id,
+            team_id, microsoft_teams_webhook_url,
             smtp_host, smtp_port, smtp_tls_mode, smtp_auth, smtp_username, smtp_password,
             smtp_from_email, smtp_to_email, notify_site_down, notify_site_recovered, notify_cert_expiring
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(team_id)
     .bind("https://teams.waghorn.tech/webhook")
-    .bind("token-123")
-    .bind("12345")
     .bind("smtp.waghorn.tech")
     .bind(587)
     .bind("tls")
@@ -306,8 +298,6 @@ async fn test_partial_update_preserves_existing_notification_settings(pool: Sqli
         body["microsoft_teams_webhook_url"],
         "https://teams.waghorn.tech/webhook"
     );
-    assert_eq!(body["telegram_bot_token_set"], true);
-    assert_eq!(body["telegram_chat_id"], "12345");
     assert_eq!(body["smtp_tls_mode"], "tls");
     assert_eq!(body["smtp_auth"], false);
     assert_eq!(body["notify_site_recovered"], false);
@@ -498,39 +488,6 @@ async fn test_non_smtp_update_skips_validation_of_existing_partial_config(pool: 
     let body = parse_json_body(response).await;
     assert_eq!(body["notify_site_down"], false);
     assert_eq!(body["smtp_host"], "smtp.waghorn.tech");
-}
-
-#[sqlx::test(migrations = "./migrations")]
-async fn test_telegram_settings_must_be_updated_together(pool: SqlitePool) {
-    let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
-
-    let app = test_app(pool);
-    let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("PATCH")
-                .uri(format!("/teams/{team_id}/notifications"))
-                .header("cookie", &cookie)
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"telegram_bot_token":"token-123"}"#))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[sqlx::test(migrations = "./migrations")]

@@ -9,8 +9,6 @@ pub struct TeamNotificationsResponse {
     pub team_id: i64,
     pub slack_webhook_url: Option<String>,
     pub microsoft_teams_webhook_url: Option<String>,
-    pub telegram_bot_token_set: bool,
-    pub telegram_chat_id: Option<String>,
     pub smtp_host: Option<String>,
     pub smtp_port: Option<u16>,
     pub smtp_tls_mode: SmtpTlsMode,

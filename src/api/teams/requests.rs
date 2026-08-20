@@ -1,18 +1,13 @@
 use serde::Deserialize;
 use utoipa::ToSchema;
 
-use super::fields::{
-    EmailAddress, SmtpHost, SmtpPassword, SmtpPort, SmtpUsername, TelegramBotToken, TelegramChatId,
-    WebhookUrl,
-};
+use super::fields::{EmailAddress, SmtpHost, SmtpPassword, SmtpPort, SmtpUsername, WebhookUrl};
 use crate::models::smtp::SmtpTlsMode;
 
 #[derive(Deserialize, ToSchema)]
 pub struct UpdateTeamNotificationsRequest {
     pub slack_webhook_url: Option<WebhookUrl>,
     pub microsoft_teams_webhook_url: Option<WebhookUrl>,
-    pub telegram_bot_token: Option<TelegramBotToken>,
-    pub telegram_chat_id: Option<TelegramChatId>,
     pub smtp_host: Option<SmtpHost>,
     pub smtp_port: Option<SmtpPort>,
     pub smtp_tls_mode: Option<SmtpTlsMode>,
@@ -50,8 +45,6 @@ impl<T> PatchValue<T> {
 pub struct PreparedNotificationUpdate {
     pub slack_webhook_url: PatchValue<String>,
     pub microsoft_teams_webhook_url: PatchValue<String>,
-    pub telegram_bot_token: PatchValue<String>,
-    pub telegram_chat_id: PatchValue<String>,
     pub smtp_host: PatchValue<String>,
     pub smtp_port: PatchValue<u16>,
     pub smtp_tls_mode: PatchValue<SmtpTlsMode>,
@@ -79,15 +72,13 @@ impl PreparedNotificationUpdate {
 }
 
 impl UpdateTeamNotificationsRequest {
-    pub fn prepare(self) -> Result<PreparedNotificationUpdate, &'static str> {
-        let update = PreparedNotificationUpdate {
+    pub fn prepare(self) -> PreparedNotificationUpdate {
+        PreparedNotificationUpdate {
             slack_webhook_url: patch(self.slack_webhook_url, WebhookUrl::into_option),
             microsoft_teams_webhook_url: patch(
                 self.microsoft_teams_webhook_url,
                 WebhookUrl::into_option,
             ),
-            telegram_bot_token: patch(self.telegram_bot_token, TelegramBotToken::into_option),
-            telegram_chat_id: patch(self.telegram_chat_id, TelegramChatId::into_option),
             smtp_host: patch(self.smtp_host, SmtpHost::into_option),
             smtp_port: patch(self.smtp_port, |value| Some(value.as_u16())),
             smtp_tls_mode: patch(self.smtp_tls_mode, Some),
@@ -99,16 +90,7 @@ impl UpdateTeamNotificationsRequest {
             notify_site_down: patch(self.notify_site_down, Some),
             notify_site_recovered: patch(self.notify_site_recovered, Some),
             notify_cert_expiring: patch(self.notify_cert_expiring, Some),
-        };
-        if update.telegram_bot_token.provided != update.telegram_chat_id.provided {
-            return Err("Telegram bot token and chat ID must be updated together");
         }
-        if update.telegram_bot_token.provided
-            && update.telegram_bot_token.value.is_some() != update.telegram_chat_id.value.is_some()
-        {
-            return Err("Telegram bot token and chat ID must both be set or both be blank");
-        }
-        Ok(update)
     }
 }
 
