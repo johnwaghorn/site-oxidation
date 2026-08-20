@@ -32,12 +32,16 @@ export function AppShell({
       <aside className="app-sidebar" aria-label="Primary navigation">
         <div>
           <div className="app-sidebar-brand">
-            <img
-              className="app-sidebar-logo"
-              src="/site-oxidation.svg"
-              alt=""
-              aria-hidden="true"
-            />
+            <div className="app-sidebar-logo-wrap">
+              <img
+                className="app-sidebar-logo"
+                src="/site-oxidation.svg"
+                alt=""
+                aria-hidden="true"
+              />
+              <span className="logo-drip logo-drip-a" aria-hidden="true" />
+              <span className="logo-drip logo-drip-b" aria-hidden="true" />
+            </div>
             <div>
               <div className="app-sidebar-title">Site Oxidation</div>
               <div className="app-sidebar-subtitle">Monitoring</div>

@@ -30,12 +30,73 @@
   margin-bottom: 28px;
 }
 
+.app-sidebar-logo-wrap {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
 .app-sidebar-logo {
   width: 38px;
   height: 38px;
   border-radius: 14px;
   display: block;
   image-rendering: pixelated;
+}
+
+.logo-drip {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  opacity: 0;
+  animation: logo-drip-fall 3.2s steps(6, jump-end) infinite;
+}
+
+.logo-drip-a {
+  left: 30%;
+  top: 70%;
+  background-color: #ea580c;
+  animation-duration: 3.4s;
+}
+
+.logo-drip-b {
+  left: 60%;
+  top: 76%;
+  background-color: #9a3412;
+  animation-duration: 3.1s;
+  animation-delay: 1.5s;
+}
+
+@keyframes logo-drip-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scaleY(1);
+  }
+  6% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1.4);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+  70% {
+    opacity: 0.9;
+    transform: translateY(16px) scaleY(1);
+  }
+  88%,
+  100% {
+    opacity: 0;
+    transform: translateY(20px) scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-drip {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 .app-sidebar-title {
