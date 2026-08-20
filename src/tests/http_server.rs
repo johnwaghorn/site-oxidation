@@ -21,6 +21,28 @@ impl TestHttpServer {
         Self::start_with_ignored_path(Some(path.to_owned())).await
     }
 
+    pub async fn start_hanging() -> Self {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let request_count_for_server = Arc::clone(&request_count);
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let handle = tokio::spawn(async move {
+            let mut sockets = Vec::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                request_count_for_server.fetch_add(1, Ordering::Relaxed);
+                sockets.push(socket);
+            }
+        });
+        Self {
+            base_url: format!("http://{addr}"),
+            port: addr.port(),
+            request_count,
+            requests,
+            handle,
+        }
+    }
+
     async fn start_with_ignored_path(ignored_path: Option<String>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();

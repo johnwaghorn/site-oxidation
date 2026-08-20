@@ -10,7 +10,7 @@ pub(super) struct SlackPayload {
     text: String,
 }
 
-pub(super) fn test(triggered_by: &str) -> SlackPayload {
+pub(super) fn test_notification(triggered_by: &str) -> SlackPayload {
     SlackPayload {
         text: format!(
             ":white_check_mark: {}\nTriggered by: {}\n{}",
@@ -60,6 +60,7 @@ mod tests {
     use super::*;
     use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteRow, SiteStatus};
+    use crate::probe::http::ProbeFailureKind;
     use chrono::{Duration as ChronoDuration, Utc};
     use reqwest::StatusCode;
 
@@ -88,6 +89,7 @@ mod tests {
             status_code: Some(StatusCode::INTERNAL_SERVER_ERROR),
             latency_ms: Some(120),
             error_message: Some("Server is cooked".to_owned()),
+            failure_kind: Some(ProbeFailureKind::ResponseRejected),
         };
         let payload = site_down(&site, &result);
         assert!(payload.text.contains("Waghorn Technology Ltd"));

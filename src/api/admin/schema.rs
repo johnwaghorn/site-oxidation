@@ -2,6 +2,7 @@
 
 use utoipa::OpenApi;
 
+use super::canary::schema::CanaryApiDoc;
 use super::teams::schema::TeamsApiDoc;
 use super::users::schema::UsersApiDoc;
 
@@ -9,5 +10,6 @@ use super::users::schema::UsersApiDoc;
 #[openapi(nest(
     (path = "/admin", api = UsersApiDoc),
     (path = "/admin", api = TeamsApiDoc),
+    (path = "/admin", api = CanaryApiDoc),
 ))]
 pub struct AdminApiDoc;

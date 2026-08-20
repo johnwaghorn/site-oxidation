@@ -16,11 +16,45 @@ pub struct CheckExpectation {
     pub expected_text: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProbeFailureKind {
+    NoCompleteResponse,
+    ResponseRejected,
+}
+
+struct ProbeFailure {
+    kind: ProbeFailureKind,
+    message: String,
+}
+
+impl ProbeFailure {
+    fn no_complete_response(message: String) -> Self {
+        Self {
+            kind: ProbeFailureKind::NoCompleteResponse,
+            message,
+        }
+    }
+
+    fn response_rejected(message: String) -> Self {
+        Self {
+            kind: ProbeFailureKind::ResponseRejected,
+            message,
+        }
+    }
+}
+
 pub struct ProbeResult {
     pub status: SiteStatus,
     pub status_code: Option<StatusCode>,
     pub latency_ms: Option<u128>,
     pub error_message: Option<String>,
+    pub failure_kind: Option<ProbeFailureKind>,
+}
+
+impl ProbeResult {
+    pub fn is_connectivity_ambiguous(&self) -> bool {
+        self.failure_kind == Some(ProbeFailureKind::NoCompleteResponse)
+    }
 }
 
 fn bounded_error_message(message: &str) -> String {
@@ -31,14 +65,16 @@ async fn validate_expected_text(
     mut response: reqwest::Response,
     expected_text: &str,
     body_size_limit_bytes: usize,
-) -> Result<(), String> {
+) -> Result<(), ProbeFailure> {
     let needle = expected_text.as_bytes();
     if needle.is_empty() {
         return Ok(());
     }
     let mut body = Vec::with_capacity(body_size_limit_bytes.min(8_192));
     while let Some(chunk) = response.chunk().await.map_err(|error| {
-        bounded_error_message(&format!("{RESPONSE_BODY_READ_ERROR_PREFIX} {error}"))
+        ProbeFailure::no_complete_response(bounded_error_message(&format!(
+            "{RESPONSE_BODY_READ_ERROR_PREFIX} {error}"
+        )))
     })? {
         if chunk.is_empty() {
             continue;
@@ -54,25 +90,27 @@ async fn validate_expected_text(
             return Ok(());
         }
         if exceeds_limit {
-            return Err(format!(
+            return Err(ProbeFailure::response_rejected(format!(
                 "{RESPONSE_BODY_LIMIT_EXCEEDED_PREFIX} of {body_size_limit_bytes} bytes before expected text was found"
-            ));
+            )));
         }
     }
-    Err(EXPECTED_TEXT_MISSING_MESSAGE.to_owned())
+    Err(ProbeFailure::response_rejected(
+        EXPECTED_TEXT_MISSING_MESSAGE.to_owned(),
+    ))
 }
 
 async fn validate_probe_response(
     response: reqwest::Response,
     check: &CheckExpectation,
     body_size_limit_bytes: usize,
-) -> Result<(), String> {
+) -> Result<(), ProbeFailure> {
     let actual_status = response.status().as_u16();
     if actual_status != check.expected_status {
-        return Err(format!(
+        return Err(ProbeFailure::response_rejected(format!(
             "Expected HTTP status {}, received {actual_status}",
             check.expected_status
-        ));
+        )));
     }
     let Some(expected_text) = &check.expected_text else {
         return Ok(());
@@ -102,6 +140,7 @@ async fn execute_probe(
                 status_code: None,
                 latency_ms: None,
                 error_message: Some(PRIVATE_IP_BLOCKED_MESSAGE.to_owned()),
+                failure_kind: None,
             };
         }
     }
@@ -110,18 +149,19 @@ async fn execute_probe(
         Ok(response) => {
             let status_code = response.status();
             let latency_ms = start.elapsed().as_millis();
-            let error_message = validate_probe_response(response, check, body_size_limit_bytes)
+            let failure = validate_probe_response(response, check, body_size_limit_bytes)
                 .await
                 .err();
             ProbeResult {
-                status: if error_message.is_none() {
+                status: if failure.is_none() {
                     SiteStatus::Up
                 } else {
                     SiteStatus::Down
                 },
                 status_code: Some(status_code),
                 latency_ms: Some(latency_ms),
-                error_message,
+                error_message: failure.as_ref().map(|failure| failure.message.clone()),
+                failure_kind: failure.map(|failure| failure.kind),
             }
         }
         Err(error) => ProbeResult {
@@ -129,6 +169,7 @@ async fn execute_probe(
             status_code: None,
             latency_ms: None,
             error_message: Some(bounded_error_message(&error.to_string())),
+            failure_kind: Some(ProbeFailureKind::NoCompleteResponse),
         },
     }
 }
@@ -149,6 +190,7 @@ pub async fn check_url(
             status_code: None,
             latency_ms: None,
             error_message: Some(format!("Probe timed out after {timeout_secs} seconds")),
+            failure_kind: Some(ProbeFailureKind::NoCompleteResponse),
         },
     }
 }
@@ -370,6 +412,39 @@ mod tests {
                 .as_deref()
                 .is_some_and(|message| message.starts_with(RESPONSE_BODY_READ_ERROR_PREFIX))
         );
+        assert_eq!(
+            result.status_code,
+            Some(StatusCode::OK),
+            "headers arrived, so a status code is recorded"
+        );
+        assert!(
+            result.is_connectivity_ambiguous(),
+            "a body that stops arriving mid-read says nothing about the site"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_check_url_treats_a_complete_response_as_the_sites_own_failure() {
+        let server = TestHttpServer::start().await;
+        let check = CheckExpectation {
+            expected_status: 418,
+            expected_text: None,
+        };
+        let result = check_url(
+            &Client::new(),
+            server.base_url(),
+            &check,
+            1,
+            TEST_BODY_SIZE_LIMIT_BYTES,
+            true,
+        )
+        .await;
+        assert!(result.status.is_down());
+        assert_eq!(
+            result.failure_kind,
+            Some(ProbeFailureKind::ResponseRejected)
+        );
+        assert!(!result.is_connectivity_ambiguous());
     }
 
     #[tokio::test]

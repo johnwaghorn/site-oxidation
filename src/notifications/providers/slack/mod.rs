@@ -9,7 +9,11 @@ pub(in crate::notifications) fn test_delivery(
     webhook_url: &str,
     triggered_by: &str,
 ) -> serde_json::Result<PendingDelivery> {
-    PendingDelivery::webhook("Slack", webhook_url, &payloads::test(triggered_by))
+    PendingDelivery::webhook(
+        "Slack",
+        webhook_url,
+        &payloads::test_notification(triggered_by),
+    )
 }
 
 pub(in crate::notifications) fn site_down_delivery(

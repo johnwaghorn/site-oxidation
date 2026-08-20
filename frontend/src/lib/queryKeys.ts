@@ -23,4 +23,5 @@ export const queryKeys = {
   adminUsersAll: ["admin", "users"] as const,
   adminUsers: (filters: AdminUsersFilters) =>
     ["admin", "users", filters] as const,
+  adminCanary: ["admin", "canary"] as const,
 };

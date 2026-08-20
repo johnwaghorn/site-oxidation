@@ -8,6 +8,7 @@ import { ChangePassword } from "./pages/ChangePassword";
 import { AdminTeams } from "./pages/AdminTeams";
 import { AdminTeamDetail } from "./pages/AdminTeamDetail";
 import { AdminUsers } from "./pages/AdminUsers";
+import { AdminCanary } from "./pages/AdminCanary";
 import { Notifications } from "./pages/Notifications";
 import { Backups } from "./pages/Backups";
 import { useAuth } from "./hooks/useAuth";
@@ -98,6 +99,7 @@ function App() {
               <Route path="/admin/teams" element={<AdminTeams />} />
               <Route path="/admin/teams/:id" element={<AdminTeamDetail />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/canary" element={<AdminCanary />} />
             </>
           )}
         </Routes>

@@ -2,6 +2,7 @@ use crate::config::AppConfig;
 use crate::notifications::Notifier;
 use crate::security::rate_limit::LoginRateLimiter;
 use axum::extract::FromRef;
+use reqwest::Client;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 
@@ -11,6 +12,7 @@ pub struct AppState {
     pub config: AppConfig,
     pub login_limiter: Arc<LoginRateLimiter>,
     pub admin_limiter: Arc<LoginRateLimiter>,
+    pub canary_client: Client,
     pub notifier: Notifier,
 }
 

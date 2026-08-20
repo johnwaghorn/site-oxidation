@@ -4,7 +4,7 @@ use crate::models::smtp::SmtpSettings;
 use crate::notifications::delivery::PendingDelivery;
 use crate::notifications::{Notifier, planning};
 use crate::probe::cert::CertCheck;
-use crate::probe::http::ProbeResult;
+use crate::probe::http::{ProbeFailureKind, ProbeResult};
 use crate::tests::TestHttpServer;
 use chrono::{Duration as ChronoDuration, Utc};
 use reqwest::Client;
@@ -30,6 +30,7 @@ fn down_result() -> ProbeResult {
         status_code: None,
         latency_ms: None,
         error_message: Some("connection refused".to_owned()),
+        failure_kind: Some(ProbeFailureKind::NoCompleteResponse),
     }
 }
 

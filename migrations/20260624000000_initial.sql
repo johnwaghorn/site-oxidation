@@ -58,6 +58,21 @@ CREATE TABLE notification_outbox (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE canary_settings (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0, 1)),
+    url TEXT CHECK(url IS NULL OR length(url) BETWEEN 10 AND 2048),
+    timeout_secs INTEGER NOT NULL DEFAULT 3 CHECK(timeout_secs BETWEEN 1 AND 300),
+    last_checked_at DATETIME,
+    last_succeeded_at DATETIME,
+    last_error TEXT CHECK(last_error IS NULL OR length(last_error) <= 500),
+    settings_revision INTEGER NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK(enabled = 0 OR url IS NOT NULL)
+);
+
+INSERT INTO canary_settings (id) VALUES (1);
+
 CREATE TABLE sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 100),
