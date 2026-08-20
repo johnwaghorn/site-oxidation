@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   addUserToTeamViaPanel,
   createTeamViaUi,
@@ -29,5 +29,29 @@ test("add a user to a team via the members panel", async ({ page }) => {
 
   await test.step("When I add maddie to Support from the members panel", async () => {
     await addUserToTeamViaPanel(page, "Support", "maddie");
+  });
+});
+
+test("save canary settings", async ({ page }) => {
+  await test.step("When I open the Canary settings page", async () => {
+    await page.goto("/admin/canary");
+  });
+
+  await test.step("And I enable the canary with a URL and timeout", async () => {
+    await page.getByLabel("Canary enabled").check();
+    await page
+      .getByPlaceholder("https://waghorn.tech")
+      .fill("http://127.0.0.1:8123/api/health");
+    await page.getByLabel("Timeout in seconds").fill("5");
+    await page.getByRole("button", { name: "Save changes" }).click();
+  });
+
+  await test.step("Then the settings survive a reload", async () => {
+    await page.reload();
+    await expect(page.getByLabel("Canary enabled")).toBeChecked();
+    await expect(page.getByPlaceholder("https://waghorn.tech")).toHaveValue(
+      "http://127.0.0.1:8123/api/health",
+    );
+    await expect(page.getByLabel("Timeout in seconds")).toHaveValue("5");
   });
 });
