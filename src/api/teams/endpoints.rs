@@ -66,7 +66,7 @@ pub async fn update_notifications(
 ) -> Result<Json<TeamNotificationsResponse>, ApiErrorResponse> {
     ensure_team_exists(&state, id).await?;
     ensure_team_access(&state.pool, id, &user).await?;
-    let update = payload.prepare().map_err(ApiErrorResponse::validation)?;
+    let update = payload.prepare();
     let mut db_transaction = state
         .pool
         .begin()
@@ -76,8 +76,6 @@ pub async fn update_notifications(
         .bind(id)
         .bind(update.slack_webhook_url.value.as_deref())
         .bind(update.microsoft_teams_webhook_url.value.as_deref())
-        .bind(update.telegram_bot_token.value.as_deref())
-        .bind(update.telegram_chat_id.value.as_deref())
         .bind(update.smtp_host.value.as_deref())
         .bind(update.smtp_port.value)
         .bind(update.smtp_tls_mode.value)
@@ -91,8 +89,6 @@ pub async fn update_notifications(
         .bind(update.notify_cert_expiring.value)
         .bind(update.slack_webhook_url.provided)
         .bind(update.microsoft_teams_webhook_url.provided)
-        .bind(update.telegram_bot_token.provided)
-        .bind(update.telegram_chat_id.provided)
         .bind(update.smtp_host.provided)
         .bind(update.smtp_port.provided)
         .bind(update.smtp_tls_mode.provided)

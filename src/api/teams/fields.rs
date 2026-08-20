@@ -35,52 +35,6 @@ impl<'de> Deserialize<'de> for WebhookUrl {
 }
 
 #[derive(Debug, Clone, ToSchema)]
-#[schema(value_type = String, example = "123456:abc")]
-pub struct TelegramBotToken(Option<String>);
-
-impl TelegramBotToken {
-    pub fn into_option(self) -> Option<String> {
-        self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for TelegramBotToken {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        text::optional(
-            &String::deserialize(deserializer)?,
-            "telegram bot token",
-            2048,
-        )
-        .map(Self)
-        .map_err(D::Error::custom)
-    }
-}
-
-#[derive(Debug, Clone, ToSchema)]
-#[schema(value_type = String, example = "123456789")]
-pub struct TelegramChatId(Option<String>);
-
-impl TelegramChatId {
-    pub fn into_option(self) -> Option<String> {
-        self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for TelegramChatId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        text::optional(&String::deserialize(deserializer)?, "telegram chat ID", 255)
-            .map(Self)
-            .map_err(D::Error::custom)
-    }
-}
-
-#[derive(Debug, Clone, ToSchema)]
 #[schema(value_type = String, example = "smtp.waghorn.tech")]
 pub struct SmtpHost(Option<String>);
 

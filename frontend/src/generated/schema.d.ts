@@ -664,8 +664,6 @@ export interface components {
             smtp_username?: string | null;
             /** Format: int64 */
             team_id: number;
-            telegram_bot_token_set: boolean;
-            telegram_chat_id?: string | null;
         };
         TeamOption: {
             /** Format: int64 */
@@ -681,10 +679,6 @@ export interface components {
             /** Format: int64 */
             site_count: number;
         };
-        /** @example 123456:abc */
-        TelegramBotToken: string;
-        /** @example 123456789 */
-        TelegramChatId: string;
         /** @enum {string} */
         ThemePreference: "system" | "light" | "dark";
         UpdateCanarySettingsRequest: {
@@ -707,8 +701,6 @@ export interface components {
             smtp_tls_mode?: null | components["schemas"]["SmtpTlsMode"];
             smtp_to_email?: null | components["schemas"]["EmailAddress"];
             smtp_username?: null | components["schemas"]["SmtpUsername"];
-            telegram_bot_token?: null | components["schemas"]["TelegramBotToken"];
-            telegram_chat_id?: null | components["schemas"]["TelegramChatId"];
         };
         UpdateTeamRequest: {
             name: components["schemas"]["TeamName"];
