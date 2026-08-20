@@ -1,5 +1,6 @@
 mod api;
 mod auth_backend;
+mod canary;
 mod config;
 mod db;
 mod jobs;
@@ -105,6 +106,7 @@ async fn main() -> Result<()> {
         config: config.clone(),
         login_limiter,
         admin_limiter,
+        canary_client: verifying_client.clone(),
         notifier: notifier.clone(),
     };
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));

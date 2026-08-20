@@ -14,8 +14,6 @@ pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
         allowed_origin: None,
         bootstrap_require_private_ip: true,
         bootstrap_trusted_ips: Vec::new(),
-        canary_timeout_secs: 3,
-        canary_url: "https://www.google.com".to_owned(),
         cert_critical_days: 7,
         cert_warn_days: 30,
         cookie_secure: false,
@@ -62,6 +60,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
             10,
             std::time::Duration::from_mins(1),
         )),
+        canary_client: reqwest::Client::new(),
         notifier,
     };
     let auth_routes = crate::api::auth::auth_routes();
@@ -118,6 +117,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
             10,
             std::time::Duration::from_mins(1),
         )),
+        canary_client: reqwest::Client::new(),
         notifier,
     };
     let auth_routes = crate::api::auth::auth_routes();

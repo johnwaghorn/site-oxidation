@@ -90,6 +90,14 @@ export function AppShell({
                 >
                   Users
                 </NavLink>
+                <NavLink
+                  to="/admin/canary"
+                  className={({ isActive }) =>
+                    `app-sidebar-link${isActive ? " active" : ""}`
+                  }
+                >
+                  Canary
+                </NavLink>
               </div>
             )}
           </nav>

@@ -1,3 +1,4 @@
+mod test_api_admin_canary;
 mod test_api_admin_teams;
 mod test_api_admin_users;
 mod test_api_auth;

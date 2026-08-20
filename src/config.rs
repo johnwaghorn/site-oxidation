@@ -8,8 +8,6 @@ pub struct AppConfig {
     pub allowed_origin: Option<String>,
     pub bootstrap_require_private_ip: bool,
     pub bootstrap_trusted_ips: Vec<std::net::IpAddr>,
-    pub canary_timeout_secs: u64,
-    pub canary_url: String,
     pub cert_critical_days: i64,
     pub cert_warn_days: i64,
     pub cookie_secure: bool,
@@ -48,16 +46,6 @@ impl AppConfig {
                 })
                 .collect::<Result<Vec<_>>>()?,
             Err(_) => Vec::new(),
-        };
-        let canary_timeout_secs = match env::var("CANARY_TIMEOUT_SECS") {
-            Ok(v) => v
-                .parse::<u64>()
-                .with_context(|| format!("Invalid CANARY_TIMEOUT_SECS value: {v}"))?,
-            Err(_) => 3,
-        };
-        let canary_url = match env::var("CANARY_URL") {
-            Ok(v) => v,
-            Err(_) => "https://www.google.com".to_owned(),
         };
         let cert_critical_days = match env::var("CERT_CRITICAL_DAYS") {
             Ok(v) => v
@@ -155,9 +143,6 @@ impl AppConfig {
         if probe_timeout_secs == 0 {
             anyhow::bail!("PROBE_TIMEOUT_SECS must be greater than 0");
         }
-        if canary_timeout_secs == 0 {
-            anyhow::bail!("CANARY_TIMEOUT_SECS must be greater than 0");
-        }
         let probe_user_agent = match env::var("PROBE_USER_AGENT") {
             Ok(v) => v,
             Err(_) => concat!("SiteOxidation/1.0 (+", env!("CARGO_PKG_REPOSITORY"), ")").to_owned(),
@@ -174,8 +159,6 @@ impl AppConfig {
             allowed_origin,
             bootstrap_require_private_ip,
             bootstrap_trusted_ips,
-            canary_timeout_secs,
-            canary_url,
             cert_critical_days,
             cert_warn_days,
             cookie_secure,

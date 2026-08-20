@@ -5,7 +5,7 @@ use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
 use serde_json::{Value, json};
 
-pub(super) fn test(triggered_by: &str) -> Value {
+pub(super) fn test_notification(triggered_by: &str) -> Value {
     card(
         TEST_NOTIFICATION_TITLE,
         "Good",
@@ -86,6 +86,7 @@ mod tests {
     use super::*;
     use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteStatus};
+    use crate::probe::http::ProbeFailureKind;
     use chrono::{Duration as ChronoDuration, Utc};
     use reqwest::StatusCode;
 
@@ -114,6 +115,7 @@ mod tests {
             status_code: Some(StatusCode::INTERNAL_SERVER_ERROR),
             latency_ms: Some(120),
             error_message: Some("Server is cooked".to_owned()),
+            failure_kind: Some(ProbeFailureKind::ResponseRejected),
         };
         let rendered = site_down(&site, &result).to_string();
         assert!(rendered.contains("application/vnd.microsoft.card.adaptive"));

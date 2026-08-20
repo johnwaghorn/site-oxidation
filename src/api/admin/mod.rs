@@ -1,3 +1,4 @@
+pub mod canary;
 pub mod responses;
 pub mod schema;
 pub mod teams;
@@ -11,4 +12,5 @@ pub fn admin_routes() -> Router<AppState> {
     Router::new()
         .merge(users::user_routes())
         .merge(teams::team_routes())
+        .merge(canary::canary_routes())
 }

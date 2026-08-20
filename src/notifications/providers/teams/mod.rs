@@ -12,7 +12,7 @@ pub(in crate::notifications) fn test_delivery(
     PendingDelivery::webhook(
         "Microsoft Teams",
         webhook_url,
-        &payloads::test(triggered_by),
+        &payloads::test_notification(triggered_by),
     )
 }
 

@@ -1,0 +1,223 @@
+.canary-page {
+  max-width: 720px;
+}
+
+.canary-lede {
+  max-width: 54ch;
+}
+
+.canary-status {
+  position: relative;
+  padding-left: 24px;
+  overflow: hidden;
+  --state-color: var(--color-muted);
+  --state-bg: var(--color-neutral-bg);
+  --state-text: var(--color-neutral-text);
+}
+
+.canary-status::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--state-color);
+}
+
+.canary-status.is-healthy {
+  --state-color: var(--color-success);
+  --state-bg: var(--color-success-bg);
+  --state-text: var(--color-success-text);
+}
+
+.canary-status.is-degraded {
+  --state-color: var(--color-danger);
+  --state-bg: var(--color-danger-bg);
+  --state-text: var(--color-danger-text);
+}
+
+.canary-status.is-unknown {
+  --state-color: var(--color-warning-text);
+  --state-bg: var(--color-warning-bg);
+  --state-text: var(--color-warning-text);
+}
+
+.canary-status-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.canary-status-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.canary-pulse {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--state-color);
+  flex: 0 0 auto;
+}
+
+.canary-pulse.is-live::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--state-color);
+  opacity: 0.55;
+  animation: canary-pulse-ring 2.4s ease-out infinite;
+}
+
+@keyframes canary-pulse-ring {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canary-pulse.is-live::before {
+    animation: none;
+  }
+}
+
+.canary-state-pill {
+  background-color: var(--state-bg);
+  color: var(--state-text);
+}
+
+.canary-status-detail {
+  max-width: 54ch;
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.canary-error {
+  max-width: 540px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.canary-status-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 22px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.canary-status-details dt {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.canary-status-details dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.canary-settings {
+  margin-top: 24px;
+}
+
+.canary-settings h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.canary-settings-hint {
+  max-width: 54ch;
+  margin: 0 0 22px;
+  color: var(--color-muted);
+  font-size: 13.5px;
+}
+
+.canary-form {
+  display: grid;
+  gap: 18px;
+}
+
+.canary-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.canary-url-row {
+  display: flex;
+  gap: 8px;
+}
+
+.canary-url-row .form-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.canary-test-status {
+  min-height: 20px;
+}
+
+.canary-hint {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.canary-test-result {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.canary-test-result.is-pending {
+  background-color: var(--color-neutral-bg);
+  color: var(--color-neutral-text);
+}
+
+.canary-test-result.is-ok {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.canary-test-result.is-error {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.canary-timeout-field {
+  max-width: 220px;
+}
+
+.canary-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .canary-status-details {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

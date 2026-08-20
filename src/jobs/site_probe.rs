@@ -1,3 +1,4 @@
+use crate::canary;
 use crate::config::AppConfig;
 use crate::models::site::{CertStatus, SiteRow};
 use crate::notifications::{Notifier, planning};
@@ -8,7 +9,10 @@ use futures::stream::{self, StreamExt};
 use reqwest::Client;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
+use tokio::sync::Mutex;
+
+const CANARY_RECHECK_CACHE_TTL: Duration = Duration::from_secs(5);
 
 pub enum SiteTransition {
     WentDown,
@@ -25,6 +29,28 @@ struct ProbeGroupKey {
     tls_allow_untrusted: bool,
 }
 
+#[derive(Clone, Copy)]
+struct ProbeClients<'a> {
+    verifying: &'a Client,
+    untrusted: &'a Client,
+}
+
+impl<'a> ProbeClients<'a> {
+    fn for_group(self, group: &ProbeGroupKey) -> &'a Client {
+        if group.tls_allow_untrusted {
+            self.untrusted
+        } else {
+            self.verifying
+        }
+    }
+}
+
+struct CompletedProbe {
+    result: ProbeResult,
+    started_at: SystemTime,
+    expected_duration: Duration,
+}
+
 impl From<&SiteRow> for ProbeGroupKey {
     fn from(site: &SiteRow) -> Self {
         Self {
@@ -36,7 +62,7 @@ impl From<&SiteRow> for ProbeGroupKey {
     }
 }
 
-fn result_is_stale(
+fn probe_result_is_stale(
     started_at: SystemTime,
     completed_at: SystemTime,
     expected_duration: Duration,
@@ -48,6 +74,105 @@ fn result_is_stale(
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CanaryVerdict {
+    Disabled,
+    Reachable,
+    Unreachable,
+    Inconclusive,
+}
+
+impl CanaryVerdict {
+    fn should_suppress_ambiguous_failure(self) -> bool {
+        matches!(self, Self::Unreachable | Self::Inconclusive)
+    }
+}
+
+async fn run_and_record_canary(verifying_client: &Client, pool: &SqlitePool) -> CanaryVerdict {
+    let settings = match canary::load_settings(pool).await {
+        Ok(settings) => settings,
+        Err(error) => {
+            tracing::error!("Failed to load canary settings: {error}");
+            return CanaryVerdict::Inconclusive;
+        }
+    };
+    if !settings.config.enabled {
+        return CanaryVerdict::Disabled;
+    }
+    let result = canary::check(verifying_client, &settings.config).await;
+    if let Err(error) = &result {
+        tracing::warn!("Canary check failed. Probe connectivity is degraded: {error}");
+    }
+    match canary::record_result_if_current(pool, settings.settings_revision, &result).await {
+        Ok(canary::CanaryResultWrite::Recorded) => {
+            if result.is_ok() {
+                CanaryVerdict::Reachable
+            } else {
+                CanaryVerdict::Unreachable
+            }
+        }
+        Ok(canary::CanaryResultWrite::DiscardedStaleRevision) => {
+            tracing::warn!("Canary settings changed mid-check, so this probe run is abandoned");
+            CanaryVerdict::Inconclusive
+        }
+        Err(error) => {
+            tracing::error!("Failed to record canary result: {error}");
+            if result.is_ok() {
+                CanaryVerdict::Reachable
+            } else {
+                CanaryVerdict::Unreachable
+            }
+        }
+    }
+}
+
+struct CachedCanaryVerdict {
+    completed_at: Instant,
+    verdict: CanaryVerdict,
+}
+
+struct AmbiguousFailureGuard<'a> {
+    initial_canary_verdict: CanaryVerdict,
+    cached_recheck: &'a Mutex<Option<CachedCanaryVerdict>>,
+}
+
+impl AmbiguousFailureGuard<'_> {
+    async fn should_suppress_ambiguous_failure(
+        &self,
+        verifying_client: &Client,
+        pool: &SqlitePool,
+    ) -> bool {
+        let verdict = match self.initial_canary_verdict {
+            CanaryVerdict::Disabled => return false,
+            CanaryVerdict::Unreachable | CanaryVerdict::Inconclusive => return true,
+            CanaryVerdict::Reachable => {
+                self.recheck_coalescing_concurrent_callers(verifying_client, pool)
+                    .await
+            }
+        };
+        verdict.should_suppress_ambiguous_failure()
+    }
+
+    async fn recheck_coalescing_concurrent_callers(
+        &self,
+        verifying_client: &Client,
+        pool: &SqlitePool,
+    ) -> CanaryVerdict {
+        let mut cached_recheck = self.cached_recheck.lock().await;
+        if let Some(cached) = cached_recheck.as_ref()
+            && cached.completed_at.elapsed() < CANARY_RECHECK_CACHE_TTL
+        {
+            return cached.verdict;
+        }
+        let verdict = run_and_record_canary(verifying_client, pool).await;
+        *cached_recheck = Some(CachedCanaryVerdict {
+            completed_at: Instant::now(),
+            verdict,
+        });
+        verdict
+    }
+}
+
 pub async fn check_all_sites(
     verifying_client: &Client,
     untrusted_client: &Client,
@@ -55,16 +180,6 @@ pub async fn check_all_sites(
     config: &AppConfig,
     notifier: &Notifier,
 ) {
-    if verifying_client
-        .head(&config.canary_url)
-        .timeout(Duration::from_secs(config.canary_timeout_secs))
-        .send()
-        .await
-        .is_err()
-    {
-        tracing::warn!("Canary check failed. Skipping sites check. Network issue?");
-        return;
-    }
     let sites = match sqlx::query_as::<_, SiteRow>(
         r"
             SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status,
@@ -107,6 +222,10 @@ pub async fn check_all_sites(
         tracing::info!("No sites due for a probe");
         return;
     }
+    let initial_canary_verdict = run_and_record_canary(verifying_client, pool).await;
+    if initial_canary_verdict == CanaryVerdict::Inconclusive {
+        return;
+    }
     let site_count = sites.len();
     let mut grouped_sites: HashMap<ProbeGroupKey, Vec<SiteRow>> = HashMap::new();
     for site in sites {
@@ -116,14 +235,22 @@ pub async fn check_all_sites(
             .push(site);
     }
     let probe_count = grouped_sites.len();
+    let clients = ProbeClients {
+        verifying: verifying_client,
+        untrusted: untrusted_client,
+    };
+    let cached_recheck = Mutex::new(None);
     stream::iter(grouped_sites)
         .map(|(group_key, group_sites)| {
             check_site_group(
-                verifying_client,
-                untrusted_client,
+                clients,
                 pool,
                 config,
                 notifier,
+                AmbiguousFailureGuard {
+                    initial_canary_verdict,
+                    cached_recheck: &cached_recheck,
+                },
                 group_key,
                 group_sites,
             )
@@ -139,12 +266,70 @@ pub async fn check_all_sites(
     );
 }
 
+async fn run_http_probe(
+    client: &Client,
+    config: &AppConfig,
+    group: &ProbeGroupKey,
+    sites: &[SiteRow],
+) -> CompletedProbe {
+    let check = CheckExpectation {
+        expected_status: u16::try_from(group.expected_status).unwrap_or(200),
+        expected_text: group.expected_text.clone(),
+    };
+    let probe_timeout = Duration::from_secs(config.probe_timeout_secs);
+    let retry_delay = Duration::from_millis(config.probe_retry_delay_ms);
+    let mut expected_duration = probe_timeout;
+    let started_at = SystemTime::now();
+    let mut result = check_url(
+        client,
+        &group.url,
+        &check,
+        config.probe_timeout_secs,
+        config.probe_body_size_limit_bytes,
+        config.probe_allow_private_ips,
+    )
+    .await;
+    if result.status.is_down() && sites.iter().any(|site| !site.status.is_down()) {
+        for attempt in 1..=config.probe_retry_count {
+            tracing::info!(
+                "URL '{}' probe failed, retry {}/{} after {}ms",
+                group.url,
+                attempt,
+                config.probe_retry_count,
+                config.probe_retry_delay_ms
+            );
+            tokio::time::sleep(retry_delay).await;
+            expected_duration = expected_duration
+                .saturating_add(retry_delay)
+                .saturating_add(probe_timeout);
+            result = check_url(
+                client,
+                &group.url,
+                &check,
+                config.probe_timeout_secs,
+                config.probe_body_size_limit_bytes,
+                config.probe_allow_private_ips,
+            )
+            .await;
+            if result.status.is_up() {
+                tracing::info!("URL '{}' recovered on retry {}", group.url, attempt);
+                break;
+            }
+        }
+    }
+    CompletedProbe {
+        result,
+        started_at,
+        expected_duration,
+    }
+}
+
 async fn check_site_group(
-    verifying_client: &Client,
-    untrusted_client: &Client,
+    clients: ProbeClients<'_>,
     pool: &SqlitePool,
     config: &AppConfig,
     notifier: &Notifier,
+    ambiguous_failure_guard: AmbiguousFailureGuard<'_>,
     group_key: ProbeGroupKey,
     group_sites: Vec<SiteRow>,
 ) {
@@ -153,68 +338,43 @@ async fn check_site_group(
         group_key.url,
         group_sites.len()
     );
-    let probe_client = if group_key.tls_allow_untrusted {
-        untrusted_client
-    } else {
-        verifying_client
-    };
-    let check = CheckExpectation {
-        expected_status: u16::try_from(group_key.expected_status).unwrap_or(200),
-        expected_text: group_key.expected_text.clone(),
-    };
     let probe_timeout = Duration::from_secs(config.probe_timeout_secs);
-    let retry_delay = Duration::from_millis(config.probe_retry_delay_ms);
-    let mut expected_probe_duration = probe_timeout;
-    let probe_started_at = SystemTime::now();
-    let mut probe_result = check_url(
-        probe_client,
-        &group_key.url,
-        &check,
-        config.probe_timeout_secs,
-        config.probe_body_size_limit_bytes,
-        config.probe_allow_private_ips,
+    let completed = run_http_probe(
+        clients.for_group(&group_key),
+        config,
+        &group_key,
+        &group_sites,
     )
     .await;
-    if probe_result.status.is_down() && group_sites.iter().any(|site| !site.status.is_down()) {
-        for attempt in 1..=config.probe_retry_count {
-            tracing::info!(
-                "URL '{}' probe failed, retry {}/{} after {}ms",
-                group_key.url,
-                attempt,
-                config.probe_retry_count,
-                config.probe_retry_delay_ms
-            );
-            tokio::time::sleep(retry_delay).await;
-            expected_probe_duration = expected_probe_duration
-                .saturating_add(retry_delay)
-                .saturating_add(probe_timeout);
-            probe_result = check_url(
-                probe_client,
-                &group_key.url,
-                &check,
-                config.probe_timeout_secs,
-                config.probe_body_size_limit_bytes,
-                config.probe_allow_private_ips,
-            )
-            .await;
-            if probe_result.status.is_up() {
-                tracing::info!("URL '{}' recovered on retry {}", group_key.url, attempt);
-                break;
-            }
-        }
+    if completed.result.is_connectivity_ambiguous()
+        && ambiguous_failure_guard
+            .should_suppress_ambiguous_failure(clients.verifying, pool)
+            .await
+    {
+        tracing::warn!(
+            "Suppressing unreachable probe result for '{}' while probe connectivity is degraded",
+            group_key.url
+        );
+        return;
     }
-    if result_is_stale(probe_started_at, SystemTime::now(), expected_probe_duration) {
+    let now_after_possible_recheck = SystemTime::now();
+    if probe_result_is_stale(
+        completed.started_at,
+        now_after_possible_recheck,
+        completed.expected_duration,
+    ) {
         tracing::warn!("Discarding stale probe result for '{}'", group_key.url);
         return;
     }
-    if let Err(error) = persist_site_statuses(pool, &group_sites, &probe_result, notifier).await {
+    if let Err(error) = persist_site_statuses(pool, &group_sites, &completed.result, notifier).await
+    {
         tracing::error!(
             "Failed to persist probe result for '{}': {error}",
             group_key.url
         );
         return;
     }
-    if probe_result.status.is_blocked() {
+    if completed.result.status.is_blocked() {
         for site in &group_sites {
             clear_site_cert(pool, site.id).await;
         }
@@ -233,7 +393,7 @@ async fn check_site_group(
         },
     )
     .await;
-    if result_is_stale(cert_started_at, SystemTime::now(), probe_timeout) {
+    if probe_result_is_stale(cert_started_at, SystemTime::now(), probe_timeout) {
         tracing::warn!(
             "Discarding stale certificate result for '{}'",
             group_key.url
@@ -348,12 +508,12 @@ pub async fn update_site_status(
         sqlx::query(
             "INSERT INTO outages (site_id, http_status, error_message, expected_status) VALUES (?, ?, ?, ?)",
         )
-            .bind(site.id)
-            .bind(result.status_code.map(|c| i64::from(c.as_u16())))
-            .bind(&result.error_message)
-            .bind(site.expected_status)
-            .execute(&mut **transaction)
-            .await?;
+        .bind(site.id)
+        .bind(result.status_code.map(|c| i64::from(c.as_u16())))
+        .bind(&result.error_message)
+        .bind(site.expected_status)
+        .execute(&mut **transaction)
+        .await?;
         return Ok(SiteTransition::WentDown);
     }
     if site.status.is_down() && !result.status.is_down() {
@@ -404,7 +564,7 @@ async fn clear_site_cert(pool: &SqlitePool, site_id: i64) {
 mod tests {
     use super::*;
     use crate::models::site::SiteStatus;
-    use crate::probe::http::PRIVATE_IP_BLOCKED_MESSAGE;
+    use crate::probe::http::{PRIVATE_IP_BLOCKED_MESSAGE, ProbeFailureKind};
     use crate::tests::{TestHttpServer, insert_test_site, test_config};
     use reqwest::StatusCode;
     use tracing_test::traced_test;
@@ -443,12 +603,24 @@ mod tests {
         .unwrap()
     }
 
-    fn probe_config(base_url: &str) -> AppConfig {
+    fn probe_config() -> AppConfig {
         let mut config = test_config(true);
-        config.canary_url = format!("{base_url}/canary");
         config.probe_retry_count = 0;
         config.probe_retry_delay_ms = 0;
         config
+    }
+
+    async fn enable_canary(pool: &SqlitePool, url: &str) {
+        canary::update_settings(
+            pool,
+            &canary::CanaryConfig {
+                enabled: true,
+                url: Some(url.to_owned()),
+                timeout_secs: 1,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     fn mock_site_down_result() -> ProbeResult {
@@ -457,6 +629,7 @@ mod tests {
             status_code: Some(StatusCode::INTERNAL_SERVER_ERROR),
             latency_ms: Some(500),
             error_message: Some(String::from("Server is cooked")),
+            failure_kind: Some(ProbeFailureKind::ResponseRejected),
         }
     }
 
@@ -466,6 +639,7 @@ mod tests {
             status_code: Some(StatusCode::OK),
             latency_ms: Some(100),
             error_message: None,
+            failure_kind: None,
         }
     }
 
@@ -475,36 +649,85 @@ mod tests {
             status_code: None,
             latency_ms: None,
             error_message: Some(PRIVATE_IP_BLOCKED_MESSAGE.to_owned()),
+            failure_kind: None,
         }
     }
 
-    #[test]
-    fn test_result_is_stale_after_grace_or_backward_clock_change() {
-        let started_at = SystemTime::UNIX_EPOCH;
-        let expected_duration = Duration::from_secs(30);
-        let grace_boundary = started_at.checked_add(Duration::from_secs(35)).unwrap();
-        let beyond_grace = started_at
-            .checked_add(Duration::from_millis(35_001))
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_a_stale_healthy_recheck_is_not_reused(pool: SqlitePool) {
+        enable_canary(&pool, "http://127.0.0.1:1").await;
+        let client = Client::new();
+        let cached_recheck = Mutex::new(None);
+        let guard = AmbiguousFailureGuard {
+            initial_canary_verdict: CanaryVerdict::Reachable,
+            cached_recheck: &cached_recheck,
+        };
+
+        *cached_recheck.lock().await = Some(CachedCanaryVerdict {
+            completed_at: Instant::now(),
+            verdict: CanaryVerdict::Reachable,
+        });
+        assert!(
+            !guard
+                .should_suppress_ambiguous_failure(&client, &pool)
+                .await,
+            "a fresh verdict is reused instead of rechecking"
+        );
+
+        *cached_recheck.lock().await = Some(CachedCanaryVerdict {
+            completed_at: Instant::now() - CANARY_RECHECK_CACHE_TTL - Duration::from_secs(1),
+            verdict: CanaryVerdict::Reachable,
+        });
+        assert!(
+            guard
+                .should_suppress_ambiguous_failure(&client, &pool)
+                .await,
+            "a verdict older than the freshness window must be re-established"
+        );
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_an_inconclusive_recheck_holds_the_failure_back(pool: SqlitePool) {
+        let server = TestHttpServer::start().await;
+        enable_canary(&pool, server.base_url()).await;
+        sqlx::query("DELETE FROM canary_settings WHERE id = 1")
+            .execute(&pool)
+            .await
             .unwrap();
-        assert!(!result_is_stale(
-            started_at,
-            grace_boundary,
-            expected_duration
-        ));
-        assert!(result_is_stale(started_at, beyond_grace, expected_duration));
-        assert!(result_is_stale(
-            grace_boundary,
-            started_at,
-            expected_duration
-        ));
+        let cached_recheck = Mutex::new(None);
+        let guard = AmbiguousFailureGuard {
+            initial_canary_verdict: CanaryVerdict::Reachable,
+            cached_recheck: &cached_recheck,
+        };
+        assert!(
+            guard
+                .should_suppress_ambiguous_failure(&Client::new(), &pool)
+                .await,
+            "an unverifiable failure must not be alerted on"
+        );
     }
 
     #[sqlx::test(migrations = "./migrations")]
     #[traced_test]
-    async fn test_canary_failure_is_logged(pool: SqlitePool) {
+    async fn test_ambiguous_failures_share_one_connectivity_recheck(pool: SqlitePool) {
+        let canary_server = TestHttpServer::start().await;
+        for port in 1u16..=3 {
+            insert_probe_site(
+                &pool,
+                &format!("Unreachable {port}"),
+                &format!("http://127.0.0.1:{port}"),
+                200,
+                None,
+                SiteStatus::Up,
+                60,
+                false,
+            )
+            .await;
+        }
         let client = Client::new();
-        let mut config = test_config(true);
-        config.canary_url = "not a url".to_owned();
+        let mut config = probe_config();
+        config.probe_timeout_secs = 1;
+        enable_canary(&pool, canary_server.base_url()).await;
         check_all_sites(
             &client,
             &client,
@@ -513,9 +736,213 @@ mod tests {
             &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
         )
         .await;
-        assert!(logs_contain(
-            "Canary check failed. Skipping sites check. Network issue?"
+        assert_eq!(
+            canary_server.request_count(),
+            2,
+            "three failing groups must share one recheck, not fan out"
+        );
+        let outage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            outage_count, 3,
+            "the recheck found connectivity healthy, so the failures stand"
+        );
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
+    async fn test_settings_changed_mid_check_abandons_the_result(pool: SqlitePool) {
+        let hanging_server = TestHttpServer::start_hanging().await;
+        enable_canary(&pool, hanging_server.base_url()).await;
+        let updater = {
+            let pool = pool.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                enable_canary(&pool, "http://127.0.0.1:1").await;
+            })
+        };
+
+        let verdict = run_and_record_canary(&Client::new(), &pool).await;
+
+        updater.await.unwrap();
+        assert_eq!(verdict, CanaryVerdict::Inconclusive);
+        assert!(logs_contain("Discarding stale canary result"));
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
+    async fn test_degraded_connectivity_does_not_suppress_a_reachable_failure(pool: SqlitePool) {
+        let server = TestHttpServer::start().await;
+        let site_id = insert_probe_site(
+            &pool,
+            "Wrong Status",
+            server.base_url(),
+            418,
+            None,
+            SiteStatus::Up,
+            60,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        let mut config = probe_config();
+        config.probe_timeout_secs = 1;
+        enable_canary(&pool, "http://127.0.0.1:1").await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
+        let status: SiteStatus = sqlx::query_scalar("SELECT status FROM sites WHERE id = ?")
+            .bind(site_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let outage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            status,
+            SiteStatus::Down,
+            "the server answered, so its failure is not ambiguous"
+        );
+        assert_eq!(outage_count, 1);
+        assert!(logs_contain("Probe connectivity is degraded"));
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
+    async fn test_canary_is_skipped_when_no_sites_are_due(pool: SqlitePool) {
+        let server = TestHttpServer::start().await;
+        let site_id = insert_probe_site(
+            &pool,
+            "Recently Checked",
+            server.base_url(),
+            200,
+            None,
+            SiteStatus::Up,
+            3600,
+            false,
+        )
+        .await;
+        sqlx::query("UPDATE sites SET last_checked_at = CURRENT_TIMESTAMP WHERE id = ?")
+            .bind(site_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        enable_canary(&pool, server.base_url()).await;
+        let client = Client::new();
+        let config = probe_config();
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
+        let checked_at: Option<String> =
+            sqlx::query_scalar("SELECT last_checked_at FROM canary_settings WHERE id = 1")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert!(
+            checked_at.is_none(),
+            "the canary must not run when there is no probe work to protect"
+        );
+        assert!(logs_contain("No sites due for a probe"));
+    }
+
+    #[test]
+    fn test_probe_result_is_stale_after_grace_or_backward_clock_change() {
+        let started_at = SystemTime::UNIX_EPOCH;
+        let expected_duration = Duration::from_secs(30);
+        let grace_boundary = started_at.checked_add(Duration::from_secs(35)).unwrap();
+        let beyond_grace = started_at
+            .checked_add(Duration::from_millis(35_001))
+            .unwrap();
+        assert!(!probe_result_is_stale(
+            started_at,
+            grace_boundary,
+            expected_duration
         ));
+        assert!(probe_result_is_stale(
+            started_at,
+            beyond_grace,
+            expected_duration
+        ));
+        assert!(probe_result_is_stale(
+            grace_boundary,
+            started_at,
+            expected_duration
+        ));
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    #[traced_test]
+    async fn test_degraded_connectivity_persists_successes_and_suppresses_failures(
+        pool: SqlitePool,
+    ) {
+        let server = TestHttpServer::start().await;
+        let successful_site_id = insert_probe_site(
+            &pool,
+            "Reachable Site",
+            server.base_url(),
+            200,
+            None,
+            SiteStatus::Pending,
+            60,
+            false,
+        )
+        .await;
+        let failed_site_id = insert_probe_site(
+            &pool,
+            "Ambiguous Failure",
+            "http://127.0.0.1:1",
+            200,
+            None,
+            SiteStatus::Up,
+            60,
+            false,
+        )
+        .await;
+        let client = Client::new();
+        let mut config = probe_config();
+        config.probe_timeout_secs = 1;
+        enable_canary(&pool, "http://127.0.0.1:1").await;
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
+        let successful_status: SiteStatus =
+            sqlx::query_scalar("SELECT status FROM sites WHERE id = ?")
+                .bind(successful_site_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let failed_status: SiteStatus = sqlx::query_scalar("SELECT status FROM sites WHERE id = ?")
+            .bind(failed_site_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let outage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(successful_status, SiteStatus::Up);
+        assert_eq!(failed_status, SiteStatus::Up);
+        assert_eq!(outage_count, 0);
+        assert!(logs_contain("Suppressing unreachable probe result"));
     }
 
     #[sqlx::test(migrations = "./migrations")]
@@ -546,8 +973,9 @@ mod tests {
             false,
         )
         .await;
+        enable_canary(&pool, &format!("{base_url}/canary")).await;
         let client = Client::new();
-        let config = probe_config(base_url);
+        let config = probe_config();
         check_all_sites(
             &client,
             &client,
@@ -564,6 +992,14 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(updated, 2);
+        let canary_is_healthy: bool = sqlx::query_scalar(
+            "SELECT last_checked_at IS NOT NULL AND last_error IS NULL
+             FROM canary_settings WHERE id = 1",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert!(canary_is_healthy);
         assert!(logs_contain("Finished checking 2 sites in 1 probes"));
     }
 
@@ -602,7 +1038,7 @@ mod tests {
             .await
             .unwrap();
         let client = Client::new();
-        let config = probe_config(base_url);
+        let config = probe_config();
         check_all_sites(
             &client,
             &client,
@@ -649,7 +1085,7 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        let config = probe_config(base_url);
+        let config = probe_config();
         check_all_sites(
             &client,
             &client,
@@ -684,7 +1120,7 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        let mut config = probe_config(base_url);
+        let mut config = probe_config();
         config.probe_retry_count = 1;
         check_all_sites(
             &client,
@@ -725,7 +1161,7 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        let mut config = probe_config(base_url);
+        let mut config = probe_config();
         config.probe_retry_count = 1;
         check_all_sites(
             &client,
@@ -779,7 +1215,7 @@ mod tests {
         )
         .await;
         let client = Client::new();
-        let config = probe_config(base_url);
+        let config = probe_config();
         check_all_sites(
             &client,
             &client,
@@ -789,6 +1225,59 @@ mod tests {
         )
         .await;
         assert_eq!(server.request_count(), 5);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_grouped_monitors_share_one_notification_per_webhook(pool: SqlitePool) {
+        let server = TestHttpServer::start_ignoring_path("/canary").await;
+        let dead_port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.local_addr().unwrap().port()
+        };
+        let url = format!("http://127.0.0.1:{dead_port}/");
+        for (team_name, monitor_name) in [("Team Rocket", "Monitor A"), ("Team Aqua", "Monitor B")]
+        {
+            let team_id: i64 =
+                sqlx::query_scalar("INSERT INTO teams (name) VALUES (?) RETURNING id")
+                    .bind(team_name)
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap();
+            sqlx::query(
+                "INSERT INTO team_notification_settings (team_id, slack_webhook_url) VALUES (?, ?)",
+            )
+            .bind(team_id)
+            .bind(format!("{}/webhook", server.base_url()))
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO sites (
+                    name, url, expected_status, status,
+                    probe_interval_seconds, tls_allow_untrusted, team_id
+                ) VALUES (?, ?, 200, 'up', 60, 0, ?)",
+            )
+            .bind(monitor_name)
+            .bind(&url)
+            .bind(team_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        let client = Client::new();
+        let config = probe_config();
+        check_all_sites(
+            &client,
+            &client,
+            &pool,
+            &config,
+            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
+        )
+        .await;
+        assert_eq!(server.request_count(), 1);
+        let request = server.last_request().unwrap();
+        assert!(request.contains("POST /webhook"));
+        assert!(request.contains("is DOWN"));
     }
 
     #[sqlx::test(migrations = "./migrations")]
@@ -961,58 +1450,5 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count.0, 1);
-    }
-
-    #[sqlx::test(migrations = "./migrations")]
-    async fn test_grouped_monitors_share_one_notification_per_webhook(pool: SqlitePool) {
-        let server = TestHttpServer::start_ignoring_path("/canary").await;
-        let dead_port = {
-            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-            listener.local_addr().unwrap().port()
-        };
-        let url = format!("http://127.0.0.1:{dead_port}/");
-        for (team_name, monitor_name) in [("Team Rocket", "Monitor A"), ("Team Aqua", "Monitor B")]
-        {
-            let team_id: i64 =
-                sqlx::query_scalar("INSERT INTO teams (name) VALUES (?) RETURNING id")
-                    .bind(team_name)
-                    .fetch_one(&pool)
-                    .await
-                    .unwrap();
-            sqlx::query(
-                "INSERT INTO team_notification_settings (team_id, slack_webhook_url) VALUES (?, ?)",
-            )
-            .bind(team_id)
-            .bind(format!("{}/webhook", server.base_url()))
-            .execute(&pool)
-            .await
-            .unwrap();
-            sqlx::query(
-                "INSERT INTO sites (
-                    name, url, expected_status, status,
-                    probe_interval_seconds, tls_allow_untrusted, team_id
-                ) VALUES (?, ?, 200, 'up', 60, 0, ?)",
-            )
-            .bind(monitor_name)
-            .bind(&url)
-            .bind(team_id)
-            .execute(&pool)
-            .await
-            .unwrap();
-        }
-        let client = Client::new();
-        let config = probe_config(server.base_url());
-        check_all_sites(
-            &client,
-            &client,
-            &pool,
-            &config,
-            &Notifier::new(Client::new(), config.smtp_allow_private_hosts),
-        )
-        .await;
-        assert_eq!(server.request_count(), 1);
-        let request = server.last_request().unwrap();
-        assert!(request.contains("POST /webhook"));
-        assert!(request.contains("is DOWN"));
     }
 }

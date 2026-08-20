@@ -62,6 +62,7 @@ mod tests {
     use super::*;
     use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteStatus};
+    use crate::probe::http::ProbeFailureKind;
     use chrono::{Duration as ChronoDuration, Utc};
     use reqwest::StatusCode;
 
@@ -87,6 +88,7 @@ mod tests {
             status_code: Some(StatusCode::INTERNAL_SERVER_ERROR),
             latency_ms: Some(120),
             error_message: Some("Server is cooked".to_owned()),
+            failure_kind: Some(ProbeFailureKind::ResponseRejected),
         };
         assert_eq!(
             site_down_subject(&site),
