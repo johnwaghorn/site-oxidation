@@ -158,8 +158,8 @@ fn is_cert_trusted(
 fn cert_expiry_from_der(der: &[u8]) -> Option<DateTime<Utc>> {
     let cert = Certificate::from_der(der).ok()?;
     let secs = cert
-        .tbs_certificate
-        .validity
+        .tbs_certificate()
+        .validity()
         .not_after
         .to_unix_duration()
         .as_secs();
