@@ -17,6 +17,14 @@ fi
 cargo run &
 BACKEND_PID=$!
 
+until curl -sf "http://localhost:$PORT/health" >/dev/null 2>&1; do
+    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+        echo "Backend exited before becoming healthy"
+        exit 1
+    fi
+    sleep 0.5
+done
+
 npm --prefix frontend run dev &
 FRONTEND_PID=$!
 
