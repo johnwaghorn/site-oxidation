@@ -8,6 +8,7 @@ mod monitoring;
 mod notifications;
 mod probe;
 mod security;
+mod session_store;
 mod state;
 #[cfg(test)]
 mod tests;
@@ -22,6 +23,7 @@ use config::AppConfig;
 use monitoring::run_due_site_checks;
 use password_auth::generate_hash;
 use reqwest::Client;
+use session_store::SqliteStore;
 use state::AppState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,9 +31,7 @@ use time::Duration as TimeDuration;
 use tokio::task;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_sessions::cookie::SameSite;
-use tower_sessions::session_store::ExpiredDeletion;
 use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::SqliteStore;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -47,16 +47,18 @@ async fn main() -> Result<()> {
         )
     })?;
     let session_store = SqliteStore::new(pool.clone());
-    session_store
-        .migrate()
-        .await
-        .context("Session store migration failed")?;
-
-    let _deletion_task = tokio::task::spawn(
-        session_store
-            .clone()
-            .continuously_delete_expired(Duration::from_mins(1)),
-    );
+    let _deletion_task = tokio::task::spawn({
+        let session_store = session_store.clone();
+        async move {
+            let mut interval = tokio::time::interval(Duration::from_mins(1));
+            loop {
+                interval.tick().await;
+                if let Err(err) = session_store.delete_expired().await {
+                    tracing::error!("Failed to delete expired sessions: {err}");
+                }
+            }
+        }
+    });
     let key = security::session_key::get_or_create_key(&config.session_key_path, &config.data_dir)
         .context("Failed to load or create session key")?;
     let dummy_hash: String = task::spawn_blocking(|| generate_hash("__dummy__"))

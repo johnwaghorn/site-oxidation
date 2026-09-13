@@ -95,6 +95,13 @@ CREATE TABLE outages (
     ended_at DATETIME
 );
 
+CREATE TABLE sessions (
+    id TEXT PRIMARY KEY NOT NULL,
+    data TEXT NOT NULL,
+    expiry_date INTEGER NOT NULL
+);
+
+CREATE INDEX idx_sessions_expiry_date ON sessions (expiry_date);
 CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
 CREATE INDEX idx_team_members_user_id ON team_members(user_id);
 CREATE UNIQUE INDEX idx_sites_team_url ON sites(team_id, url);
