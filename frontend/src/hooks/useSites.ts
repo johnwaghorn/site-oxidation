@@ -37,6 +37,7 @@ export function useSite(id: number) {
       return data!;
     },
     enabled: id > 0,
+    refetchInterval: 10_000,
   });
 }
 
