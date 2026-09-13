@@ -30,7 +30,7 @@ dashmap = "6"
 getrandom = "0.4.2"
 tokio-rustls = "0.26"
 rustls-platform-verifier = "0.7"
-x509-cert = { version = "0.2", default-features = false, features = ["std"] }
+x509-cert = { version = "0.3", default-features = false, features = ["std"] }
 lettre = { version = "0.11.22", default-features = false, features = ["smtp-transport", "builder", "hostname", "tokio1", "tokio1-rustls-tls", "tokio1-rustls", "rustls-platform-verifier", "aws-lc-rs"] }
 
 [dev-dependencies]
