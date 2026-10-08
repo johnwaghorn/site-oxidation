@@ -19,7 +19,7 @@ use super::responses::{
         endpoints::change_password,
     ),
     components(schemas(
-        crate::auth_backend::Credentials,
+        crate::auth::Credentials,
         crate::models::user::ThemePreference,
         LoginSuccess,
         MeSuccess,

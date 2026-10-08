@@ -43,7 +43,7 @@ pub async fn login_and_get_cookie(app: &Router, username: &str, password: &str) 
     extract_cookies(&response)
 }
 
-fn extract_cookies<T>(response: &axum::http::Response<T>) -> String {
+pub fn extract_cookies<T>(response: &axum::http::Response<T>) -> String {
     let mut cookies = String::new();
     for value in response.headers().get_all("set-cookie") {
         if let Ok(s) = value.to_str() {

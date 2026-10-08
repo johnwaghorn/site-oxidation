@@ -1,10 +1,13 @@
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{FromRequest, Request};
-use axum::{extract::FromRequestParts, http::request::Parts};
+use axum::{
+    extract::{FromRef, FromRequestParts},
+    http::request::Parts,
+};
 use std::convert::Infallible;
 
-use crate::api::errors::{ApiErrorResponse, internal_err};
-use crate::auth_backend::AuthSession;
+use crate::api::errors::ApiErrorResponse;
+use crate::auth::{AuthSession, Authenticator};
 use crate::models::user::{User, UserRole};
 
 /// Request body extractor that returns rejections in the documented `ApiError` envelope.
@@ -63,15 +66,12 @@ pub struct RequireAdmin(pub User);
 impl<S> FromRequestParts<S> for RequireAuth
 where
     S: Send + Sync,
+    Authenticator: FromRef<S>,
 {
     type Rejection = ApiErrorResponse;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let auth_session = AuthSession::from_request_parts(parts, state)
-            .await
-            .map_err(|(status, msg)| {
-                internal_err("Auth session extraction failed", format!("{status}: {msg}"))
-            })?;
+        let auth_session = AuthSession::from_request_parts(parts, state).await?;
 
         match auth_session.user {
             Some(user) => Ok(RequireAuth(user)),
@@ -83,6 +83,7 @@ where
 impl<S> FromRequestParts<S> for RequireAppAccess
 where
     S: Send + Sync,
+    Authenticator: FromRef<S>,
 {
     type Rejection = ApiErrorResponse;
 
@@ -100,6 +101,7 @@ where
 impl<S> FromRequestParts<S> for RequireAdmin
 where
     S: Send + Sync,
+    Authenticator: FromRef<S>,
 {
     type Rejection = ApiErrorResponse;
 

@@ -1,3 +1,4 @@
+use crate::auth::Authenticator;
 use crate::config::AppConfig;
 use crate::notifications::Notifier;
 use crate::security::rate_limit::LoginRateLimiter;
@@ -14,6 +15,7 @@ pub struct AppState {
     pub admin_limiter: Arc<LoginRateLimiter>,
     pub canary_client: Client,
     pub notifier: Notifier,
+    pub authenticator: Authenticator,
 }
 
 pub struct AdminLimiter(pub Arc<LoginRateLimiter>);
@@ -39,5 +41,11 @@ impl FromRef<AppState> for Arc<LoginRateLimiter> {
 impl FromRef<AppState> for AdminLimiter {
     fn from_ref(state: &AppState) -> Self {
         AdminLimiter(Arc::clone(&state.admin_limiter))
+    }
+}
+
+impl FromRef<AppState> for Authenticator {
+    fn from_ref(state: &AppState) -> Self {
+        state.authenticator.clone()
     }
 }

@@ -35,7 +35,7 @@ impl utoipa::Modify for SecurityAddon {
             "session_cookie",
             utoipa::openapi::security::SecurityScheme::ApiKey(
                 utoipa::openapi::security::ApiKey::Cookie(
-                    utoipa::openapi::security::ApiKeyValue::new("id"),
+                    utoipa::openapi::security::ApiKeyValue::new(crate::auth::SESSION_COOKIE),
                 ),
             ),
         );
