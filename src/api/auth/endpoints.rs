@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::extract::{ConnectInfo, State};
 use axum::http::StatusCode;
+use axum_extra::extract::cookie::SignedCookieJar;
 use password_auth::{generate_hash, verify_password};
 use sqlx::SqlitePool;
 use std::net::SocketAddr;
@@ -12,7 +13,7 @@ use super::responses::{
 };
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::{JsonPayload, RequireAuth};
-use crate::auth_backend::{AuthSession, Credentials};
+use crate::auth::{AuthError, AuthSession, Credentials};
 use crate::models::user::UserRole;
 use crate::security::password::{
     validate_password_bounds, validate_password_changed, validate_password_not_username,
@@ -22,7 +23,7 @@ use crate::security::rate_limit::LoginRateLimiter;
 #[utoipa::path(
     post,
     path = "/auth/login",
-    request_body = crate::auth_backend::Credentials,
+    request_body = crate::auth::Credentials,
     responses(
         (status = 200, description = "Login successful", body = LoginSuccess),
         (status = 401, description = "Invalid credentials", body = ApiError),
@@ -35,9 +36,9 @@ use crate::security::rate_limit::LoginRateLimiter;
 pub async fn login(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(limiter): State<Arc<LoginRateLimiter>>,
-    mut auth_session: AuthSession,
+    auth_session: AuthSession,
     JsonPayload(creds): JsonPayload<Credentials>,
-) -> Result<Json<LoginSuccess>, ApiErrorResponse> {
+) -> Result<(SignedCookieJar, Json<LoginSuccess>), ApiErrorResponse> {
     let attempted_username = creds.username.clone();
     let key = format!("{}:{}", addr.ip(), creds.username.to_lowercase());
     if limiter.is_blocked(&key) {
@@ -69,14 +70,17 @@ pub async fn login(
         }
         return Err(ApiErrorResponse::unauthorized());
     };
-    auth_session
+    let jar = auth_session
         .login(&user)
         .await
         .map_err(|e| internal_err("Session login failed", e))?;
     tracing::info!("User '{}' logged in from {}", user.username, addr.ip());
-    Ok(Json(LoginSuccess {
-        username: user.username,
-    }))
+    Ok((
+        jar,
+        Json(LoginSuccess {
+            username: user.username,
+        }),
+    ))
 }
 
 #[utoipa::path(
@@ -89,12 +93,14 @@ pub async fn login(
     tag = "auth",
     security(("session_cookie" = [])),
 )]
-pub async fn logout(mut auth_session: AuthSession) -> Result<StatusCode, ApiErrorResponse> {
-    auth_session
+pub async fn logout(
+    auth_session: AuthSession,
+) -> Result<(SignedCookieJar, StatusCode), ApiErrorResponse> {
+    let jar = auth_session
         .logout()
         .await
         .map_err(|e| internal_err("Session logout failed", e))?;
-    Ok(StatusCode::OK)
+    Ok((jar, StatusCode::OK))
 }
 
 #[utoipa::path(
@@ -181,6 +187,7 @@ pub async fn update_theme_preference(
     responses(
         (status = 200, description = "Password changed", body = ChangePasswordSuccess),
         (status = 401, description = "Invalid current password", body = ApiError),
+        (status = 409, description = "Account changed while the request was in flight", body = ApiError),
         (status = 422, description = "Password validation failed", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
     ),
@@ -189,10 +196,9 @@ pub async fn update_theme_preference(
 )]
 pub async fn change_password(
     RequireAuth(user): RequireAuth,
-    State(pool): State<SqlitePool>,
-    mut auth_session: AuthSession,
+    auth_session: AuthSession,
     JsonPayload(payload): JsonPayload<ChangePasswordRequest>,
-) -> Result<Json<ChangePasswordSuccess>, ApiErrorResponse> {
+) -> Result<(SignedCookieJar, Json<ChangePasswordSuccess>), ApiErrorResponse> {
     validate_password_bounds(&payload.new_password)?;
     validate_password_not_username(&payload.new_password, &user.username)?;
     validate_password_changed(&payload.new_password, &payload.current_password)?;
@@ -210,26 +216,14 @@ pub async fn change_password(
     let new_hash = tokio::task::spawn_blocking(move || generate_hash(&new_password))
         .await
         .map_err(|e| internal_err("Failed to hash new password", e))?;
-    sqlx::query(super::queries::UPDATE_PASSWORD)
-        .bind(&new_hash)
-        .bind(user.id)
-        .execute(&pool)
+    let jar = auth_session
+        .change_password(&user, &new_hash)
         .await
-        .map_err(|e| {
-            internal_err(
-                &format!("Failed to update password for user {}", user.id),
-                e,
-            )
+        .map_err(|e| match e {
+            AuthError::StaleAuthorization => ApiErrorResponse::conflict(
+                "Your account changed while this request was in flight. Please sign in again.",
+            ),
+            e => internal_err("Failed to change password", e),
         })?;
-    let updated_user =
-        sqlx::query_as::<_, crate::models::user::User>(super::queries::SELECT_USER_BY_ID)
-            .bind(user.id)
-            .fetch_one(&pool)
-            .await
-            .map_err(|e| internal_err("Failed to re-fetch user after password change", e))?;
-    auth_session
-        .login(&updated_user)
-        .await
-        .map_err(|e| internal_err("Failed to refresh session after password change", e))?;
-    Ok(Json(ChangePasswordSuccess { success: true }))
+    Ok((jar, Json(ChangePasswordSuccess { success: true })))
 }

@@ -512,6 +512,125 @@ async fn test_reset_password_sets_must_change(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_reset_password_logs_the_user_out(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    let app = test_app(pool);
+    let admin_cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let user_cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/admin/users/{user_id}/reset-password"))
+                .header("cookie", &admin_cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"temp_password":"new-temp-pass-123"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/me")
+                .header("cookie", &user_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "a password reset must end the user's sessions"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_role_change_logs_the_user_out(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    let app = test_app(pool);
+    let admin_cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let user_cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/admin/users/{user_id}"))
+                .header("cookie", &admin_cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"role":"admin","active":true}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/me")
+                .header("cookie", &user_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "a role change must end the user's sessions"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_reactivation_does_not_revive_old_sessions(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let other_id = insert_test_user(&pool, "other", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let admin_cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let other_cookie = login_and_get_cookie(&app, "other", TEST_PASSWORD).await;
+    for body in [
+        r#"{"role":"admin","active":false}"#,
+        r#"{"role":"admin","active":true}"#,
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri(format!("/admin/users/{other_id}"))
+                    .header("cookie", &admin_cookie)
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "update {body} failed");
+    }
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/me")
+                .header("cookie", &other_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "reactivation must not revive a session from before deactivation"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_self_guards_block_deactivate_and_demote(pool: SqlitePool) {
     let admin_id = insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);

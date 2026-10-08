@@ -6,6 +6,7 @@ CREATE TABLE users (
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 1 CHECK(must_change_password IN (0, 1)),
     theme_preference TEXT NOT NULL DEFAULT 'system' CHECK(theme_preference IN ('system', 'light', 'dark')),
+    auth_revision INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -97,10 +98,13 @@ CREATE TABLE outages (
 
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY NOT NULL,
-    data TEXT NOT NULL,
-    expiry_date INTEGER NOT NULL
+    user_id INTEGER NOT NULL,
+    auth_revision INTEGER NOT NULL,
+    expiry_date INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 CREATE INDEX idx_sessions_expiry_date ON sessions (expiry_date);
 CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
 CREATE INDEX idx_team_members_user_id ON team_members(user_id);

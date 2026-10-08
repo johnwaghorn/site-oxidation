@@ -1,5 +1,5 @@
 mod api;
-mod auth_backend;
+mod auth;
 mod canary;
 mod config;
 mod db;
@@ -8,30 +8,24 @@ mod monitoring;
 mod notifications;
 mod probe;
 mod security;
-mod session_store;
 mod state;
 #[cfg(test)]
 mod tests;
 
-use crate::auth_backend::Backend;
+use crate::auth::{Authenticator, delete_expired_sessions};
 use crate::security::resolver::SafeResolver;
 use anyhow::{Context, Result};
 use api::ApiDoc;
 use axum::Router;
-use axum_login::AuthManagerLayerBuilder;
 use config::AppConfig;
 use monitoring::run_due_site_checks;
 use password_auth::generate_hash;
 use reqwest::Client;
-use session_store::SqliteStore;
 use state::AppState;
 use std::sync::Arc;
 use std::time::Duration;
-use time::Duration as TimeDuration;
 use tokio::task;
 use tower_http::services::{ServeDir, ServeFile};
-use tower_sessions::cookie::SameSite;
-use tower_sessions::{Expiry, SessionManagerLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -46,14 +40,14 @@ async fn main() -> Result<()> {
             config.database_path.display()
         )
     })?;
-    let session_store = SqliteStore::new(pool.clone());
     let _deletion_task = tokio::task::spawn({
-        let session_store = session_store.clone();
+        let pool = pool.clone();
         async move {
             let mut interval = tokio::time::interval(Duration::from_mins(1));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 interval.tick().await;
-                if let Err(err) = session_store.delete_expired().await {
+                if let Err(err) = delete_expired_sessions(&pool).await {
                     tracing::error!("Failed to delete expired sessions: {err}");
                 }
             }
@@ -64,13 +58,7 @@ async fn main() -> Result<()> {
     let dummy_hash: String = task::spawn_blocking(|| generate_hash("__dummy__"))
         .await
         .context("Failed to generate dummy password hash")?;
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(config.cookie_secure)
-        .with_same_site(SameSite::Lax)
-        .with_expiry(Expiry::OnInactivity(TimeDuration::days(7)))
-        .with_signed(key);
-    let backend = Backend::new(pool.clone(), dummy_hash);
-    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let authenticator = Authenticator::new(pool.clone(), dummy_hash, key, config.cookie_secure);
     let login_limiter = Arc::new(security::rate_limit::LoginRateLimiter::new(
         5,
         Duration::from_mins(1),
@@ -110,6 +98,7 @@ async fn main() -> Result<()> {
         admin_limiter,
         canary_client: verifying_client.clone(),
         notifier: notifier.clone(),
+        authenticator,
     };
     let static_service = ServeDir::new("static").fallback(ServeFile::new("static/index.html"));
     let health_routes = api::healthcheck::health_routes();
@@ -127,8 +116,7 @@ async fn main() -> Result<()> {
                 .merge(auth_routes)
                 .merge(site_routes)
                 .merge(team_routes)
-                .merge(admin_routes)
-                .layer(auth_layer),
+                .merge(admin_routes),
         )
         .layer(security::cors::cors_layer(&config)?)
         .fallback_service(static_service)

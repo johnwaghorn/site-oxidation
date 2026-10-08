@@ -29,6 +29,8 @@ pub struct User {
     pub active: bool,
     pub must_change_password: bool,
     pub theme_preference: ThemePreference,
+    #[serde(skip)]
+    pub auth_revision: i64,
 }
 
 impl std::fmt::Debug for User {
@@ -41,6 +43,7 @@ impl std::fmt::Debug for User {
             .field("active", &self.active)
             .field("must_change_password", &self.must_change_password)
             .field("theme_preference", &self.theme_preference)
+            .field("auth_revision", &self.auth_revision)
             .finish()
     }
 }

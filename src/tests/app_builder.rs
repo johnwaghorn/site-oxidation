@@ -1,13 +1,10 @@
-use crate::auth_backend::Backend;
+use crate::auth::Authenticator;
 use crate::config::AppConfig;
 use crate::state::AppState;
 use axum::Router;
-use axum_login::AuthManagerLayerBuilder;
+use axum_extra::extract::cookie::Key;
 use password_auth::generate_hash;
 use sqlx::SqlitePool;
-use time::Duration as TimeDuration;
-use tower_sessions::cookie::{Key, SameSite};
-use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 
 pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
     AppConfig {
@@ -34,16 +31,8 @@ pub fn test_config(probe_allow_private_ips: bool) -> AppConfig {
 }
 
 pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> Router {
-    let session_store = MemoryStore::default();
-    let key = Key::generate();
     let dummy_hash = generate_hash("__dummy__");
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_same_site(SameSite::Lax)
-        .with_expiry(Expiry::OnInactivity(TimeDuration::days(1)))
-        .with_signed(key);
-    let backend = Backend::new(pool.clone(), dummy_hash);
-    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let authenticator = Authenticator::new(pool.clone(), dummy_hash, Key::generate(), false);
     let config = test_config(allow_private_ips);
     let notifier = crate::notifications::Notifier::new(
         reqwest::Client::new(),
@@ -62,6 +51,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
         )),
         canary_client: reqwest::Client::new(),
         notifier,
+        authenticator,
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();
@@ -77,8 +67,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
                 .merge(auth_routes)
                 .merge(site_routes)
                 .merge(team_routes)
-                .merge(admin_routes)
-                .layer(auth_layer),
+                .merge(admin_routes),
         )
         .with_state(state)
 }
@@ -92,16 +81,8 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
     config.allowed_origin = Some(allowed_origin.to_string());
     let cors = crate::security::cors::cors_layer(&config).expect("Invalid test ALLOWED_ORIGIN");
 
-    let session_store = MemoryStore::default();
-    let key = Key::generate();
     let dummy_hash = generate_hash("__dummy__");
-    let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
-        .with_same_site(SameSite::Lax)
-        .with_expiry(Expiry::OnInactivity(TimeDuration::days(1)))
-        .with_signed(key);
-    let backend = Backend::new(pool.clone(), dummy_hash);
-    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let authenticator = Authenticator::new(pool.clone(), dummy_hash, Key::generate(), false);
     let notifier = crate::notifications::Notifier::new(
         reqwest::Client::new(),
         config.smtp_allow_private_hosts,
@@ -119,6 +100,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
         )),
         canary_client: reqwest::Client::new(),
         notifier,
+        authenticator,
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();
@@ -134,8 +116,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
                 .merge(auth_routes)
                 .merge(site_routes)
                 .merge(team_routes)
-                .merge(admin_routes)
-                .layer(auth_layer),
+                .merge(admin_routes),
         )
         .layer(cors)
         .with_state(state)

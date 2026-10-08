@@ -1,8 +1,8 @@
 use anyhow::{Context, bail};
+use axum_extra::extract::cookie::Key;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use tower_sessions::cookie::Key;
 
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};

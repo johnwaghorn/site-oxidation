@@ -8,7 +8,6 @@ repository = "https://github.com/johnwaghorn/site-oxidation"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8.8"
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "migrate", "chrono"] }
-async-trait = "0.1"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 reqwest = { version = "0.13.4", features = ["json"] }
@@ -22,8 +21,6 @@ futures = "0.3.31"
 url = "2.5.8"
 anyhow = "1.0.102"
 thiserror = "2.0.18"
-axum-login = "0.18.0"
-tower-sessions = { version = "=0.14.0", features = ["signed"] }
 password-auth = "1.0"
 time = "0.3"
 dashmap = "6"
@@ -32,6 +29,7 @@ tokio-rustls = "0.26"
 rustls-platform-verifier = "0.7"
 x509-cert = { version = "0.3", default-features = false, features = ["std"] }
 lettre = { version = "0.11.22", default-features = false, features = ["smtp-transport", "builder", "hostname", "tokio1", "tokio1-rustls-tls", "tokio1-rustls", "rustls-platform-verifier", "aws-lc-rs"] }
+axum-extra = { version = "0.12.6", features = ["cookie-signed"] }
 
 [dev-dependencies]
 http-body-util = "0.1.3"
