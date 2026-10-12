@@ -13,9 +13,9 @@ import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { Modal } from "../components/ui/Modal";
 import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
-import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import type { components } from "../generated/schema";
 
@@ -54,6 +54,11 @@ export function Dashboard({ role, teams }: DashboardProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<SiteResponse | null>(null);
 
+  const closeCreateForm = () => {
+    createSite.reset();
+    setShowCreateForm(false);
+  };
+
   const isFiltered = Boolean(debouncedSearch || statusFilter);
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
   const hasNoSites = data != null && !error && data.total === 0 && !isFiltered;
@@ -65,50 +70,39 @@ export function Dashboard({ role, teams }: DashboardProps) {
 
   return (
     <div className="page-wrapper">
-      <h1 className="page-title">Sites</h1>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "20px",
-        }}
-      >
-        <FormToggleButton
-          isOpen={showCreateForm}
-          openLabel="Add Site"
+      <div className="page-header">
+        <h1 className="page-title">Sites</h1>
+        <button
+          type="button"
+          className="button-primary-action"
+          aria-haspopup="dialog"
           onClick={() => {
             createSite.reset();
-            setShowCreateForm(!showCreateForm);
+            setShowCreateForm(true);
           }}
-        />
+        >
+          Add site
+        </button>
       </div>
 
-      {showCreateForm && (
-        <div>
-          <SiteForm
-            onSubmit={(site) =>
-              createSite.mutate(site, {
-                onSuccess: () => setShowCreateForm(false),
-              })
-            }
-            onCancel={() => {
-              createSite.reset();
-              setShowCreateForm(false);
-            }}
-            isLoading={createSite.isPending}
-            role={role}
-            teams={teams}
-          />
-          {createSite.isError && <ErrorMessage error={createSite.error} />}
-        </div>
-      )}
+      <Modal isOpen={showCreateForm} onClose={closeCreateForm} title="Add site">
+        <SiteForm
+          onSubmit={(site) =>
+            createSite.mutate(site, {
+              onSuccess: () => setShowCreateForm(false),
+            })
+          }
+          onCancel={closeCreateForm}
+          isLoading={createSite.isPending}
+          role={role}
+          teams={teams}
+        />
+        {createSite.isError && <ErrorMessage error={createSite.error} />}
+      </Modal>
 
       {hasNoSites ? (
         showGetStarted ? (
-          !showCreateForm && (
-            <GetStartedNudge onAddSite={() => setShowCreateForm(true)} />
-          )
+          <GetStartedNudge onAddSite={() => setShowCreateForm(true)} />
         ) : (
           <SiteList sites={[]} />
         )

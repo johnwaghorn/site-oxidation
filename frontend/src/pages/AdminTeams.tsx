@@ -14,11 +14,11 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
-import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
 import type { components } from "../generated/schema";
 
@@ -45,6 +45,12 @@ export function AdminTeams() {
   const [editName, setEditName] = useState("");
   const [teamToDelete, setTeamToDelete] = useState<TeamResponse | null>(null);
   const [managingTeam, setManagingTeam] = useState<TeamResponse | null>(null);
+
+  const closeCreateForm = () => {
+    createTeam.reset();
+    setNewTeamName("");
+    setShowCreateForm(false);
+  };
 
   const handleCreateTeam = (e: FormEvent) => {
     e.preventDefault();
@@ -92,36 +98,30 @@ export function AdminTeams() {
 
   return (
     <div className="page-wrapper">
-      <h1 className="page-title">Teams</h1>
+      <div className="page-header">
+        <h1 className="page-title">Teams</h1>
+        <button
+          type="button"
+          className="button-primary-action"
+          aria-haspopup="dialog"
+          onClick={() => {
+            createTeam.reset();
+            setShowCreateForm(true);
+          }}
+        >
+          Add team
+        </button>
+      </div>
 
       {editingTeam && updateTeam.isError && (
         <ErrorMessage error={updateTeam.error} />
       )}
       {deleteTeam.isError && <ErrorMessage error={deleteTeam.error} />}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "20px",
-        }}
-      >
-        <FormToggleButton
-          isOpen={showCreateForm}
-          openLabel="Create Team"
-          onClick={() => {
-            createTeam.reset();
-            if (showCreateForm) {
-              setNewTeamName("");
-            }
-            setShowCreateForm(!showCreateForm);
-          }}
-        />
-      </div>
-
-      {showCreateForm && (
-        <div>
-          <form onSubmit={handleCreateTeam} className="inline-form">
+      <Modal isOpen={showCreateForm} onClose={closeCreateForm} title="Add team">
+        <form onSubmit={handleCreateTeam} className="form-column">
+          <label className="field-label">
+            <span className="field-label-text">Team name</span>
             <FormInput
               type="text"
               placeholder="New team name"
@@ -129,30 +129,29 @@ export function AdminTeams() {
               onChange={(e) => setNewTeamName(e.target.value)}
               required
               maxLength={60}
-              style={{ flex: 1 }}
             />
+          </label>
+          {createTeam.isError && <ErrorMessage error={createTeam.error} />}
+          <div
+            style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}
+          >
+            <button
+              type="button"
+              className="button-secondary-action"
+              onClick={closeCreateForm}
+            >
+              Cancel
+            </button>
             <button
               type="submit"
-              className="button-primary-action compact-input"
+              className="button-primary-action"
               disabled={createTeam.isPending}
             >
               {createTeam.isPending ? "Creating..." : "Create Team"}
             </button>
-            <button
-              type="button"
-              className="button-secondary-action compact-input"
-              onClick={() => {
-                createTeam.reset();
-                setNewTeamName("");
-                setShowCreateForm(false);
-              }}
-            >
-              Cancel
-            </button>
-          </form>
-          {createTeam.isError && <ErrorMessage error={createTeam.error} />}
-        </div>
-      )}
+          </div>
+        </form>
+      </Modal>
 
       {hasNoTeams ? (
         <p className="muted-text">

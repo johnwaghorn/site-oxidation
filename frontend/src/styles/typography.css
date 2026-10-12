@@ -4,6 +4,20 @@
   margin: 0 0 24px 0;
 }
 
+/* Page title with a primary action on the right */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.page-header .page-title {
+  margin: 0;
+}
+
 .page-subtitle {
   color: var(--color-muted);
   margin-bottom: 24px;
