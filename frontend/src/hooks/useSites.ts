@@ -36,6 +36,19 @@ export function useSites(filters: SitesFilters) {
   });
 }
 
+export function useUnassignedSiteCount(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.sitesUnassignedCount,
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/sites/unassigned-count");
+      if (error) throw new Error(error.message);
+      return data.count;
+    },
+    enabled,
+    refetchInterval: 10_000,
+  });
+}
+
 export function useSite(id: number) {
   return useQuery({
     queryKey: queryKeys.site(id),

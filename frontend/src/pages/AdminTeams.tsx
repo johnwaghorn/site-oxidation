@@ -15,7 +15,8 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Pagination } from "../components/ui/Pagination";
-import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
+import { SearchInput } from "../components/ui/SearchInput";
+import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
@@ -76,7 +77,8 @@ export function AdminTeams() {
 
   const teamList = teams?.data ?? [];
   const totalPages = teams ? Math.ceil(teams.total / teams.per_page) : 0;
-  const hasNoTeams = teams != null && teams.total === 0 && !debouncedSearch;
+  const hasNoTeams =
+    teams != null && !error && teams.total === 0 && !debouncedSearch;
 
   useEffect(() => {
     if (teams && teams.data.length === 0 && teams.total > 0 && page > 1) {
@@ -97,29 +99,25 @@ export function AdminTeams() {
       )}
       {deleteTeam.isError && <ErrorMessage error={deleteTeam.error} />}
 
-      <SearchToolbar
-        action={
-          <FormToggleButton
-            isOpen={showCreateForm}
-            openLabel="Create Team"
-            onClick={() => {
-              createTeam.reset();
-              if (showCreateForm) {
-                setNewTeamName("");
-              }
-              setShowCreateForm(!showCreateForm);
-            }}
-          />
-        }
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "20px",
+        }}
       >
-        {!hasNoTeams && (
-          <SearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search teams..."
-          />
-        )}
-      </SearchToolbar>
+        <FormToggleButton
+          isOpen={showCreateForm}
+          openLabel="Create Team"
+          onClick={() => {
+            createTeam.reset();
+            if (showCreateForm) {
+              setNewTeamName("");
+            }
+            setShowCreateForm(!showCreateForm);
+          }}
+        />
+      </div>
 
       {showCreateForm && (
         <div>
@@ -156,104 +154,120 @@ export function AdminTeams() {
         </div>
       )}
 
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : error ? (
-        <ErrorMessage error={error} />
-      ) : teamList.length > 0 ? (
-        <>
-          <table className="data-table">
-            <thead>
-              <tr className="table-header-row">
-                <th className="table-cell-left">Name</th>
-                <th className="table-cell-center">Members</th>
-                <th className="table-cell-center">Sites</th>
-                <th className="table-cell-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teamList.map((team) => (
-                <tr key={team.id} className="table-row">
-                  <td className="table-cell-left">
-                    {editingTeam?.id === team.id ? (
-                      <form
-                        onSubmit={handleRename}
-                        style={{ display: "flex", gap: "8px" }}
-                      >
-                        <FormInput
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          required
-                          maxLength={60}
-                          className="compact-input"
-                          style={{ minWidth: "180px" }}
-                        />
-                        <button
-                          type="submit"
-                          className="button-table-action compact-input"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          className="button-table-action compact-input"
-                          onClick={() => setEditingTeam(null)}
-                        >
-                          Cancel
-                        </button>
-                      </form>
-                    ) : (
-                      <Link to={`/admin/teams/${team.id}`}>
-                        <Truncate text={team.name} />
-                      </Link>
-                    )}
-                  </td>
-                  <td className="table-cell-center">{team.member_count}</td>
-                  <td className="table-cell-center">{team.site_count}</td>
-                  <td className="table-cell">
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        className="button-table-action compact-input"
-                        onClick={() =>
-                          setManagingTeam(
-                            managingTeam?.id === team.id ? null : team,
-                          )
-                        }
-                      >
-                        {managingTeam?.id === team.id ? "Close" : "Members"}
-                      </button>
-                      <button
-                        className="button-table-action compact-input"
-                        onClick={() => startEditing(team)}
-                      >
-                        Rename
-                      </button>
-                      <button
-                        className="button-table-action button-table-danger compact-input"
-                        onClick={() => setTeamToDelete(team)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                    {managingTeam?.id === team.id && (
-                      <MemberPanel teamId={team.id} />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={goToPage}
-          />
-        </>
-      ) : (
+      {hasNoTeams ? (
         <p className="muted-text">
           No teams yet. Create one above. Maybe a team just for admins!
         </p>
+      ) : (
+        <>
+          <TableCard
+            toolbar={
+              <SearchInput
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search teams..."
+              />
+            }
+          >
+            {isLoading ? (
+              <LoadingSpinner />
+            ) : error ? (
+              <ErrorMessage error={error} />
+            ) : teamList.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr className="table-header-row">
+                    <th className="table-cell-left">Name</th>
+                    <th className="table-cell-center">Members</th>
+                    <th className="table-cell-center">Sites</th>
+                    <th className="table-cell-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamList.map((team) => (
+                    <tr key={team.id} className="table-row">
+                      <td className="table-cell-left">
+                        {editingTeam?.id === team.id ? (
+                          <form
+                            onSubmit={handleRename}
+                            style={{ display: "flex", gap: "8px" }}
+                          >
+                            <FormInput
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              required
+                              maxLength={60}
+                              className="compact-input"
+                              style={{ minWidth: "180px" }}
+                            />
+                            <button
+                              type="submit"
+                              className="button-table-action compact-input"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              className="button-table-action compact-input"
+                              onClick={() => setEditingTeam(null)}
+                            >
+                              Cancel
+                            </button>
+                          </form>
+                        ) : (
+                          <Link to={`/admin/teams/${team.id}`}>
+                            <Truncate text={team.name} />
+                          </Link>
+                        )}
+                      </td>
+                      <td className="table-cell-center">{team.member_count}</td>
+                      <td className="table-cell-center">{team.site_count}</td>
+                      <td className="table-cell">
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            className="button-table-action compact-input"
+                            onClick={() =>
+                              setManagingTeam(
+                                managingTeam?.id === team.id ? null : team,
+                              )
+                            }
+                          >
+                            {managingTeam?.id === team.id ? "Close" : "Members"}
+                          </button>
+                          <button
+                            className="button-table-action compact-input"
+                            onClick={() => startEditing(team)}
+                          >
+                            Rename
+                          </button>
+                          <button
+                            className="button-table-action button-table-danger compact-input"
+                            onClick={() => setTeamToDelete(team)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                        {managingTeam?.id === team.id && (
+                          <MemberPanel teamId={team.id} />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <TableCardEmpty>No teams match your search.</TableCardEmpty>
+            )}
+          </TableCard>
+          {teamList.length > 0 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            />
+          )}
+        </>
       )}
 
       <ConfirmDialog

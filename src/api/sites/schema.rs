@@ -8,12 +8,13 @@ use utoipa::OpenApi;
 use super::endpoints;
 use super::params::SiteStatusFilter;
 use super::requests::SitePayload;
-use super::responses::{OutageResponse, SiteResponse};
+use super::responses::{OutageResponse, SiteResponse, UnassignedCountResponse};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
         endpoints::list_sites,
+        endpoints::count_unassigned_sites,
         endpoints::get_site,
         endpoints::create_site,
         endpoints::update_site,
@@ -25,6 +26,7 @@ use super::responses::{OutageResponse, SiteResponse};
         PaginatedResponse<SiteResponse>,
         OutageResponse,
         PaginatedResponse<OutageResponse>,
+        UnassignedCountResponse,
         SitePayload,
         SiteStatus,
         SiteStatusFilter,

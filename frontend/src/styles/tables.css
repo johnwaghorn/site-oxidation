@@ -38,11 +38,36 @@
   text-align: right;
 }
 
-/* Search and filters that sit directly above a data table */
-.table-toolbar {
+/* Card that wraps a data table with a search/filter toolbar header */
+.table-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.table-card-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table-card-body {
+  overflow-x: auto;
+}
+
+.table-card .data-table {
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.table-card-empty {
+  margin: 0;
+  padding: 24px 14px;
 }

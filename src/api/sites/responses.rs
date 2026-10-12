@@ -32,3 +32,8 @@ pub struct OutageResponse {
     pub ended_at: Option<DateTime<Utc>>,
     pub error_message: Option<String>,
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct UnassignedCountResponse {
+    pub count: i64,
+}

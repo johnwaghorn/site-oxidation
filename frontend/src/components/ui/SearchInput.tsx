@@ -1,32 +1,9 @@
-import type { ReactNode } from "react";
 import { SearchIcon } from "../icons";
 
 interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-}
-
-interface SearchToolbarProps {
-  children: ReactNode;
-  action?: ReactNode;
-}
-
-export function SearchToolbar({ children, action }: SearchToolbarProps) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: "12px",
-        marginBottom: "20px",
-      }}
-    >
-      {children}
-      {action && <div style={{ marginLeft: "auto" }}>{action}</div>}
-    </div>
-  );
 }
 
 export function SearchInput({

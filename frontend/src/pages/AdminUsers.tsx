@@ -20,7 +20,8 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Pagination } from "../components/ui/Pagination";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
+import { SearchInput } from "../components/ui/SearchInput";
+import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
@@ -49,7 +50,8 @@ export function AdminUsers() {
   const resetPassword = useResetPassword();
 
   const totalPages = users ? Math.ceil(users.total / users.per_page) : 0;
-  const hasNoUsers = users != null && users.total === 0 && !debouncedSearch;
+  const hasNoUsers =
+    users != null && !error && users.total === 0 && !debouncedSearch;
 
   useEffect(() => {
     if (users && users.data.length === 0 && users.total > 0 && page > 1) {
@@ -137,28 +139,24 @@ export function AdminUsers() {
 
       {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
 
-      <SearchToolbar
-        action={
-          <FormToggleButton
-            isOpen={showCreateForm}
-            openLabel="Create User"
-            onClick={() => {
-              if (showCreateForm) {
-                resetCreateForm();
-              }
-              setShowCreateForm(!showCreateForm);
-            }}
-          />
-        }
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "20px",
+        }}
       >
-        {!hasNoUsers && (
-          <SearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search users..."
-          />
-        )}
-      </SearchToolbar>
+        <FormToggleButton
+          isOpen={showCreateForm}
+          openLabel="Create User"
+          onClick={() => {
+            if (showCreateForm) {
+              resetCreateForm();
+            }
+            setShowCreateForm(!showCreateForm);
+          }}
+        />
+      </div>
 
       {showCreateForm && (
         <div style={{ marginBottom: "24px" }}>
@@ -182,148 +180,168 @@ export function AdminUsers() {
         </div>
       )}
 
-      <div>
-        {isLoading ? (
-          <LoadingSpinner />
-        ) : error ? (
-          <ErrorMessage error={error} />
-        ) : users && users.data.length > 0 ? (
-          <>
-            <table className="data-table">
-              <thead>
-                <tr className="table-header-row">
-                  <th className="table-cell-left">Username</th>
-                  <th className="table-cell-center">Role</th>
-                  <th className="table-cell-center">Active</th>
-                  <th className="table-cell-left">Teams</th>
-                  <th className="table-cell-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.data.map((user) => (
-                  <tr key={user.id} className="table-row">
-                    <td className="table-cell-left" style={{ fontWeight: 500 }}>
-                      {user.username}
-                      {user.must_change_password && (
-                        <span
-                          className="muted-text"
-                          style={{
-                            fontSize: "12px",
-                            marginLeft: "8px",
-                          }}
-                        >
-                          (must change password)
-                        </span>
-                      )}
-                    </td>
-                    <td className="table-cell-center">{user.role}</td>
-                    <td className="table-cell-center">
-                      {user.active ? "Yes" : "No"}
-                    </td>
-                    <td
-                      className="table-cell-left muted-text"
-                      style={{
-                        fontSize: "14px",
-                      }}
-                    >
-                      <Truncate
-                        text={user.team_names || "None"}
-                        maxWidth={260}
-                      />
-                    </td>
-                    <td className="table-cell">
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          flexDirection: "column",
-                        }}
+      {hasNoUsers ? (
+        <p className="muted-text">No users found.</p>
+      ) : (
+        <>
+          <TableCard
+            toolbar={
+              <SearchInput
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search users..."
+              />
+            }
+          >
+            {isLoading ? (
+              <LoadingSpinner />
+            ) : error ? (
+              <ErrorMessage error={error} />
+            ) : users && users.data.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr className="table-header-row">
+                    <th className="table-cell-left">Username</th>
+                    <th className="table-cell-center">Role</th>
+                    <th className="table-cell-center">Active</th>
+                    <th className="table-cell-left">Teams</th>
+                    <th className="table-cell-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.data.map((user) => (
+                    <tr key={user.id} className="table-row">
+                      <td
+                        className="table-cell-left"
+                        style={{ fontWeight: 500 }}
                       >
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button
-                            className="button-table-action compact-input"
-                            onClick={() => handleToggleActive(user)}
-                          >
-                            {user.active ? "Deactivate" : "Activate"}
-                          </button>
-                          <button
-                            className="button-table-action compact-input"
-                            onClick={() => {
-                              setResettingUserId(
-                                resettingUserId === user.id ? null : user.id,
-                              );
-                              setTempPassword("");
+                        {user.username}
+                        {user.must_change_password && (
+                          <span
+                            className="muted-text"
+                            style={{
+                              fontSize: "12px",
+                              marginLeft: "8px",
                             }}
                           >
-                            {resettingUserId === user.id
-                              ? "Cancel"
-                              : "Reset Password"}
-                          </button>
-                          <button
-                            className="button-table-action button-table-danger compact-input"
-                            onClick={() => setUserToDelete(user)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                        {resettingUserId === user.id && (
+                            (must change password)
+                          </span>
+                        )}
+                      </td>
+                      <td className="table-cell-center">{user.role}</td>
+                      <td className="table-cell-center">
+                        {user.active ? "Yes" : "No"}
+                      </td>
+                      <td
+                        className="table-cell-left muted-text"
+                        style={{
+                          fontSize: "14px",
+                        }}
+                      >
+                        <Truncate
+                          text={user.team_names || "None"}
+                          maxWidth={260}
+                        />
+                      </td>
+                      <td className="table-cell">
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            flexDirection: "column",
+                          }}
+                        >
                           <div style={{ display: "flex", gap: "8px" }}>
-                            <FormInput
-                              type="text"
-                              placeholder="Temporary password (12+ chars)"
-                              value={tempPassword}
-                              onChange={(e) => setTempPassword(e.target.value)}
-                              minLength={12}
-                              className="compact-input"
-                              style={{ flex: 1 }}
-                            />
                             <button
                               className="button-table-action compact-input"
-                              onClick={() => handleResetPassword(user.id)}
-                              disabled={resetPassword.isPending}
+                              onClick={() => handleToggleActive(user)}
                             >
-                              Set
+                              {user.active ? "Deactivate" : "Activate"}
+                            </button>
+                            <button
+                              className="button-table-action compact-input"
+                              onClick={() => {
+                                setResettingUserId(
+                                  resettingUserId === user.id ? null : user.id,
+                                );
+                                setTempPassword("");
+                              }}
+                            >
+                              {resettingUserId === user.id
+                                ? "Cancel"
+                                : "Reset Password"}
+                            </button>
+                            <button
+                              className="button-table-action button-table-danger compact-input"
+                              onClick={() => setUserToDelete(user)}
+                            >
+                              Delete
                             </button>
                           </div>
+                          {resettingUserId === user.id && (
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <FormInput
+                                type="text"
+                                placeholder="Temporary password (12+ chars)"
+                                value={tempPassword}
+                                onChange={(e) =>
+                                  setTempPassword(e.target.value)
+                                }
+                                minLength={12}
+                                className="compact-input"
+                                style={{ flex: 1 }}
+                              />
+                              <button
+                                className="button-table-action compact-input"
+                                onClick={() => handleResetPassword(user.id)}
+                                disabled={resetPassword.isPending}
+                              >
+                                Set
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {updateUser.isError && (
+                          <p
+                            className="error-box"
+                            style={{
+                              marginTop: "4px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            {updateUser.error.message}
+                          </p>
                         )}
-                      </div>
-                      {updateUser.isError && (
-                        <p
-                          className="error-box"
-                          style={{
-                            marginTop: "4px",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {updateUser.error.message}
-                        </p>
-                      )}
-                      {resetPassword.isError && resettingUserId === user.id && (
-                        <p
-                          className="error-box"
-                          style={{
-                            marginTop: "4px",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {resetPassword.error.message}
-                        </p>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        {resetPassword.isError &&
+                          resettingUserId === user.id && (
+                            <p
+                              className="error-box"
+                              style={{
+                                marginTop: "4px",
+                                fontSize: "12px",
+                              }}
+                            >
+                              {resetPassword.error.message}
+                            </p>
+                          )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <TableCardEmpty>No users match your search.</TableCardEmpty>
+            )}
+          </TableCard>
+          {users && users.data.length > 0 && (
             <Pagination
               page={page}
               totalPages={totalPages}
               onPageChange={goToPage}
             />
-          </>
-        ) : (
-          <p className="muted-text">No users found.</p>
-        )}
-      </div>
+          )}
+        </>
+      )}
       <ConfirmDialog
         isOpen={userToDelete !== null}
         onClose={() => setUserToDelete(null)}

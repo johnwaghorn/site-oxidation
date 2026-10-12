@@ -4,6 +4,7 @@ import type { SitesFilters } from "../hooks/useSites";
 export const queryKeys = {
   authMe: ["auth", "me"] as const,
   sites: (filters: SitesFilters) => ["sites", filters] as const,
+  sitesUnassignedCount: ["sites", "unassigned-count"] as const,
   sitesAll: ["sites"] as const,
   site: (id: number) => ["sites", id] as const,
   outages: (siteId: number, page: number, perPage: number) =>

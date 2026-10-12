@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useSites, useCreateSite, useDeleteSite } from "../hooks/useSites";
+import {
+  useSites,
+  useCreateSite,
+  useDeleteSite,
+  useUnassignedSiteCount,
+} from "../hooks/useSites";
 import { usePagination } from "../hooks/usePagination";
 import { SiteList } from "../components/sites/SiteList";
 import { SiteForm } from "../components/sites/SiteForm";
@@ -9,6 +14,7 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { SearchInput } from "../components/ui/SearchInput";
+import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import type { components } from "../generated/schema";
@@ -42,6 +48,7 @@ export function Dashboard({ role, teams }: DashboardProps) {
     search: debouncedSearch || undefined,
     status: statusFilter ?? undefined,
   });
+  const { data: orphanedCount = 0 } = useUnassignedSiteCount(role === "admin");
   const createSite = useCreateSite();
   const deleteSite = useDeleteSite();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -49,7 +56,7 @@ export function Dashboard({ role, teams }: DashboardProps) {
 
   const isFiltered = Boolean(debouncedSearch || statusFilter);
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
-  const hasNoSites = data != null && data.total === 0 && !isFiltered;
+  const hasNoSites = data != null && !error && data.total === 0 && !isFiltered;
   const showGetStarted = role === "admin" && hasNoSites;
 
   useEffect(() => {
@@ -97,56 +104,72 @@ export function Dashboard({ role, teams }: DashboardProps) {
         </div>
       )}
 
-      {!hasNoSites && (
-        <div className="table-toolbar">
-          <SearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search sites..."
-          />
-          <div className="segmented" role="group" aria-label="Filter by status">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.label}
-                type="button"
-                className="segmented-button"
-                aria-pressed={statusFilter === f.value}
-                onClick={() => setStatusFilter(f.value)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : error ? (
-        <ErrorMessage error={error} />
-      ) : data ? (
+      {hasNoSites ? (
         showGetStarted ? (
           !showCreateForm && (
             <GetStartedNudge onAddSite={() => setShowCreateForm(true)} />
           )
         ) : (
-          <>
-            {isFiltered && data.total === 0 ? (
-              <p className="muted-text">No sites match these filters.</p>
-            ) : (
+          <SiteList sites={[]} />
+        )
+      ) : (
+        <>
+          {role === "admin" && orphanedCount > 0 && (
+            <p className="muted-text">
+              {orphanedCount} site{orphanedCount === 1 ? "" : "s"} with no team
+              assigned
+            </p>
+          )}
+          <TableCard
+            toolbar={
+              <>
+                <SearchInput
+                  value={searchInput}
+                  onChange={setSearchInput}
+                  placeholder="Search sites..."
+                />
+                <div
+                  className="segmented"
+                  role="group"
+                  aria-label="Filter by status"
+                >
+                  {STATUS_FILTERS.map((f) => (
+                    <button
+                      key={f.label}
+                      type="button"
+                      className="segmented-button"
+                      aria-pressed={statusFilter === f.value}
+                      onClick={() => setStatusFilter(f.value)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            }
+          >
+            {isLoading ? (
+              <LoadingSpinner />
+            ) : error ? (
+              <ErrorMessage error={error} />
+            ) : data && data.total === 0 ? (
+              <TableCardEmpty>No sites match these filters.</TableCardEmpty>
+            ) : data ? (
               <SiteList
                 sites={data.data}
                 onDelete={(site) => setSiteToDelete(site)}
               />
-            )}
+            ) : null}
+          </TableCard>
+          {data && (
             <Pagination
               page={data.page}
               totalPages={totalPages}
               onPageChange={goToPage}
             />
-          </>
-        )
-      ) : null}
+          )}
+        </>
+      )}
 
       <ConfirmDialog
         isOpen={siteToDelete !== null}
