@@ -21,12 +21,16 @@ pub const LIST_SITES_ADMIN: &str = concat!(
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s LEFT JOIN teams t ON t.id = s.team_id ",
     "WHERE (?1 IS NULL OR s.name LIKE '%' || ?1 || '%' OR s.url LIKE '%' || ?1 || '%') ",
-    "ORDER BY s.id DESC LIMIT ?2 OFFSET ?3"
+    "AND (?2 IS NULL OR (?2 = 'up' AND s.status = 'up') ",
+    "  OR (?2 = 'down' AND s.status IN ('down', 'blocked'))) ",
+    "ORDER BY s.id DESC LIMIT ?3 OFFSET ?4"
 );
 
 pub const COUNT_SITES_ADMIN: &str = concat!(
     "SELECT COUNT(*) FROM sites s ",
-    "WHERE (?1 IS NULL OR s.name LIKE '%' || ?1 || '%' OR s.url LIKE '%' || ?1 || '%')"
+    "WHERE (?1 IS NULL OR s.name LIKE '%' || ?1 || '%' OR s.url LIKE '%' || ?1 || '%') ",
+    "AND (?2 IS NULL OR (?2 = 'up' AND s.status = 'up') ",
+    "  OR (?2 = 'down' AND s.status IN ('down', 'blocked')))"
 );
 
 pub const SELECT_SITE_USER: &str = concat!(
@@ -48,14 +52,18 @@ pub const LIST_SITES_USER: &str = concat!(
     "LEFT JOIN teams t ON t.id = s.team_id ",
     "WHERE tm.user_id = ?1 ",
     "AND (?2 IS NULL OR s.name LIKE '%' || ?2 || '%' OR s.url LIKE '%' || ?2 || '%') ",
-    "ORDER BY s.id DESC LIMIT ?3 OFFSET ?4"
+    "AND (?3 IS NULL OR (?3 = 'up' AND s.status = 'up') ",
+    "  OR (?3 = 'down' AND s.status IN ('down', 'blocked'))) ",
+    "ORDER BY s.id DESC LIMIT ?4 OFFSET ?5"
 );
 
 pub const COUNT_SITES_USER: &str = concat!(
     "SELECT COUNT(*) FROM sites s ",
     "INNER JOIN team_members tm ON s.team_id = tm.team_id ",
     "WHERE tm.user_id = ?1 ",
-    "AND (?2 IS NULL OR s.name LIKE '%' || ?2 || '%' OR s.url LIKE '%' || ?2 || '%')"
+    "AND (?2 IS NULL OR s.name LIKE '%' || ?2 || '%' OR s.url LIKE '%' || ?2 || '%') ",
+    "AND (?3 IS NULL OR (?3 = 'up' AND s.status = 'up') ",
+    "  OR (?3 = 'down' AND s.status IN ('down', 'blocked')))"
 );
 
 // Outages

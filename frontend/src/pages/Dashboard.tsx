@@ -8,15 +8,21 @@ import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
-import { SearchInput, SearchToolbar } from "../components/ui/SearchInput";
+import { SearchInput } from "../components/ui/SearchInput";
 import { FormToggleButton } from "../components/ui/FormToggleButton";
-import { FormSelect } from "../components/ui/FormControls";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import type { components } from "../generated/schema";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
+type SiteStatusFilter = components["schemas"]["SiteStatusFilter"];
 type UserTeam = components["schemas"]["UserTeam"];
 type UserRole = components["schemas"]["UserRole"];
+
+const STATUS_FILTERS: { label: string; value: SiteStatusFilter | null }[] = [
+  { label: "All", value: null },
+  { label: "Up", value: "up" },
+  { label: "Down", value: "down" },
+];
 
 interface DashboardProps {
   role: UserRole | null;
@@ -27,55 +33,49 @@ export function Dashboard({ role, teams }: DashboardProps) {
   const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
-  const { data, isLoading, error } = useSites(
+  const [statusFilter, setStatusFilter] = useState<SiteStatusFilter | null>(
+    null,
+  );
+  const { data, isLoading, error } = useSites({
     page,
     perPage,
-    debouncedSearch || undefined,
-  );
+    search: debouncedSearch || undefined,
+    status: statusFilter ?? undefined,
+  });
   const createSite = useCreateSite();
   const deleteSite = useDeleteSite();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<SiteResponse | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
 
+  const isFiltered = Boolean(debouncedSearch || statusFilter);
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
-  const hasNoSites = data != null && data.total === 0 && !debouncedSearch;
+  const hasNoSites = data != null && data.total === 0 && !isFiltered;
   const showGetStarted = role === "admin" && hasNoSites;
-
-  const sites = data?.data ?? [];
-  const filteredSites = selectedTeamId
-    ? sites.filter((s) => s.team_id === selectedTeamId)
-    : sites;
-  const orphanedCount = sites.filter((s) => s.team_id == null).length;
 
   useEffect(() => {
     resetPage();
-  }, [debouncedSearch, resetPage]);
+  }, [debouncedSearch, statusFilter, resetPage]);
 
   return (
     <div className="page-wrapper">
       <h1 className="page-title">Sites</h1>
 
-      <SearchToolbar
-        action={
-          <FormToggleButton
-            isOpen={showCreateForm}
-            openLabel="Add Site"
-            onClick={() => {
-              createSite.reset();
-              setShowCreateForm(!showCreateForm);
-            }}
-          />
-        }
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "20px",
+        }}
       >
-        {!hasNoSites && (
-          <SearchInput
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search sites..."
-          />
-        )}
-      </SearchToolbar>
+        <FormToggleButton
+          isOpen={showCreateForm}
+          openLabel="Add Site"
+          onClick={() => {
+            createSite.reset();
+            setShowCreateForm(!showCreateForm);
+          }}
+        />
+      </div>
 
       {showCreateForm && (
         <div>
@@ -97,6 +97,29 @@ export function Dashboard({ role, teams }: DashboardProps) {
         </div>
       )}
 
+      {!hasNoSites && (
+        <div className="table-toolbar">
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search sites..."
+          />
+          <div className="segmented" role="group" aria-label="Filter by status">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.label}
+                type="button"
+                className="segmented-button"
+                aria-pressed={statusFilter === f.value}
+                onClick={() => setStatusFilter(f.value)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <LoadingSpinner />
       ) : error ? (
@@ -108,34 +131,14 @@ export function Dashboard({ role, teams }: DashboardProps) {
           )
         ) : (
           <>
-            {role === "admin" && orphanedCount > 0 && (
-              <p className="muted-text">
-                {orphanedCount} site{orphanedCount === 1 ? "" : "s"} with no
-                team assigned
-              </p>
+            {isFiltered && data.total === 0 ? (
+              <p className="muted-text">No sites match these filters.</p>
+            ) : (
+              <SiteList
+                sites={data.data}
+                onDelete={(site) => setSiteToDelete(site)}
+              />
             )}
-            {role !== "admin" && teams.length > 1 && (
-              <FormSelect
-                value={selectedTeamId ?? ""}
-                onChange={(e) =>
-                  setSelectedTeamId(
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-                style={{ marginBottom: "16px", maxWidth: "min(100%, 360px)" }}
-              >
-                <option value="">All teams</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </FormSelect>
-            )}
-            <SiteList
-              sites={filteredSites}
-              onDelete={(site) => setSiteToDelete(site)}
-            />
             <Pagination
               page={data.page}
               totalPages={totalPages}

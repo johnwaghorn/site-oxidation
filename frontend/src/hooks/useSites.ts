@@ -8,16 +8,26 @@ type ListSitesQuery = NonNullable<
   operations["list_sites"]["parameters"]["query"]
 >;
 
-export function useSites(
-  page = 1,
-  perPage = 20,
-  search?: ListSitesQuery["search"],
-) {
+export interface SitesFilters {
+  page: NonNullable<ListSitesQuery["page"]>;
+  perPage: NonNullable<ListSitesQuery["per_page"]>;
+  search?: ListSitesQuery["search"];
+  status?: ListSitesQuery["status"];
+}
+
+export function useSites(filters: SitesFilters) {
   return useQuery({
-    queryKey: queryKeys.sites(page, perPage, search),
+    queryKey: queryKeys.sites(filters),
     queryFn: async () => {
       const { data, error } = await api.GET("/api/sites", {
-        params: { query: { page, per_page: perPage, search } },
+        params: {
+          query: {
+            page: filters.page,
+            per_page: filters.perPage,
+            search: filters.search || undefined,
+            status: filters.status,
+          },
+        },
       });
       if (error) throw new Error(error.message);
       return data!;

@@ -101,6 +101,102 @@ async fn test_list_sites_filters_by_name_or_url_and_ignores_blank_search(pool: S
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_list_sites_filters_by_status_and_down_includes_blocked(pool: SqlitePool) {
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status) VALUES \
+         ('Up Site', 'https://up.waghorn.tech', 200, 'up'), \
+         ('Down Site', 'https://down.waghorn.tech', 200, 'down'), \
+         ('Blocked Site', 'https://blocked.waghorn.tech', 200, 'blocked'), \
+         ('Pending Site', 'https://pending.waghorn.tech', 200, 'pending')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/sites?status=up")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 1, "only the up site should match status=up");
+    assert_eq!(body["data"][0]["name"], "Up Site");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/sites?status=down")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["total"], 2,
+        "status=down should match down and blocked sites"
+    );
+    let names: Vec<&str> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["name"].as_str().unwrap())
+        .collect();
+    assert!(
+        names.contains(&"Down Site"),
+        "down site missing from {names:?}"
+    );
+    assert!(
+        names.contains(&"Blocked Site"),
+        "blocked site missing from {names:?}"
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["total"], 4,
+        "no status filter should return every site"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_sites_rejects_unknown_status_filter(pool: SqlitePool) {
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites?status=pending")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_create_site(pool: SqlitePool) {
     let (app, cookie) = authenticated_admin_app(pool, true).await;
     let payload = format!(
