@@ -70,7 +70,10 @@ export function AdminUsers() {
   const [newTeamId, setNewTeamId] = useState<number | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const [resettingUserId, setResettingUserId] = useState<number | null>(null);
+  const [userToReset, setUserToReset] = useState<UserResponse | null>(null);
+  const [userToDeactivate, setUserToDeactivate] = useState<UserResponse | null>(
+    null,
+  );
   const [tempPassword, setTempPassword] = useState("");
   const [userToDelete, setUserToDelete] = useState<UserResponse | null>(null);
 
@@ -125,16 +128,18 @@ export function AdminUsers() {
     });
   };
 
-  const handleResetPassword = (userId: number) => {
-    if (!tempPassword.trim()) return;
+  const closeResetDialog = () => {
+    resetPassword.reset();
+    setUserToReset(null);
+    setTempPassword("");
+  };
+
+  const handleResetPassword = (e: FormEvent) => {
+    e.preventDefault();
+    if (!userToReset || !tempPassword.trim()) return;
     resetPassword.mutate(
-      { id: userId, payload: { temp_password: tempPassword } },
-      {
-        onSuccess: () => {
-          setResettingUserId(null);
-          setTempPassword("");
-        },
-      },
+      { id: userToReset.id, payload: { temp_password: tempPassword } },
+      { onSuccess: closeResetDialog },
     );
   };
 
@@ -155,6 +160,7 @@ export function AdminUsers() {
       </div>
 
       {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
+      {updateUser.isError && <ErrorMessage error={updateUser.error} />}
 
       <Modal isOpen={showCreateForm} onClose={closeCreateForm} title="Add user">
         <CreateUserForm
@@ -237,86 +243,31 @@ export function AdminUsers() {
                         />
                       </td>
                       <td className="table-cell">
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            flexDirection: "column",
-                          }}
-                        >
-                          <div style={{ display: "flex", gap: "8px" }}>
-                            <button
-                              className="button-table-action compact-input"
-                              onClick={() => handleToggleActive(user)}
-                            >
-                              {user.active ? "Deactivate" : "Activate"}
-                            </button>
-                            <button
-                              className="button-table-action compact-input"
-                              onClick={() => {
-                                setResettingUserId(
-                                  resettingUserId === user.id ? null : user.id,
-                                );
-                                setTempPassword("");
-                              }}
-                            >
-                              {resettingUserId === user.id
-                                ? "Cancel"
-                                : "Reset Password"}
-                            </button>
-                            <button
-                              className="button-table-action button-table-danger compact-input"
-                              onClick={() => setUserToDelete(user)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                          {resettingUserId === user.id && (
-                            <div style={{ display: "flex", gap: "8px" }}>
-                              <FormInput
-                                type="text"
-                                placeholder="Temporary password (12+ chars)"
-                                value={tempPassword}
-                                onChange={(e) =>
-                                  setTempPassword(e.target.value)
-                                }
-                                minLength={12}
-                                className="compact-input"
-                                style={{ flex: 1 }}
-                              />
-                              <button
-                                className="button-table-action compact-input"
-                                onClick={() => handleResetPassword(user.id)}
-                                disabled={resetPassword.isPending}
-                              >
-                                Set
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        {updateUser.isError && (
-                          <p
-                            className="error-box"
-                            style={{
-                              marginTop: "4px",
-                              fontSize: "12px",
-                            }}
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            className="button-table-action compact-input"
+                            onClick={() =>
+                              user.active
+                                ? setUserToDeactivate(user)
+                                : handleToggleActive(user)
+                            }
                           >
-                            {updateUser.error.message}
-                          </p>
-                        )}
-                        {resetPassword.isError &&
-                          resettingUserId === user.id && (
-                            <p
-                              className="error-box"
-                              style={{
-                                marginTop: "4px",
-                                fontSize: "12px",
-                              }}
-                            >
-                              {resetPassword.error.message}
-                            </p>
-                          )}
+                            {user.active ? "Deactivate" : "Activate"}
+                          </button>
+                          <button
+                            className="button-table-action compact-input"
+                            aria-haspopup="dialog"
+                            onClick={() => setUserToReset(user)}
+                          >
+                            Reset Password
+                          </button>
+                          <button
+                            className="button-table-action button-table-danger compact-input"
+                            onClick={() => setUserToDelete(user)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -335,6 +286,63 @@ export function AdminUsers() {
           )}
         </>
       )}
+      <Modal
+        isOpen={userToReset !== null}
+        onClose={closeResetDialog}
+        title={`Reset password for ${userToReset?.username ?? ""}`}
+      >
+        <form onSubmit={handleResetPassword} className="form-column">
+          <p className="muted-text" style={{ margin: 0 }}>
+            They will be signed out everywhere and must choose a new password
+            the next time they sign in.
+          </p>
+          <label className="field-label">
+            <span className="field-label-text">Temporary password</span>
+            <FormInput
+              type="text"
+              placeholder="12+ characters"
+              value={tempPassword}
+              onChange={(e) => setTempPassword(e.target.value)}
+              required
+              minLength={12}
+              maxLength={128}
+              autoComplete="off"
+            />
+          </label>
+          {resetPassword.isError && (
+            <ErrorMessage error={resetPassword.error} />
+          )}
+          <div
+            style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}
+          >
+            <button
+              type="button"
+              className="button-secondary-action"
+              onClick={closeResetDialog}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="button-primary-action"
+              disabled={resetPassword.isPending}
+            >
+              {resetPassword.isPending ? "Resetting..." : "Reset password"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+      <ConfirmDialog
+        isOpen={userToDeactivate !== null}
+        onClose={() => setUserToDeactivate(null)}
+        onConfirm={() =>
+          userToDeactivate && handleToggleActive(userToDeactivate)
+        }
+        title="Deactivate User"
+        message={`Deactivate "${userToDeactivate?.username}"? They will be signed out and cannot sign in until reactivated.`}
+        confirmText="Deactivate"
+        isDestructive
+      />
       <ConfirmDialog
         isOpen={userToDelete !== null}
         onClose={() => setUserToDelete(null)}

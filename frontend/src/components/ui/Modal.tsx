@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { CloseIcon } from "../icons";
 
 interface ModalProps {
   isOpen: boolean;
@@ -16,6 +17,13 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     if (!dialog) return;
     if (isOpen && !dialog.open) {
       dialog.showModal();
+      // Start on an explicit target or the first field, not the close button
+      const initialFocus =
+        dialog.querySelector<HTMLElement>("[data-autofocus]") ??
+        dialog.querySelector<HTMLElement>(
+          ".modal-body :is(input, select, textarea)",
+        );
+      initialFocus?.focus();
     } else if (!isOpen && dialog.open) {
       dialog.close();
     }
@@ -46,7 +54,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
               aria-label="Close"
               onClick={onClose}
             >
-              ×
+              <CloseIcon />
             </button>
           </div>
           <div className="modal-body">{children}</div>

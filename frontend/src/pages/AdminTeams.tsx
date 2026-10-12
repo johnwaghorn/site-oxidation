@@ -81,6 +81,11 @@ export function AdminTeams() {
     setEditName(team.name);
   };
 
+  const closeRename = () => {
+    updateTeam.reset();
+    setEditingTeam(null);
+  };
+
   const teamList = teams?.data ?? [];
   const totalPages = teams ? Math.ceil(teams.total / teams.per_page) : 0;
   const hasNoTeams =
@@ -113,9 +118,6 @@ export function AdminTeams() {
         </button>
       </div>
 
-      {editingTeam && updateTeam.isError && (
-        <ErrorMessage error={updateTeam.error} />
-      )}
       {deleteTeam.isError && <ErrorMessage error={deleteTeam.error} />}
 
       <Modal isOpen={showCreateForm} onClose={closeCreateForm} title="Add team">
@@ -186,39 +188,9 @@ export function AdminTeams() {
                   {teamList.map((team) => (
                     <tr key={team.id} className="table-row">
                       <td className="table-cell-left">
-                        {editingTeam?.id === team.id ? (
-                          <form
-                            onSubmit={handleRename}
-                            style={{ display: "flex", gap: "8px" }}
-                          >
-                            <FormInput
-                              type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              required
-                              maxLength={60}
-                              className="compact-input"
-                              style={{ minWidth: "180px" }}
-                            />
-                            <button
-                              type="submit"
-                              className="button-table-action compact-input"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              className="button-table-action compact-input"
-                              onClick={() => setEditingTeam(null)}
-                            >
-                              Cancel
-                            </button>
-                          </form>
-                        ) : (
-                          <Link to={`/admin/teams/${team.id}`}>
-                            <Truncate text={team.name} />
-                          </Link>
-                        )}
+                        <Link to={`/admin/teams/${team.id}`}>
+                          <Truncate text={team.name} />
+                        </Link>
                       </td>
                       <td className="table-cell-center">{team.member_count}</td>
                       <td className="table-cell-center">{team.site_count}</td>
@@ -236,6 +208,7 @@ export function AdminTeams() {
                           </button>
                           <button
                             className="button-table-action compact-input"
+                            aria-haspopup="dialog"
                             onClick={() => startEditing(team)}
                           >
                             Rename
@@ -268,6 +241,44 @@ export function AdminTeams() {
           )}
         </>
       )}
+
+      <Modal
+        isOpen={editingTeam !== null}
+        onClose={closeRename}
+        title="Rename team"
+      >
+        <form onSubmit={handleRename} className="form-column">
+          <label className="field-label">
+            <span className="field-label-text">Team name</span>
+            <FormInput
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+              maxLength={60}
+            />
+          </label>
+          {updateTeam.isError && <ErrorMessage error={updateTeam.error} />}
+          <div
+            style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}
+          >
+            <button
+              type="button"
+              className="button-secondary-action"
+              onClick={closeRename}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="button-primary-action"
+              disabled={updateTeam.isPending}
+            >
+              {updateTeam.isPending ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <ConfirmDialog
         isOpen={teamToDelete !== null}

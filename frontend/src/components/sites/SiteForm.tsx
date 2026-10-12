@@ -69,32 +69,52 @@ export function SiteForm({
 
   return (
     <form onSubmit={handleSubmit} className="form-column">
-      <div className="field-row">
+      <label className="field-label">
+        <span className="field-label-text">Site name</span>
+        <FormInput
+          type="text"
+          placeholder="Site name"
+          title="Display name to identify this site on the dashboard."
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          minLength={1}
+          maxLength={100}
+        />
+      </label>
+      <label className="field-label">
+        <span className="field-label-text">URL</span>
+        <FormInput
+          type="url"
+          placeholder="https://waghorn.tech"
+          title="Full URL to monitor, including https://. The cert check only runs for https URLs."
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          required
+        />
+      </label>
+      {teams.length > 0 && (
         <label className="field-label">
-          <span className="field-label-text">Site name</span>
-          <FormInput
-            type="text"
-            placeholder="Site name"
-            title="Display name to identify this site on the dashboard."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            minLength={1}
-            maxLength={100}
-          />
+          <span className="field-label-text">Team</span>
+          <FormSelect
+            value={teamId ?? ""}
+            onChange={(e) =>
+              setTeamId(e.target.value ? Number(e.target.value) : null)
+            }
+            required={isTeamRequired}
+            title="Team that owns this site. Only its members (and admins) can see it."
+          >
+            <option value="">
+              {isTeamRequired ? "Select team" : "No team"}
+            </option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </FormSelect>
         </label>
-        <label className="field-label">
-          <span className="field-label-text">URL</span>
-          <FormInput
-            type="url"
-            placeholder="https://waghorn.tech"
-            title="Full URL to monitor, including https://. The cert check only runs for https URLs."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            required
-          />
-        </label>
-      </div>
+      )}
       <div className="field-row">
         <label className="field-label">
           <span className="field-label-text">Expected status</span>
@@ -122,28 +142,6 @@ export function SiteForm({
             <option value={3600}>1 hour</option>
           </FormSelect>
         </label>
-        {teams.length > 0 && (
-          <label className="field-label">
-            <span className="field-label-text">Team</span>
-            <FormSelect
-              value={teamId ?? ""}
-              onChange={(e) =>
-                setTeamId(e.target.value ? Number(e.target.value) : null)
-              }
-              required={isTeamRequired}
-              title="Team that owns this site. Only its members (and admins) can see it."
-            >
-              <option value="">
-                {isTeamRequired ? "Select team" : "No team"}
-              </option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </FormSelect>
-          </label>
-        )}
       </div>
       <label className="field-label">
         <span className="field-label-text">
@@ -180,9 +178,7 @@ export function SiteForm({
         )}
         <button
           type="submit"
-          className={
-            isEdit ? "button-secondary-action" : "button-primary-action"
-          }
+          className="button-primary-action"
           disabled={isLoading}
         >
           {isLoading

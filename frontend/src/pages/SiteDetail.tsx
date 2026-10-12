@@ -7,6 +7,7 @@ import { SiteForm } from "../components/sites/SiteForm";
 import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
+import { Modal } from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { CertBadge } from "../components/ui/CertBadge";
 import type { components } from "../generated/schema";
@@ -83,6 +84,7 @@ export function SiteDetail() {
     error: siteError,
   } = useSite(siteId);
   const updateSite = useUpdateSite();
+  const [isEditing, setIsEditing] = useState(false);
   const { data: outagesData, isLoading: outagesLoading } = useOutages(
     siteId,
     page,
@@ -91,6 +93,11 @@ export function SiteDetail() {
   const totalPages = outagesData
     ? Math.ceil(outagesData.total / outagesData.per_page)
     : 0;
+
+  const closeEdit = () => {
+    updateSite.reset();
+    setIsEditing(false);
+  };
 
   if (siteLoading) return <LoadingSpinner />;
   if (siteError) return <ErrorMessage error={siteError} />;
@@ -105,6 +112,7 @@ export function SiteDetail() {
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           gap: "12px",
           marginBottom: "24px",
@@ -115,7 +123,35 @@ export function SiteDetail() {
         </h1>
         <StatusBadge status={site.status} />
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
+        <button
+          type="button"
+          className="button-primary-action"
+          aria-haspopup="dialog"
+          onClick={() => setIsEditing(true)}
+          style={{ marginLeft: "auto" }}
+        >
+          Edit
+        </button>
       </div>
+
+      <Modal isOpen={isEditing} onClose={closeEdit} title="Edit site">
+        <SiteForm
+          key={`${site.id}-${site.name}-${site.url}`}
+          mode="edit"
+          initialData={site}
+          role={role}
+          teams={teams}
+          onSubmit={(payload) =>
+            updateSite.mutate(
+              { id: siteId, site: payload },
+              { onSuccess: () => setIsEditing(false) },
+            )
+          }
+          onCancel={closeEdit}
+          isLoading={updateSite.isPending}
+        />
+        {updateSite.isError && <ErrorMessage error={updateSite.error} />}
+      </Modal>
 
       <div
         className="muted-text"
@@ -138,27 +174,6 @@ export function SiteDetail() {
           </p>
         )}
       </div>
-
-      <section className="page-section">
-        <h2>Edit Site</h2>
-        <SiteForm
-          key={`${site.id}-${site.name}-${site.url}`}
-          mode="edit"
-          initialData={site}
-          role={role}
-          teams={teams}
-          onSubmit={(payload) =>
-            updateSite.mutate({ id: siteId, site: payload })
-          }
-          isLoading={updateSite.isPending}
-        />
-        {updateSite.isError && <ErrorMessage error={updateSite.error} />}
-        {updateSite.isSuccess && (
-          <p style={{ color: "var(--color-success)", margin: "8px 0" }}>
-            Site updated successfully
-          </p>
-        )}
-      </section>
 
       <section>
         <h2>Outage History</h2>
