@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/unassigned-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["count_unassigned_sites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/{id}": {
         parameters: {
             query?: never;
@@ -686,6 +702,10 @@ export interface components {
         };
         /** @enum {string} */
         ThemePreference: "system" | "light" | "dark";
+        UnassignedCountResponse: {
+            /** Format: int64 */
+            count: number;
+        };
         UpdateCanarySettingsRequest: {
             enabled: boolean;
             /** Format: int64 */
@@ -2453,6 +2473,53 @@ export interface operations {
             };
             /** @description Site payload validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    count_unassigned_sites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Number of sites with no team */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnassignedCountResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admin access required */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

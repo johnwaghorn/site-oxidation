@@ -386,6 +386,67 @@ async fn test_non_admin_list_shows_only_own_teams_sites(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_admin_unassigned_count_counts_sites_across_all_pages(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    for i in 0..25 {
+        sqlx::query(
+            "INSERT INTO sites (name, url, expected_status, status) VALUES (?, ?, 200, 'up')",
+        )
+        .bind(format!("Orphan {i}"))
+        .bind(format!("https://orphan{i}.waghorn.tech"))
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES ('Team Site', 'https://team.waghorn.tech', 200, 'up', 1)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites/unassigned-count")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["count"], 25,
+        "count must include orphans beyond the first page"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_non_admin_cannot_read_unassigned_count(pool: SqlitePool) {
+    insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites/unassigned-count")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_admin_list_includes_team_name(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")

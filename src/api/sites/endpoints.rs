@@ -2,13 +2,15 @@ use super::access::{ensure_site_access, resolve_team_id};
 use super::fields::ExpectedText;
 use super::params::{ListSitesParams, SiteStatusFilter};
 use super::queries::{
-    COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, DELETE_SITE, INSERT_SITE, LIST_OUTAGES,
-    LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN, SELECT_SITE_USER, UPDATE_SITE,
+    COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES, DELETE_SITE,
+    INSERT_SITE, LIST_OUTAGES, LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN,
+    SELECT_SITE_USER, UPDATE_SITE,
 };
+use super::responses::UnassignedCountResponse;
 use super::rules;
 use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
-use crate::api::extractors::{JsonPayload, RequireAppAccess};
+use crate::api::extractors::{JsonPayload, RequireAdmin, RequireAppAccess};
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::models::user::UserRole;
@@ -88,6 +90,29 @@ pub async fn list_sites(
         per_page: pagination.per_page(),
         total,
     }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/sites/unassigned-count",
+    responses(
+          (status = 200, description = "Number of sites with no team", body = UnassignedCountResponse),
+          (status = 401, description = "Unauthorized", body = ApiError),
+          (status = 403, description = "Admin access required", body = ApiError),
+          (status = 500, description = "Internal server error", body = ApiError)
+    ),
+    tag = "sites",
+    security(("session_cookie" = []))
+)]
+pub async fn count_unassigned_sites(
+    RequireAdmin(_user): RequireAdmin,
+    State(state): State<AppState>,
+) -> Result<Json<UnassignedCountResponse>, ApiErrorResponse> {
+    let count: i64 = sqlx::query_scalar(COUNT_UNASSIGNED_SITES)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| internal_err("Failed to count unassigned sites", e))?;
+    Ok(Json(UnassignedCountResponse { count }))
 }
 
 #[derive(serde::Deserialize)]

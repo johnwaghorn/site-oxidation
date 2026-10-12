@@ -11,13 +11,17 @@ pub mod schema;
 use crate::state::AppState;
 use axum::{Router, routing::get};
 
-use endpoints::{create_site, delete_site, get_site, get_site_outages, list_sites, update_site};
+use endpoints::{
+    count_unassigned_sites, create_site, delete_site, get_site, get_site_outages, list_sites,
+    update_site,
+};
 use requests::SitePayload;
 use responses::{OutageResponse, SiteResponse};
 
 pub fn site_routes() -> Router<AppState> {
     Router::new()
         .route("/sites", get(list_sites).post(create_site))
+        .route("/sites/unassigned-count", get(count_unassigned_sites))
         .route(
             "/sites/{id}",
             get(get_site).put(update_site).delete(delete_site),

@@ -33,6 +33,8 @@ pub const COUNT_SITES_ADMIN: &str = concat!(
     "  OR (?2 = 'down' AND s.status IN ('down', 'blocked')))"
 );
 
+pub const COUNT_UNASSIGNED_SITES: &str = "SELECT COUNT(*) FROM sites WHERE team_id IS NULL";
+
 pub const SELECT_SITE_USER: &str = concat!(
     "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
     "s.last_checked_at, s.last_response_time_ms, s.probe_interval_seconds, s.team_id, ",
