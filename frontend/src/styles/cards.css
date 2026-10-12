@@ -99,12 +99,32 @@
 }
 
 .modal-close {
-  padding: 0 8px;
-  border: none;
-  background: none;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
   color: var(--color-muted);
-  font-size: 24px;
-  line-height: 1;
+}
+
+.modal-close:hover {
+  border-color: var(--color-border);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+/* Ring for keyboard focus only, not after a mouse click */
+.modal-close:focus {
+  outline: none;
+}
+
+.modal-close:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .modal-body {

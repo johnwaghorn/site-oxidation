@@ -5,15 +5,33 @@ import type { components } from "../generated/schema";
 
 type ChangePasswordRequest = components["schemas"]["ChangePasswordRequest"];
 
-interface ChangePasswordProps {
+interface ChangePasswordFormProps {
   onPasswordChanged: () => void;
   onCancel?: () => void;
 }
 
 export function ChangePassword({
   onPasswordChanged,
+}: {
+  onPasswordChanged: () => void;
+}) {
+  return (
+    <div className="form-page-wrapper">
+      <div className="form-card">
+        <h1 style={{ marginBottom: "8px" }}>Change Password</h1>
+        <p className="page-subtitle">
+          You must change your password before continuing.
+        </p>
+        <ChangePasswordForm onPasswordChanged={onPasswordChanged} />
+      </div>
+    </div>
+  );
+}
+
+export function ChangePasswordForm({
+  onPasswordChanged,
   onCancel,
-}: ChangePasswordProps) {
+}: ChangePasswordFormProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -49,54 +67,49 @@ export function ChangePassword({
   };
 
   return (
-    <div className="form-page-wrapper">
-      <div className="form-card">
-        <h1 style={{ marginBottom: "8px" }}>Change Password</h1>
-        <p className="page-subtitle">
-          {onCancel
-            ? "Enter your current password and choose a new one."
-            : "You must change your password before continuing."}
-        </p>
-        <form onSubmit={handleSubmit} className="form-column">
-          <SecretInput
-            placeholder="Current password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-          <SecretInput
-            placeholder="New password (12+ characters)"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={12}
-            autoComplete="new-password"
-          />
-          <SecretInput
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={12}
-            autoComplete="new-password"
-          />
-          {error && <p className="error-box">{error}</p>}
+    <form onSubmit={handleSubmit} className="form-column">
+      <SecretInput
+        placeholder="Current password"
+        value={currentPassword}
+        onChange={(e) => setCurrentPassword(e.target.value)}
+        required
+        autoComplete="current-password"
+      />
+      <SecretInput
+        placeholder="New password (12+ characters)"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        required
+        minLength={12}
+        autoComplete="new-password"
+      />
+      <SecretInput
+        placeholder="Confirm new password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        required
+        minLength={12}
+        autoComplete="new-password"
+      />
+      {error && <p className="error-box">{error}</p>}
+      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+        {onCancel && (
           <button
-            type="submit"
-            disabled={isLoading}
-            className="form-input"
-            style={{ cursor: isLoading ? "wait" : "pointer" }}
+            type="button"
+            className="button-secondary-action"
+            onClick={onCancel}
           >
-            {isLoading ? "Changing..." : "Change Password"}
+            Cancel
           </button>
-          {onCancel && (
-            <button type="button" onClick={onCancel} className="form-input">
-              Cancel
-            </button>
-          )}
-        </form>
+        )}
+        <button
+          type="submit"
+          className="button-primary-action"
+          disabled={isLoading}
+        >
+          {isLoading ? "Changing..." : "Change Password"}
+        </button>
       </div>
-    </div>
+    </form>
   );
 }

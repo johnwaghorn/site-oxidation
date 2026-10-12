@@ -4,7 +4,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { SiteDetail } from "./pages/SiteDetail";
 import { Login } from "./pages/Login";
 import { Setup } from "./pages/Setup";
-import { ChangePassword } from "./pages/ChangePassword";
+import { ChangePassword, ChangePasswordForm } from "./pages/ChangePassword";
 import { AdminTeams } from "./pages/AdminTeams";
 import { AdminTeamDetail } from "./pages/AdminTeamDetail";
 import { AdminUsers } from "./pages/AdminUsers";
@@ -16,6 +16,7 @@ import { useSetupStatus } from "./hooks/useSetup";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { AppShell } from "./components/ui/AppShell";
+import { Modal } from "./components/ui/Modal";
 
 function App() {
   const { themePreference, setThemePreference } = useThemePreference();
@@ -65,18 +66,8 @@ function App() {
     return <Login onLoginSuccess={refresh} />;
   }
 
-  if (mustChangePassword || changingPassword) {
-    return (
-      <ChangePassword
-        onPasswordChanged={() => {
-          setChangingPassword(false);
-          void refresh();
-        }}
-        onCancel={
-          changingPassword ? () => setChangingPassword(false) : undefined
-        }
-      />
-    );
+  if (mustChangePassword) {
+    return <ChangePassword onPasswordChanged={() => void refresh()} />;
   }
 
   return (
@@ -104,6 +95,19 @@ function App() {
           )}
         </Routes>
       </AppShell>
+      <Modal
+        isOpen={changingPassword}
+        onClose={() => setChangingPassword(false)}
+        title="Change password"
+      >
+        <ChangePasswordForm
+          onPasswordChanged={() => {
+            setChangingPassword(false);
+            void refresh();
+          }}
+          onCancel={() => setChangingPassword(false)}
+        />
+      </Modal>
     </BrowserRouter>
   );
 }

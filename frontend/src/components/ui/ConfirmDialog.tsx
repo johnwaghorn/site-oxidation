@@ -28,6 +28,7 @@ export function ConfirmDialog({
       </p>
       <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
         <button
+          data-autofocus
           onClick={onClose}
           style={{
             padding: "8px 16px",
