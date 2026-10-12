@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,57 +8,50 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
-  if (!isOpen) return null;
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (isOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!isOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen]);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "var(--color-overlay)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
+    <dialog
+      ref={dialogRef}
+      className="modal"
+      aria-labelledby={titleId}
+      onCancel={(e) => {
+        // Escape: let React state drive the close
+        e.preventDefault();
+        onClose();
       }}
-      onClick={onClose}
+      onClick={(e) => {
+        // A click on the dialog element itself is a click on the backdrop
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div
-        style={{
-          backgroundColor: "var(--color-surface-elevated)",
-          borderRadius: "16px",
-          padding: "24px",
-          minWidth: "300px",
-          maxWidth: "90vw",
-          boxShadow: "var(--shadow-popover)",
-          border: "1px solid var(--color-border)",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <h2 style={{ margin: 0 }}>{title}</h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "24px",
-              cursor: "pointer",
-              color: "var(--color-muted)",
-            }}
-          >
-            ×
-          </button>
+      {isOpen && (
+        <div className="modal-panel">
+          <div className="modal-header">
+            <h2 id={titleId}>{title}</h2>
+            <button
+              type="button"
+              className="modal-close"
+              aria-label="Close"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-body">{children}</div>
         </div>
-        {children}
-      </div>
-    </div>
+      )}
+    </dialog>
   );
 }

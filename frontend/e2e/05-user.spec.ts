@@ -40,7 +40,7 @@ test("maddie adds a site for her team", async ({ page }) => {
   });
 
   await test.step("When she adds a site owned by Team Rocket", async () => {
-    await page.getByRole("button", { name: "Add Site" }).click();
+    await page.getByRole("button", { name: "Add site", exact: true }).click();
     await page.getByPlaceholder("Site name").fill("Maddie Blog");
     await page
       .getByPlaceholder("https://waghorn.tech")
@@ -48,7 +48,7 @@ test("maddie adds a site for her team", async ({ page }) => {
     await page
       .getByTitle(/Team that owns this site/)
       .selectOption({ label: "Team Rocket" });
-    await page.getByRole("button", { name: "Add Site" }).click();
+    await page.getByRole("button", { name: "Add Site", exact: true }).click();
   });
 
   await test.step("Then the dashboard lists it as pending", async () => {

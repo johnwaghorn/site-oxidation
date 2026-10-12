@@ -20,10 +20,10 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Pagination } from "../components/ui/Pagination";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { Modal } from "../components/ui/Modal";
 import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
-import { FormToggleButton } from "../components/ui/FormToggleButton";
 import { Truncate } from "../components/ui/Truncate";
 import type { components } from "../generated/schema";
 
@@ -82,6 +82,11 @@ export function AdminUsers() {
     setCreateError(null);
   };
 
+  const closeCreateForm = () => {
+    resetCreateForm();
+    setShowCreateForm(false);
+  };
+
   // Admins have no team, so clear any stale selection when leaving the user role -
   // otherwise the combobox unmounts blank while teamId lingers and gets submitted.
   const handleRoleChange = (role: UserRole) => {
@@ -135,50 +140,38 @@ export function AdminUsers() {
 
   return (
     <div className="page-wrapper">
-      <h1 className="page-title">Users</h1>
+      <div className="page-header">
+        <h1 className="page-title">Users</h1>
+        <button
+          type="button"
+          className="button-primary-action"
+          aria-haspopup="dialog"
+          onClick={() => {
+            setShowCreateForm(true);
+          }}
+        >
+          Add user
+        </button>
+      </div>
 
       {deleteUser.isError && <ErrorMessage error={deleteUser.error} />}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "20px",
-        }}
-      >
-        <FormToggleButton
-          isOpen={showCreateForm}
-          openLabel="Create User"
-          onClick={() => {
-            if (showCreateForm) {
-              resetCreateForm();
-            }
-            setShowCreateForm(!showCreateForm);
-          }}
+      <Modal isOpen={showCreateForm} onClose={closeCreateForm} title="Add user">
+        <CreateUserForm
+          username={newUsername}
+          password={newPassword}
+          role={newRole}
+          teamId={newTeamId}
+          error={createError}
+          isPending={createUser.isPending}
+          onUsernameChange={setNewUsername}
+          onPasswordChange={setNewPassword}
+          onRoleChange={handleRoleChange}
+          onTeamChange={setNewTeamId}
+          onSubmit={handleCreateUser}
+          onCancel={closeCreateForm}
         />
-      </div>
-
-      {showCreateForm && (
-        <div style={{ marginBottom: "24px" }}>
-          <CreateUserForm
-            username={newUsername}
-            password={newPassword}
-            role={newRole}
-            teamId={newTeamId}
-            error={createError}
-            isPending={createUser.isPending}
-            onUsernameChange={setNewUsername}
-            onPasswordChange={setNewPassword}
-            onRoleChange={handleRoleChange}
-            onTeamChange={setNewTeamId}
-            onSubmit={handleCreateUser}
-            onCancel={() => {
-              resetCreateForm();
-              setShowCreateForm(false);
-            }}
-          />
-        </div>
-      )}
+      </Modal>
 
       {hasNoUsers ? (
         <p className="muted-text">No users found.</p>
@@ -386,11 +379,7 @@ function CreateUserForm({
 }: CreateUserFormProps) {
   const needsTeam = role === "user";
   return (
-    <form
-      onSubmit={onSubmit}
-      className="form-column"
-      style={{ maxWidth: "400px" }}
-    >
+    <form onSubmit={onSubmit} className="form-column">
       <label>
         <span className="muted-text">Username</span>
         <FormInput

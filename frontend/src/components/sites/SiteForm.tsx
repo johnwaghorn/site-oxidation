@@ -68,81 +68,97 @@ export function SiteForm({
   const isTeamRequired = role !== "admin";
 
   return (
-    <form onSubmit={handleSubmit} className="inline-form">
-      <FormInput
-        type="text"
-        placeholder="Site name"
-        title="Display name to identify this site on the dashboard."
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        minLength={1}
-        maxLength={100}
-        style={{ flex: 1, minWidth: "140px" }}
-      />
-      <FormInput
-        type="url"
-        placeholder="https://waghorn.tech"
-        title="Full URL to monitor, including https://. The cert check only runs for https URLs."
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        required
-        style={{ flex: 2, minWidth: "220px" }}
-      />
-      <FormInput
-        type="number"
-        placeholder="Expected status code"
-        title="HTTP status code the site must return to be considered up (e.g. 200). Any other code marks it down."
-        value={expectedStatus}
-        onChange={(e) => setExpectedStatus(Number(e.target.value))}
-        min={100}
-        max={599}
-        style={{ width: "100px" }}
-      />
-      <FormInput
-        type="text"
-        placeholder="Expected text (optional)"
-        title="Optional text that must appear in the response body for the site to count as up."
-        value={expectedText}
-        onChange={(e) => setExpectedText(e.target.value)}
-        style={{ flex: "1 1 150px", minWidth: "150px" }}
-      />
-      <FormSelect
-        value={probeInterval}
-        onChange={(e) => setProbeInterval(Number(e.target.value))}
-        title="How often this site is checked for availability."
-      >
-        <option value={60}>1 minute</option>
-        <option value={300}>5 minutes</option>
-        <option value={600}>10 minutes</option>
-        <option value={1800}>30 minutes</option>
-        <option value={3600}>1 hour</option>
-      </FormSelect>
-      {teams.length > 0 && (
-        <FormSelect
-          value={teamId ?? ""}
-          onChange={(e) =>
-            setTeamId(e.target.value ? Number(e.target.value) : null)
-          }
-          required={isTeamRequired}
-          title="Team that owns this site. Only its members (and admins) can see it."
-        >
-          <option value="">{isTeamRequired ? "Select team" : "No team"}</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </FormSelect>
-      )}
+    <form onSubmit={handleSubmit} className="form-column">
+      <div className="field-row">
+        <label className="field-label">
+          <span className="field-label-text">Site name</span>
+          <FormInput
+            type="text"
+            placeholder="Site name"
+            title="Display name to identify this site on the dashboard."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            minLength={1}
+            maxLength={100}
+          />
+        </label>
+        <label className="field-label">
+          <span className="field-label-text">URL</span>
+          <FormInput
+            type="url"
+            placeholder="https://waghorn.tech"
+            title="Full URL to monitor, including https://. The cert check only runs for https URLs."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            required
+          />
+        </label>
+      </div>
+      <div className="field-row">
+        <label className="field-label">
+          <span className="field-label-text">Expected status</span>
+          <FormInput
+            type="number"
+            placeholder="Expected status code"
+            title="HTTP status code the site must return to be considered up (e.g. 200). Any other code marks it down."
+            value={expectedStatus}
+            onChange={(e) => setExpectedStatus(Number(e.target.value))}
+            min={100}
+            max={599}
+          />
+        </label>
+        <label className="field-label">
+          <span className="field-label-text">Check every</span>
+          <FormSelect
+            value={probeInterval}
+            onChange={(e) => setProbeInterval(Number(e.target.value))}
+            title="How often this site is checked for availability."
+          >
+            <option value={60}>1 minute</option>
+            <option value={300}>5 minutes</option>
+            <option value={600}>10 minutes</option>
+            <option value={1800}>30 minutes</option>
+            <option value={3600}>1 hour</option>
+          </FormSelect>
+        </label>
+        {teams.length > 0 && (
+          <label className="field-label">
+            <span className="field-label-text">Team</span>
+            <FormSelect
+              value={teamId ?? ""}
+              onChange={(e) =>
+                setTeamId(e.target.value ? Number(e.target.value) : null)
+              }
+              required={isTeamRequired}
+              title="Team that owns this site. Only its members (and admins) can see it."
+            >
+              <option value="">
+                {isTeamRequired ? "Select team" : "No team"}
+              </option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </FormSelect>
+          </label>
+        )}
+      </div>
+      <label className="field-label">
+        <span className="field-label-text">
+          Expected text <span className="muted-text">(optional)</span>
+        </span>
+        <FormInput
+          type="text"
+          placeholder="Expected text (optional)"
+          title="Optional text that must appear in the response body for the site to count as up."
+          value={expectedText}
+          onChange={(e) => setExpectedText(e.target.value)}
+        />
+      </label>
       <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "4px",
-          fontSize: "14px",
-          whiteSpace: "nowrap",
-        }}
+        style={{ display: "flex", alignItems: "center", gap: "8px" }}
         title="Skip TLS trust and hostname verification for this site. Use for internal boxes with untrusted certs."
       >
         <input
@@ -150,34 +166,34 @@ export function SiteForm({
           checked={tlsAllowUntrusted}
           onChange={(e) => setTlsAllowUntrusted(e.target.checked)}
         />
-        Allow untrusted
+        Allow untrusted certificate
       </label>
-      <button
-        type="submit"
-        className={
-          isEdit
-            ? "button-secondary-action compact-input"
-            : "button-primary-action compact-input"
-        }
-        disabled={isLoading}
-      >
-        {isLoading
-          ? isEdit
-            ? "Saving..."
-            : "Adding..."
-          : isEdit
-            ? "Save"
-            : "Add Site"}
-      </button>
-      {onCancel && (
+      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+        {onCancel && (
+          <button
+            type="button"
+            className="button-secondary-action"
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        )}
         <button
-          type="button"
-          className="button-secondary-action compact-input"
-          onClick={onCancel}
+          type="submit"
+          className={
+            isEdit ? "button-secondary-action" : "button-primary-action"
+          }
+          disabled={isLoading}
         >
-          Cancel
+          {isLoading
+            ? isEdit
+              ? "Saving..."
+              : "Adding..."
+            : isEdit
+              ? "Save"
+              : "Add Site"}
         </button>
-      )}
+      </div>
     </form>
   );
 }
