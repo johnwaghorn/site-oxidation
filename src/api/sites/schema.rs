@@ -6,6 +6,7 @@ use crate::models::site::{CertStatus, SiteStatus};
 use utoipa::OpenApi;
 
 use super::endpoints;
+use super::params::SiteStatusFilter;
 use super::requests::SitePayload;
 use super::responses::{OutageResponse, SiteResponse};
 
@@ -26,6 +27,7 @@ use super::responses::{OutageResponse, SiteResponse};
         PaginatedResponse<OutageResponse>,
         SitePayload,
         SiteStatus,
+        SiteStatusFilter,
         CertStatus,
         ApiError,
     )),

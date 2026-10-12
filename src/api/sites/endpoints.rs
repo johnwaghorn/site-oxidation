@@ -1,5 +1,6 @@
 use super::access::{ensure_site_access, resolve_team_id};
 use super::fields::ExpectedText;
+use super::params::{ListSitesParams, SiteStatusFilter};
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, DELETE_SITE, INSERT_SITE, LIST_OUTAGES,
     LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN, SELECT_SITE_USER, UPDATE_SITE,
@@ -29,7 +30,7 @@ async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, A
 #[utoipa::path(
     get,
     path = "/sites",
-    params(PaginationParams, SearchParams),
+    params(PaginationParams, SearchParams, ListSitesParams),
     responses(
           (status = 200, description = "List all sites", body = inline(PaginatedResponse<SiteResponse>)),
           (status = 400, description = "Invalid query parameters", body = ApiError),
@@ -49,6 +50,7 @@ pub async fn list_sites(
     let (sites, total) = if user.role == UserRole::Admin {
         let sites = sqlx::query_as::<_, SiteResponse>(LIST_SITES_ADMIN)
             .bind(search)
+            .bind(params.status)
             .bind(pagination.per_page())
             .bind(pagination.offset())
             .fetch_all(&state.pool)
@@ -56,6 +58,7 @@ pub async fn list_sites(
             .map_err(|e| internal_err("Failed to list all sites", e))?;
         let total: i64 = sqlx::query_scalar(COUNT_SITES_ADMIN)
             .bind(search)
+            .bind(params.status)
             .fetch_one(&state.pool)
             .await
             .map_err(|e| internal_err("Failed to count all sites", e))?;
@@ -64,6 +67,7 @@ pub async fn list_sites(
         let sites = sqlx::query_as::<_, SiteResponse>(LIST_SITES_USER)
             .bind(user.id)
             .bind(search)
+            .bind(params.status)
             .bind(pagination.per_page())
             .bind(pagination.offset())
             .fetch_all(&state.pool)
@@ -72,6 +76,7 @@ pub async fn list_sites(
         let total: i64 = sqlx::query_scalar(COUNT_SITES_USER)
             .bind(user.id)
             .bind(search)
+            .bind(params.status)
             .fetch_one(&state.pool)
             .await
             .map_err(|e| internal_err(&format!("Failed to count sites for user {}", user.id), e))?;
@@ -92,6 +97,7 @@ pub struct ListSitesQuery {
     #[serde(default, deserialize_with = "deserialize_u32_params")]
     per_page: Option<u32>,
     search: Option<String>,
+    status: Option<SiteStatusFilter>,
 }
 
 #[utoipa::path(

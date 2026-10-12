@@ -550,7 +550,7 @@ export interface components {
             data: {
                 /** Format: date-time */
                 cert_expires_at?: string | null;
-                cert_status?: null | components["schemas"]["CertStatus"];
+                cert_status?: components["schemas"]["CertStatus"] | null;
                 /** Format: date-time */
                 created_at: string;
                 /** Format: int64 */
@@ -589,7 +589,7 @@ export interface components {
         SiteName: string;
         SitePayload: {
             expected_status?: components["schemas"]["ExpectedStatus"];
-            expected_text?: null | components["schemas"]["ExpectedText"];
+            expected_text?: components["schemas"]["ExpectedText"] | null;
             name: components["schemas"]["SiteName"];
             probe_interval_seconds?: components["schemas"]["CheckInterval"];
             /** Format: int64 */
@@ -600,7 +600,7 @@ export interface components {
         SiteResponse: {
             /** Format: date-time */
             cert_expires_at?: string | null;
-            cert_status?: null | components["schemas"]["CertStatus"];
+            cert_status?: components["schemas"]["CertStatus"] | null;
             /** Format: date-time */
             created_at: string;
             /** Format: int64 */
@@ -624,6 +624,11 @@ export interface components {
         };
         /** @enum {string} */
         SiteStatus: "pending" | "up" | "down" | "blocked";
+        /**
+         * @description Status buckets. `down` also matches blocked sites, since both mean the site needs attention.
+         * @enum {string}
+         */
+        SiteStatusFilter: "up" | "down";
         /** @example https://waghorn.tech */
         SiteUrl: string;
         /** @example smtp.waghorn.tech */
@@ -688,19 +693,19 @@ export interface components {
             url?: string | null;
         };
         UpdateTeamNotificationsRequest: {
-            microsoft_teams_webhook_url?: null | components["schemas"]["WebhookUrl"];
+            microsoft_teams_webhook_url?: components["schemas"]["WebhookUrl"] | null;
             notify_cert_expiring?: boolean | null;
             notify_site_down?: boolean | null;
             notify_site_recovered?: boolean | null;
-            slack_webhook_url?: null | components["schemas"]["WebhookUrl"];
+            slack_webhook_url?: components["schemas"]["WebhookUrl"] | null;
             smtp_auth?: boolean | null;
-            smtp_from_email?: null | components["schemas"]["EmailAddress"];
-            smtp_host?: null | components["schemas"]["SmtpHost"];
-            smtp_password?: null | components["schemas"]["SmtpPassword"];
-            smtp_port?: null | components["schemas"]["SmtpPort"];
-            smtp_tls_mode?: null | components["schemas"]["SmtpTlsMode"];
-            smtp_to_email?: null | components["schemas"]["EmailAddress"];
-            smtp_username?: null | components["schemas"]["SmtpUsername"];
+            smtp_from_email?: components["schemas"]["EmailAddress"] | null;
+            smtp_host?: components["schemas"]["SmtpHost"] | null;
+            smtp_password?: components["schemas"]["SmtpPassword"] | null;
+            smtp_port?: components["schemas"]["SmtpPort"] | null;
+            smtp_tls_mode?: components["schemas"]["SmtpTlsMode"] | null;
+            smtp_to_email?: components["schemas"]["EmailAddress"] | null;
+            smtp_username?: components["schemas"]["SmtpUsername"] | null;
         };
         UpdateTeamRequest: {
             name: components["schemas"]["TeamName"];
@@ -1487,7 +1492,7 @@ export interface operations {
                         data: {
                             /** Format: date-time */
                             cert_expires_at?: string | null;
-                            cert_status?: null | components["schemas"]["CertStatus"];
+                            cert_status?: components["schemas"]["CertStatus"] | null;
                             /** Format: date-time */
                             created_at: string;
                             /** Format: int64 */
@@ -2327,6 +2332,8 @@ export interface operations {
                 per_page?: number;
                 /** @description Case-insensitive substring match. */
                 search?: string;
+                /** @description Restrict results by status. `down` includes blocked sites. */
+                status?: components["schemas"]["SiteStatusFilter"];
             };
             header?: never;
             path?: never;
@@ -2344,7 +2351,7 @@ export interface operations {
                         data: {
                             /** Format: date-time */
                             cert_expires_at?: string | null;
-                            cert_status?: null | components["schemas"]["CertStatus"];
+                            cert_status?: components["schemas"]["CertStatus"] | null;
                             /** Format: date-time */
                             created_at: string;
                             /** Format: int64 */

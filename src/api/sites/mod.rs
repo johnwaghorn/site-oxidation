@@ -1,6 +1,7 @@
 mod access;
 mod endpoints;
 mod fields;
+pub mod params;
 mod queries;
 pub mod requests;
 pub mod responses;

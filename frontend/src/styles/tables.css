@@ -37,3 +37,12 @@
   padding: 12px 14px;
   text-align: right;
 }
+
+/* Search and filters that sit directly above a data table */
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
