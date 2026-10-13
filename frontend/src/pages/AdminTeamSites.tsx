@@ -5,6 +5,7 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { usePagination } from "../hooks/usePagination";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
+import { ExternalLink } from "../components/ui/ExternalLink";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Pagination } from "../components/ui/Pagination";
 import { SearchInput } from "../components/ui/SearchInput";
@@ -89,13 +90,7 @@ export function AdminTeamSites() {
                         <Link to={`/sites/${site.id}`}>{site.name}</Link>
                       </td>
                       <td className="table-cell">
-                        <a
-                          href={site.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {site.url}
-                        </a>
+                        <ExternalLink href={site.url}>{site.url}</ExternalLink>
                       </td>
                       <td className="table-cell">
                         <StatusBadge status={site.status} />
