@@ -869,3 +869,81 @@ async fn test_create_user_rejects_username_longer_than_60_chars(pool: SqlitePool
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_get_user_returns_team_count(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A'), ('Team B')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?1), (2, ?1)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/admin/users/{user_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["username"], "maddie");
+    assert_eq!(body["team_count"], 2, "user belongs to two teams");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users?search=maddie")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["data"][0]["team_count"], 2,
+        "list should report the same count"
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin/users/9999")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_non_admin_cannot_get_user(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/admin/users/{user_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}

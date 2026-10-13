@@ -1,9 +1,7 @@
 pub const LIST_USERS: &str = concat!(
     "SELECT u.id, u.username, u.role, u.active, u.must_change_password, ",
-    "COALESCE(GROUP_CONCAT(t.name, ', '), '') AS team_names ",
+    "(SELECT COUNT(*) FROM team_members tmc WHERE tmc.user_id = u.id) AS team_count ",
     "FROM users u ",
-    "LEFT JOIN team_members tm ON u.id = tm.user_id ",
-    "LEFT JOIN teams t ON tm.team_id = t.id ",
     "WHERE (?1 IS NULL OR u.username LIKE '%' || ?1 || '%') ",
     "  AND (?2 IS NULL OR EXISTS ( ",
     "       SELECT 1 FROM team_members tmf WHERE tmf.user_id = u.id AND tmf.team_id = ?2 ",
@@ -12,9 +10,14 @@ pub const LIST_USERS: &str = concat!(
     "       SELECT 1 FROM team_members tme WHERE tme.user_id = u.id AND tme.team_id = ?3 ",
     "  )) ",
     "  AND (?4 IS NULL OR u.active = ?4) ",
-    "GROUP BY u.id ",
     "ORDER BY u.id ",
     "LIMIT ?5 OFFSET ?6"
+);
+
+pub const SELECT_USER: &str = concat!(
+    "SELECT u.id, u.username, u.role, u.active, u.must_change_password, ",
+    "(SELECT COUNT(*) FROM team_members tmc WHERE tmc.user_id = u.id) AS team_count ",
+    "FROM users u WHERE u.id = ?"
 );
 
 pub const COUNT_USERS: &str = concat!(

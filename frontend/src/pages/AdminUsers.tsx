@@ -24,7 +24,6 @@ import { Modal } from "../components/ui/Modal";
 import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
-import { Truncate } from "../components/ui/Truncate";
 import type { components } from "../generated/schema";
 
 type UserResponse = components["schemas"]["UserResponse"];
@@ -203,7 +202,7 @@ export function AdminUsers() {
                     <th className="table-cell-left">Username</th>
                     <th className="table-cell-center">Role</th>
                     <th className="table-cell-center">Active</th>
-                    <th className="table-cell-left">Teams</th>
+                    <th className="table-cell-center">Teams</th>
                     <th className="table-cell-left">Actions</th>
                   </tr>
                 </thead>
@@ -214,7 +213,9 @@ export function AdminUsers() {
                         className="table-cell-left"
                         style={{ fontWeight: 500 }}
                       >
-                        {user.username}
+                        <Link to={`/admin/users/${user.id}`}>
+                          {user.username}
+                        </Link>
                         {user.must_change_password && (
                           <span
                             className="muted-text"
@@ -231,16 +232,11 @@ export function AdminUsers() {
                       <td className="table-cell-center">
                         {user.active ? "Yes" : "No"}
                       </td>
-                      <td
-                        className="table-cell-left muted-text"
-                        style={{
-                          fontSize: "14px",
-                        }}
-                      >
-                        <Truncate
-                          text={user.team_names || "None"}
-                          maxWidth={260}
-                        />
+                      <td className="table-cell-center">
+                        <Link to={`/admin/users/${user.id}`}>
+                          {user.team_count} team
+                          {user.team_count === 1 ? "" : "s"}
+                        </Link>
                       </td>
                       <td className="table-cell">
                         <div style={{ display: "flex", gap: "8px" }}>

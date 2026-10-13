@@ -13,6 +13,7 @@ use super::responses::{CreateUserResponse, UserResponse};
 #[openapi(
     paths(
         endpoints::list_users,
+        endpoints::get_user,
         endpoints::create_user,
         endpoints::update_user,
         endpoints::delete_user,

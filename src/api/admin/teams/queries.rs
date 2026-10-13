@@ -7,13 +7,27 @@ pub const LIST_TEAMS: &str = concat!(
     "LEFT JOIN users u ON u.id = tm.user_id ",
     "LEFT JOIN sites s ON t.id = s.team_id ",
     "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
+    "  AND (?2 IS NULL OR EXISTS ( ",
+    "       SELECT 1 FROM team_members tmf WHERE tmf.team_id = t.id AND tmf.user_id = ?2 ",
+    "  )) ",
+    "  AND (?3 IS NULL OR NOT EXISTS ( ",
+    "       SELECT 1 FROM team_members tme WHERE tme.team_id = t.id AND tme.user_id = ?3 ",
+    "  )) ",
     "GROUP BY t.id ",
     "ORDER BY t.id ",
-    "LIMIT ?2 OFFSET ?3"
+    "LIMIT ?4 OFFSET ?5"
 );
 
-pub const COUNT_TEAMS: &str =
-    "SELECT COUNT(*) FROM teams WHERE (?1 IS NULL OR name LIKE '%' || ?1 || '%')";
+pub const COUNT_TEAMS: &str = concat!(
+    "SELECT COUNT(*) FROM teams t ",
+    "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
+    "  AND (?2 IS NULL OR EXISTS ( ",
+    "       SELECT 1 FROM team_members tmf WHERE tmf.team_id = t.id AND tmf.user_id = ?2 ",
+    "  )) ",
+    "  AND (?3 IS NULL OR NOT EXISTS ( ",
+    "       SELECT 1 FROM team_members tme WHERE tme.team_id = t.id AND tme.user_id = ?3 ",
+    "  )) "
+);
 
 pub const SELECT_TEAM: &str = concat!(
     "SELECT t.id, t.name, ",
