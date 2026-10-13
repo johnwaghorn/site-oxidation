@@ -86,6 +86,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard role={role} teams={teams} />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/notifications/:teamId" element={<Notifications />} />
           <Route path="/backups" element={<Backups />} />
           <Route path="/sites/:id" element={<SiteDetail />} />
           {role === "admin" && (
