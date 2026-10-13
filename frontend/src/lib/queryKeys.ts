@@ -1,4 +1,7 @@
-import type { AdminUsersFilters } from "../hooks/useAdmin";
+import type {
+  AdminTeamsMemberFilter,
+  AdminUsersFilters,
+} from "../hooks/useAdmin";
 import type { SitesFilters } from "../hooks/useSites";
 
 export const queryKeys = {
@@ -13,8 +16,12 @@ export const queryKeys = {
     ["teams", teamId, "notifications"] as const,
   setupStatus: ["setup", "status"] as const,
   adminTeamsAll: ["admin", "teams"] as const,
-  adminTeams: (page: number, perPage: number, search?: string) =>
-    ["admin", "teams", { page, perPage, search }] as const,
+  adminTeams: (
+    page: number,
+    perPage: number,
+    search?: string,
+    memberFilter?: AdminTeamsMemberFilter,
+  ) => ["admin", "teams", { page, perPage, search, ...memberFilter }] as const,
   adminTeam: (id: number) => ["admin", "teams", id] as const,
   adminTeamSitesAll: (id: number) => ["admin", "teams", id, "sites"] as const,
   adminTeamSites: (
@@ -26,6 +33,7 @@ export const queryKeys = {
   adminTeamOptions: (search: string) =>
     ["admin", "teams", "options", search] as const,
   adminUsersAll: ["admin", "users"] as const,
+  adminUser: (id: number) => ["admin", "users", id] as const,
   adminUsers: (filters: AdminUsersFilters) =>
     ["admin", "users", filters] as const,
   adminCanary: ["admin", "canary"] as const,

@@ -10,6 +10,7 @@ import { AdminTeamDetail } from "./pages/AdminTeamDetail";
 import { AdminTeamMembers } from "./pages/AdminTeamMembers";
 import { AdminTeamSites } from "./pages/AdminTeamSites";
 import { AdminUsers } from "./pages/AdminUsers";
+import { AdminUserDetail } from "./pages/AdminUserDetail";
 import { AdminCanary } from "./pages/AdminCanary";
 import { Notifications } from "./pages/Notifications";
 import { Backups } from "./pages/Backups";
@@ -96,6 +97,7 @@ function App() {
                 <Route path="sites" element={<AdminTeamSites />} />
               </Route>
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/users/:id" element={<AdminUserDetail />} />
               <Route path="/admin/canary" element={<AdminCanary />} />
             </>
           )}

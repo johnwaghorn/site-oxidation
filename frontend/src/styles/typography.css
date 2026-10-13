@@ -34,3 +34,29 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+
+/* Inline label/value pairs under a page title, e.g. a user's role and status */
+.detail-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0;
+}
+
+.detail-list div {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-list dt {
+  color: var(--color-muted);
+}
+
+.detail-list dt::after {
+  content: ":";
+}
+
+.detail-list dd {
+  margin: 0;
+  font-weight: 600;
+}

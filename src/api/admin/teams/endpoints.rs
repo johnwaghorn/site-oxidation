@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
+use super::params::ListTeamsParams;
 use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
 use super::responses::{TeamOption, TeamResponse};
@@ -22,12 +23,14 @@ pub struct ListTeamsQuery {
     #[serde(default, deserialize_with = "deserialize_u32_params")]
     per_page: Option<u32>,
     search: Option<String>,
+    member_id: Option<i64>,
+    exclude_member_id: Option<i64>,
 }
 
 #[utoipa::path(
     get,
     path = "/teams",
-    params(PaginationParams, SearchParams),
+    params(PaginationParams, SearchParams, ListTeamsParams),
     responses(
         (status = 200, description = "List all teams", body = inline(PaginatedResponse<TeamResponse>)),
         (status = 401, description = "Unauthorized", body = ApiError),
@@ -46,6 +49,8 @@ pub async fn list_teams(
     let search = normalise_search(params.search.as_deref());
     let teams = sqlx::query_as::<_, TeamResponse>(queries::LIST_TEAMS)
         .bind(search)
+        .bind(params.member_id)
+        .bind(params.exclude_member_id)
         .bind(pagination.per_page())
         .bind(pagination.offset())
         .fetch_all(&pool)
@@ -53,6 +58,8 @@ pub async fn list_teams(
         .map_err(|e| internal_err("Failed to list teams", e))?;
     let total: i64 = sqlx::query_scalar(queries::COUNT_TEAMS)
         .bind(search)
+        .bind(params.member_id)
+        .bind(params.exclude_member_id)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count teams", e))?;

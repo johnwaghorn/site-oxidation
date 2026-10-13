@@ -31,16 +31,30 @@ type CreateUserRequest = components["schemas"]["CreateUserRequest"];
 type UpdateUserRequest = components["schemas"]["UpdateUserRequest"];
 type ResetPasswordRequest = components["schemas"]["ResetPasswordRequest"];
 
+export interface AdminTeamsMemberFilter {
+  memberId?: ListTeamsQuery["member_id"];
+  excludeMemberId?: ListTeamsQuery["exclude_member_id"];
+}
+
 export function useAdminTeams(
   page = 1,
   perPage = 20,
   search?: ListTeamsQuery["search"],
+  memberFilter: AdminTeamsMemberFilter = {},
 ) {
   return useQuery({
-    queryKey: queryKeys.adminTeams(page, perPage, search),
+    queryKey: queryKeys.adminTeams(page, perPage, search, memberFilter),
     queryFn: async () => {
       const { data, error } = await api.GET("/api/admin/teams", {
-        params: { query: { page, per_page: perPage, search } },
+        params: {
+          query: {
+            page,
+            per_page: perPage,
+            search,
+            member_id: memberFilter.memberId,
+            exclude_member_id: memberFilter.excludeMemberId,
+          },
+        },
       });
       if (error) throw new Error(error.message);
       return data!;
@@ -97,6 +111,20 @@ export function useTeamOptions(search: string) {
       return data!;
     },
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useAdminUser(id: number) {
+  return useQuery({
+    queryKey: queryKeys.adminUser(id),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/admin/users/{id}", {
+        params: { path: { id } },
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    enabled: id > 0,
   });
 }
 

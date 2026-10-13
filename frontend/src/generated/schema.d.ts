@@ -171,7 +171,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["get_user"];
         put?: never;
         post?: never;
         delete: operations["delete_user"];
@@ -746,7 +746,8 @@ export interface components {
             id: number;
             must_change_password: boolean;
             role: components["schemas"]["UserRole"];
-            team_names: string;
+            /** Format: int64 */
+            team_count: number;
             username: string;
         };
         /** @enum {string} */
@@ -950,6 +951,10 @@ export interface operations {
                 per_page?: number;
                 /** @description Case-insensitive substring match. */
                 search?: string;
+                /** @description Restrict results to teams this user belongs to. */
+                member_id?: number;
+                /** @description Exclude teams this user already belongs to. */
+                exclude_member_id?: number;
             };
             header?: never;
             path?: never;
@@ -1677,7 +1682,8 @@ export interface operations {
                             id: number;
                             must_change_password: boolean;
                             role: components["schemas"]["UserRole"];
-                            team_names: string;
+                            /** Format: int64 */
+                            team_count: number;
                             username: string;
                         }[];
                         /** Format: int32 */
@@ -1787,6 +1793,65 @@ export interface operations {
             };
             /** @description Too many admin actions */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Admin access required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description User not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

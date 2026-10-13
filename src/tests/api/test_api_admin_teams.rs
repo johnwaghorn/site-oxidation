@@ -817,3 +817,41 @@ async fn test_team_options_unfiltered_and_search(pool: SqlitePool) {
     assert_eq!(teams.len(), 1);
     assert_eq!(teams[0]["name"], "Marketing");
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_teams_filters_by_member_and_excluded_member(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team A'), ('Team B')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
+        .bind(user_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+
+    for (filter, expected_name) in [("member_id", "Team A"), ("exclude_member_id", "Team B")] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/admin/teams?{filter}={user_id}"))
+                    .header("cookie", &cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = parse_json_body(response).await;
+        assert_eq!(body["total"], 1, "{filter} should match exactly one team");
+        assert_eq!(
+            body["data"][0]["name"], expected_name,
+            "wrong team for {filter}"
+        );
+    }
+}

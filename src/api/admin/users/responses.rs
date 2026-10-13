@@ -10,7 +10,7 @@ pub struct UserResponse {
     pub role: UserRole,
     pub active: bool,
     pub must_change_password: bool,
-    pub team_names: String,
+    pub team_count: i64,
 }
 
 #[derive(Serialize, ToSchema)]

@@ -158,6 +158,34 @@ pub async fn create_user(
 }
 
 #[utoipa::path(
+    get,
+    path = "/users/{id}",
+    params(("id" = i64, Path, description = "User ID")),
+    responses(
+        (status = 200, description = "User details", body = UserResponse),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 403, description = "Admin access required", body = ApiError),
+        (status = 404, description = "User not found", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "admin/users",
+    security(("session_cookie" = [])),
+)]
+pub async fn get_user(
+    RequireAdmin(_user): RequireAdmin,
+    State(pool): State<SqlitePool>,
+    Path(id): Path<i64>,
+) -> Result<Json<UserResponse>, ApiErrorResponse> {
+    sqlx::query_as::<_, UserResponse>(queries::SELECT_USER)
+        .bind(id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| internal_err("Failed to fetch user", e))?
+        .map(Json)
+        .ok_or_else(|| ApiErrorResponse::not_found("User"))
+}
+
+#[utoipa::path(
     patch,
     path = "/users/{id}",
     params(("id" = i64, Path, description = "User ID")),
