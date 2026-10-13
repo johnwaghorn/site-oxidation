@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { ExternalLink } from "../ui/ExternalLink";
 import type { components } from "../../generated/schema";
 import { StatusBadge } from "../ui/StatusBadge";
 import { CertBadge } from "../ui/CertBadge";
@@ -22,9 +23,7 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
         <Link to={`/sites/${site.id}`}>{site.name}</Link>
       </td>
       <td className="table-cell muted-text" style={{ fontSize: "14px" }}>
-        <a href={site.url} target="_blank" rel="noopener noreferrer">
-          {site.url}
-        </a>
+        <ExternalLink href={site.url}>{site.url}</ExternalLink>
       </td>
       <td className="table-cell muted-text" style={{ fontSize: "14px" }}>
         <Truncate text={site.team_name ?? "No team"} />
