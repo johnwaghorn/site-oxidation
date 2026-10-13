@@ -215,6 +215,7 @@ function GetStartedNudge({ onAddSite }: { onAddSite: () => void }) {
             borderRadius: "8px",
             color: "var(--color-text)",
             fontWeight: 500,
+            textDecoration: "none",
           }}
         >
           Set up teams

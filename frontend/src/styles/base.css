@@ -44,10 +44,14 @@ h1 {
 a {
   font-weight: 500;
   color: var(--color-link);
-  text-decoration: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 a:hover {
   color: var(--color-link-hover);
+  text-decoration-color: currentColor;
 }
 
 button {
