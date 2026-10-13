@@ -37,21 +37,31 @@ test("save canary settings", async ({ page }) => {
     await page.goto("/admin/canary");
   });
 
-  await test.step("And I enable the canary with a URL and timeout", async () => {
-    await page.getByLabel("Canary enabled").check();
-    await page
-      .getByPlaceholder("https://waghorn.tech")
+  await test.step("And I set a canary URL and timeout", async () => {
+    await page.getByRole("button", { name: "Edit settings" }).click();
+    const dialog = page.getByRole("dialog", { name: "Canary settings" });
+    await dialog
+      .getByLabel("Canary URL")
       .fill("http://127.0.0.1:8123/api/health");
-    await page.getByLabel("Timeout in seconds").fill("5");
-    await page.getByRole("button", { name: "Save changes" }).click();
+    await dialog.getByLabel("Timeout in seconds").fill("5");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+  });
+
+  await test.step("And I turn on scheduled checks", async () => {
+    const toggle = page.getByRole("switch", { name: "Scheduled checks" });
+    await toggle.click();
+    await expect(toggle).toBeChecked();
   });
 
   await test.step("Then the settings survive a reload", async () => {
     await page.reload();
-    await expect(page.getByLabel("Canary enabled")).toBeChecked();
-    await expect(page.getByPlaceholder("https://waghorn.tech")).toHaveValue(
-      "http://127.0.0.1:8123/api/health",
-    );
-    await expect(page.getByLabel("Timeout in seconds")).toHaveValue("5");
+    await expect(
+      page.getByRole("switch", { name: "Scheduled checks" }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole("link", { name: /http:\/\/127\.0\.0\.1:8123\/api\/health/ }),
+    ).toBeVisible();
+    await expect(page.getByText("5 seconds", { exact: true })).toBeVisible();
   });
 });
