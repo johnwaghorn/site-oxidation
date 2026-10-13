@@ -2,12 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   useAdminTeams,
-  useAdminUsers,
   useCreateTeam,
   useUpdateTeam,
   useDeleteTeam,
-  useAddTeamMember,
-  useRemoveTeamMember,
 } from "../hooks/useAdmin";
 import { usePagination } from "../hooks/usePagination";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
@@ -18,12 +15,11 @@ import { Modal } from "../components/ui/Modal";
 import { Pagination } from "../components/ui/Pagination";
 import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
-import { FormInput, FormSelect } from "../components/ui/FormControls";
+import { FormInput } from "../components/ui/FormControls";
 import { Truncate } from "../components/ui/Truncate";
 import type { components } from "../generated/schema";
 
 type TeamResponse = components["schemas"]["TeamResponse"];
-type UserResponse = components["schemas"]["UserResponse"];
 
 export function AdminTeams() {
   const navigate = useNavigate();
@@ -44,7 +40,6 @@ export function AdminTeams() {
   const [editingTeam, setEditingTeam] = useState<TeamResponse | null>(null);
   const [editName, setEditName] = useState("");
   const [teamToDelete, setTeamToDelete] = useState<TeamResponse | null>(null);
-  const [managingTeam, setManagingTeam] = useState<TeamResponse | null>(null);
 
   const closeCreateForm = () => {
     createTeam.reset();
@@ -198,16 +193,6 @@ export function AdminTeams() {
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button
                             className="button-table-action compact-input"
-                            onClick={() =>
-                              setManagingTeam(
-                                managingTeam?.id === team.id ? null : team,
-                              )
-                            }
-                          >
-                            {managingTeam?.id === team.id ? "Close" : "Members"}
-                          </button>
-                          <button
-                            className="button-table-action compact-input"
                             aria-haspopup="dialog"
                             onClick={() => startEditing(team)}
                           >
@@ -220,9 +205,6 @@ export function AdminTeams() {
                             Delete
                           </button>
                         </div>
-                        {managingTeam?.id === team.id && (
-                          <MemberPanel teamId={team.id} />
-                        )}
                       </td>
                     </tr>
                   ))}
@@ -286,7 +268,7 @@ export function AdminTeams() {
         onConfirm={() => {
           if (!teamToDelete) return;
           if (teamToDelete.site_count > 0) {
-            navigate(`/admin/teams/${teamToDelete.id}`);
+            navigate(`/admin/teams/${teamToDelete.id}/sites`);
             return;
           }
           deleteTeam.mutate(teamToDelete.id);
@@ -301,180 +283,6 @@ export function AdminTeams() {
         cancelText={teamToDelete?.site_count ? "Close" : "Cancel"}
         isDestructive={!teamToDelete?.site_count}
       />
-    </div>
-  );
-}
-
-interface MemberPanelProps {
-  teamId: number;
-}
-
-function MemberPanel({ teamId }: MemberPanelProps) {
-  const [searchInput, setSearchInput] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const debouncedSearch = useDebouncedValue(searchInput);
-  const {
-    page: membersPage,
-    perPage: membersPerPage,
-    goToPage: goToMembersPage,
-  } = usePagination();
-
-  const { data: membersData } = useAdminUsers({
-    page: membersPage,
-    perPage: membersPerPage,
-    teamId,
-    active: true,
-  });
-  const { data: candidatesData } = useAdminUsers({
-    page: 1,
-    perPage: 20,
-    search: debouncedSearch.trim() || undefined,
-    excludeTeamId: teamId,
-    active: true,
-  });
-
-  const addMember = useAddTeamMember();
-  const removeMember = useRemoveTeamMember();
-
-  const members = membersData?.data ?? [];
-  const memberTotalPages = membersData
-    ? Math.ceil(membersData.total / membersData.per_page)
-    : 0;
-
-  useEffect(() => {
-    if (
-      membersData &&
-      membersData.data.length === 0 &&
-      membersData.total > 0 &&
-      membersPage > 1
-    ) {
-      goToMembersPage(1);
-    }
-  }, [membersData, membersPage, goToMembersPage]);
-
-  const candidates = candidatesData?.data ?? [];
-  const totalCandidates = candidatesData?.total ?? 0;
-  const hasMoreResults = totalCandidates > candidates.length;
-
-  const handleAddMember = () => {
-    if (!selectedUserId) return;
-    addMember.mutate(
-      { teamId, member: { user_id: Number(selectedUserId) } },
-      {
-        onSuccess: () => {
-          setSelectedUserId("");
-          setSearchInput("");
-        },
-      },
-    );
-  };
-
-  return (
-    <div
-      style={{
-        marginTop: "12px",
-        padding: "12px",
-        border: "1px solid var(--color-border)",
-        borderRadius: "12px",
-        backgroundColor: "var(--color-surface-muted)",
-      }}
-    >
-      <div style={{ marginBottom: "8px", fontWeight: 500 }}>Members</div>
-      {members.length > 0 ? (
-        <>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px 0" }}>
-            {members.map((user: UserResponse) => (
-              <li
-                key={user.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "4px 0",
-                }}
-              >
-                <span>
-                  {user.username}
-                  <span className="muted-text"> ({user.role})</span>
-                </span>
-                <button
-                  className="button-table-action button-table-danger"
-                  onClick={() =>
-                    removeMember.mutate({ teamId, userId: user.id })
-                  }
-                  style={{
-                    padding: "4px 8px",
-                    fontSize: "12px",
-                  }}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <Pagination
-            page={membersPage}
-            totalPages={memberTotalPages}
-            onPageChange={goToMembersPage}
-          />
-        </>
-      ) : (
-        <p
-          className="muted-text"
-          style={{ margin: "0 0 12px 0", fontSize: "14px" }}
-        >
-          No members yet
-        </p>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <FormInput
-          type="text"
-          placeholder="Search users to add..."
-          value={searchInput}
-          onChange={(e) => {
-            setSearchInput(e.target.value);
-            setSelectedUserId("");
-          }}
-          className="compact-input"
-          style={{ width: "100%" }}
-        />
-        {debouncedSearch.trim() && (
-          <div style={{ display: "flex", gap: "8px" }}>
-            <FormSelect
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="compact-input"
-              style={{ flex: 1 }}
-            >
-              <option value="">
-                {candidates.length > 0
-                  ? `Select user (${candidates.length} match${candidates.length === 1 ? "" : "es"})`
-                  : "No matches"}
-              </option>
-              {candidates.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.username}
-                </option>
-              ))}
-            </FormSelect>
-            <button
-              className="button-table-action compact-input"
-              onClick={handleAddMember}
-              disabled={!selectedUserId || addMember.isPending}
-            >
-              Add
-            </button>
-          </div>
-        )}
-        {hasMoreResults && debouncedSearch.trim() && (
-          <p className="muted-text" style={{ fontSize: "12px", margin: 0 }}>
-            Showing {candidatesData?.data.length} of {totalCandidates} results.
-            Please refine your search
-          </p>
-        )}
-      </div>
-      {addMember.isError && <ErrorMessage error={addMember.error} />}
-      {removeMember.isError && <ErrorMessage error={removeMember.error} />}
     </div>
   );
 }

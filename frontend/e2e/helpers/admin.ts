@@ -26,16 +26,17 @@ export async function createUserViaUi(
   await expect(page.locator("tr", { hasText: username })).toBeVisible();
 }
 
-export async function addUserToTeamViaPanel(
+export async function addUserToTeamViaTeamPage(
   page: Page,
   teamName: string,
   username: string,
 ) {
   await page.goto("/admin/teams");
-  const teamRow = page.locator("tr", { hasText: teamName });
-  await teamRow.getByRole("button", { name: "Members" }).click();
-  await teamRow.getByPlaceholder("Search users to add...").fill(username);
-  await teamRow.getByRole("combobox").selectOption({ label: username });
-  await teamRow.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(teamRow.locator("li", { hasText: username })).toBeVisible();
+  await page.getByRole("link", { name: teamName }).click();
+  await page.getByRole("button", { name: "Add member" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByPlaceholder("Search users to add...").fill(username);
+  await dialog.getByRole("button", { name: `Add ${username}` }).click();
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await expect(page.locator("tr", { hasText: username })).toBeVisible();
 }

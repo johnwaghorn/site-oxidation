@@ -165,6 +165,49 @@ async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_team_sites_search_matches_name_or_url_within_team(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES \
+         ('Docs', 'https://docs.waghorn.tech', 200, 'up', 1), \
+         ('Status Page', 'https://status.waghorn.tech', 200, 'up', 1), \
+         ('Docs Mirror', 'https://mirror.waghorn.tech', 200, 'up', 2)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    for (search, expected_name) in [("docs", "Docs"), ("status.waghorn", "Status Page")] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/admin/teams/1/sites?search={search}"))
+                    .header("cookie", &cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = parse_json_body(response).await;
+        assert_eq!(
+            body["total"], 1,
+            "search {search} should only match within team 1"
+        );
+        assert_eq!(
+            body["data"][0]["name"], expected_name,
+            "wrong site for {search}"
+        );
+    }
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_unassign_site_from_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")

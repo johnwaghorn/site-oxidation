@@ -94,7 +94,7 @@ function CanarySettingsPage({ settings }: { settings: CanarySettings }) {
   };
 
   return (
-    <div className="page-wrapper canary-page">
+    <div className="page-wrapper">
       <h1 className="page-title">Canary</h1>
       <p className="page-subtitle canary-lede">
         A lightweight check against a URL you control. When it can't connect,

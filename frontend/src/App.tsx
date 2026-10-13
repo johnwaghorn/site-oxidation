@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { Dashboard } from "./pages/Dashboard";
 import { SiteDetail } from "./pages/SiteDetail";
 import { Login } from "./pages/Login";
@@ -7,6 +7,8 @@ import { Setup } from "./pages/Setup";
 import { ChangePassword, ChangePasswordForm } from "./pages/ChangePassword";
 import { AdminTeams } from "./pages/AdminTeams";
 import { AdminTeamDetail } from "./pages/AdminTeamDetail";
+import { AdminTeamMembers } from "./pages/AdminTeamMembers";
+import { AdminTeamSites } from "./pages/AdminTeamSites";
 import { AdminUsers } from "./pages/AdminUsers";
 import { AdminCanary } from "./pages/AdminCanary";
 import { Notifications } from "./pages/Notifications";
@@ -88,7 +90,11 @@ function App() {
           {role === "admin" && (
             <>
               <Route path="/admin/teams" element={<AdminTeams />} />
-              <Route path="/admin/teams/:id" element={<AdminTeamDetail />} />
+              <Route path="/admin/teams/:id" element={<AdminTeamDetail />}>
+                <Route index element={<Navigate to="members" replace />} />
+                <Route path="members" element={<AdminTeamMembers />} />
+                <Route path="sites" element={<AdminTeamSites />} />
+              </Route>
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/canary" element={<AdminCanary />} />
             </>
