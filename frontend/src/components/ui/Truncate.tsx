@@ -17,6 +17,7 @@ export function Truncate({ text, maxWidth = 200, style }: TruncateProps) {
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
         verticalAlign: "bottom",
+        textDecoration: "inherit",
         ...style,
       }}
     >
