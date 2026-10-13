@@ -92,12 +92,22 @@ pub async fn get_team(
     Ok(Json(team))
 }
 
+#[derive(Deserialize)]
+pub struct ListTeamSitesQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    per_page: Option<u32>,
+    search: Option<String>,
+}
+
 #[utoipa::path(
     get,
     path = "/teams/{id}/sites",
     params(
         ("id" = i64, Path, description = "Team ID"),
         PaginationParams,
+        SearchParams,
     ),
     responses(
         (status = 200, description = "List sites assigned to a team", body = inline(PaginatedResponse<SiteResponse>)),
@@ -113,8 +123,10 @@ pub async fn list_team_sites(
     RequireAdmin(_admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
-    Query(params): Query<PaginationParams>,
+    Query(params): Query<ListTeamSitesQuery>,
 ) -> Result<Json<PaginatedResponse<SiteResponse>>, ApiErrorResponse> {
+    let pagination = PaginationParams::new(params.page, params.per_page);
+    let search = normalise_search(params.search.as_deref());
     let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
         .bind(id)
         .fetch_one(&pool)
@@ -125,20 +137,22 @@ pub async fn list_team_sites(
     }
     let sites = sqlx::query_as::<_, SiteResponse>(queries::LIST_TEAM_SITES)
         .bind(id)
-        .bind(params.per_page())
-        .bind(params.offset())
+        .bind(search)
+        .bind(pagination.per_page())
+        .bind(pagination.offset())
         .fetch_all(&pool)
         .await
         .map_err(|e| internal_err("Failed to list team sites", e))?;
     let total: i64 = sqlx::query_scalar(queries::COUNT_TEAM_SITES)
         .bind(id)
+        .bind(search)
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count team sites", e))?;
     Ok(Json(PaginatedResponse {
         data: sites,
-        page: params.page(),
-        per_page: params.per_page(),
+        page: pagination.page(),
+        per_page: pagination.per_page(),
         total,
     }))
 }

@@ -17,8 +17,12 @@ export const queryKeys = {
     ["admin", "teams", { page, perPage, search }] as const,
   adminTeam: (id: number) => ["admin", "teams", id] as const,
   adminTeamSitesAll: (id: number) => ["admin", "teams", id, "sites"] as const,
-  adminTeamSites: (id: number, page: number, perPage: number) =>
-    ["admin", "teams", id, "sites", { page, perPage }] as const,
+  adminTeamSites: (
+    id: number,
+    page: number,
+    perPage: number,
+    search?: string,
+  ) => ["admin", "teams", id, "sites", { page, perPage, search }] as const,
   adminTeamOptions: (search: string) =>
     ["admin", "teams", "options", search] as const,
   adminUsersAll: ["admin", "users"] as const,

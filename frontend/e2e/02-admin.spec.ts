@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
-  addUserToTeamViaPanel,
+  addUserToTeamViaTeamPage,
   createTeamViaUi,
   createUserViaUi,
   signInAsAdmin,
@@ -22,13 +22,13 @@ test("create a user", async ({ page }) => {
   });
 });
 
-test("add a user to a team via the members panel", async ({ page }) => {
+test("add a user to a team from the team page", async ({ page }) => {
   await test.step("Given a team named Support", async () => {
     await createTeamViaUi(page, "Support");
   });
 
-  await test.step("When I add maddie to Support from the members panel", async () => {
-    await addUserToTeamViaPanel(page, "Support", "maddie");
+  await test.step("When I add maddie to Support from the team page", async () => {
+    await addUserToTeamViaTeamPage(page, "Support", "maddie");
   });
 });
 

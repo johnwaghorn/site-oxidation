@@ -63,12 +63,20 @@ export function useAdminTeam(id: number) {
   });
 }
 
-export function useAdminTeamSites(id: number, page = 1, perPage = 20) {
+export function useAdminTeamSites(
+  id: number,
+  page = 1,
+  perPage = 20,
+  search?: string,
+) {
   return useQuery({
-    queryKey: queryKeys.adminTeamSites(id, page, perPage),
+    queryKey: queryKeys.adminTeamSites(id, page, perPage, search),
     queryFn: async () => {
       const { data, error } = await api.GET("/api/admin/teams/{id}/sites", {
-        params: { path: { id }, query: { page, per_page: perPage } },
+        params: {
+          path: { id },
+          query: { page, per_page: perPage, search: search || undefined },
+        },
       });
       if (error) throw new Error(error.message);
       return data!;

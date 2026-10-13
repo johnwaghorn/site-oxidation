@@ -1492,6 +1492,8 @@ export interface operations {
                 page?: number;
                 /** @example 20 */
                 per_page?: number;
+                /** @description Case-insensitive substring match. */
+                search?: string;
             };
             header?: never;
             path: {

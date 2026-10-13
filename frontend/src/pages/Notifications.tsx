@@ -564,20 +564,14 @@ export function Notifications() {
       {isLoading ? (
         <LoadingSpinner />
       ) : teams.length === 0 ? (
-        <section className="card-hero" style={{ maxWidth: "680px" }}>
+        <section className="card-hero">
           <h2>No teams available</h2>
           <p className="muted-text" style={{ maxWidth: "520px", margin: 0 }}>
             Join or create a team before configuring notifications.
           </p>
         </section>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gap: "16px",
-            maxWidth: "760px",
-          }}
-        >
+        <div style={{ display: "grid", gap: "16px" }}>
           {teams.map((team) => (
             <TeamNotificationsCard
               key={team.id}

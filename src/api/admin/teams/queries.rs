@@ -48,7 +48,11 @@ pub const DELETE_TEAM: &str = concat!(
     ") RETURNING id"
 );
 
-pub const COUNT_TEAM_SITES: &str = "SELECT COUNT(*) FROM sites WHERE team_id = ?";
+pub const COUNT_TEAM_SITES: &str = concat!(
+    "SELECT COUNT(*) FROM sites s ",
+    "WHERE s.team_id = ?1 ",
+    "AND (?2 IS NULL OR s.name LIKE '%' || ?2 || '%' OR s.url LIKE '%' || ?2 || '%')"
+);
 
 pub const LIST_TEAM_SITES: &str = concat!(
     "SELECT s.id, s.name, s.url, s.created_at, s.expected_status, s.expected_text, s.status, ",
@@ -56,8 +60,9 @@ pub const LIST_TEAM_SITES: &str = concat!(
     "t.name AS team_name, s.tls_allow_untrusted, s.cert_status, s.cert_expires_at ",
     "FROM sites s ",
     "INNER JOIN teams t ON t.id = s.team_id ",
-    "WHERE s.team_id = ? ",
-    "ORDER BY s.id DESC LIMIT ? OFFSET ?"
+    "WHERE s.team_id = ?1 ",
+    "AND (?2 IS NULL OR s.name LIKE '%' || ?2 || '%' OR s.url LIKE '%' || ?2 || '%') ",
+    "ORDER BY s.id DESC LIMIT ?3 OFFSET ?4"
 );
 
 pub const UNASSIGN_TEAM_SITE: &str =

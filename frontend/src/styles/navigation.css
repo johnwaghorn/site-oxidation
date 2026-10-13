@@ -9,20 +9,37 @@
 
 .tabs-nav {
   display: flex;
-  gap: 0;
+  gap: 4px;
   margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tab-link {
-  padding: 10px 20px;
-  text-decoration: none;
-  border-bottom: 2px solid transparent;
-  font-size: 14px;
-  font-weight: 500;
+  margin-bottom: -1px;
+  padding: 10px 18px;
+  border-bottom: 3px solid transparent;
+  border-radius: 8px 8px 0 0;
   color: var(--color-muted);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.tab-link:hover {
+  background-color: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
 .tab-link.active {
   border-bottom-color: var(--color-primary);
-  color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+  color: var(--color-link-hover);
+}
+
+.tab-link:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }

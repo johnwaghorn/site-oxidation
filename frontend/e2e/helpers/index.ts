@@ -1,6 +1,6 @@
 export {
   TEMP_USER_PASSWORD,
-  addUserToTeamViaPanel,
+  addUserToTeamViaTeamPage,
   createTeamViaUi,
   createUserViaUi,
 } from "./admin";

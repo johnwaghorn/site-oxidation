@@ -13,17 +13,19 @@ export function Tabs({ items }: TabsProps) {
   const location = useLocation();
   return (
     <nav className="tabs-nav">
-      {items.map((item) => (
-        <Link
-          key={item.to}
-          to={item.to}
-          className={
-            location.pathname === item.to ? "tab-link active" : "tab-link"
-          }
-        >
-          {item.label}
-        </Link>
-      ))}
+      {items.map((item) => {
+        const isActive = location.pathname === item.to;
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={isActive ? "tab-link active" : "tab-link"}
+            aria-current={isActive ? "page" : undefined}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

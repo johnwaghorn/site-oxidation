@@ -167,3 +167,18 @@
   background-color: var(--color-primary-soft);
   color: var(--color-link-hover);
 }
+
+.member-candidates {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-candidates li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--color-border);
+}
