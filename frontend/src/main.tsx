@@ -12,6 +12,7 @@ import "./styles/buttons.css";
 import "./styles/cards.css";
 import "./styles/feedback.css";
 import "./styles/canary.css";
+import "./styles/notifications.css";
 import App from "./App.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setQueryClient } from "./lib/api.ts";

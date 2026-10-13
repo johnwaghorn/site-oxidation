@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 import {
   MADDIE_PASSWORD,
   TEMP_USER_PASSWORD,
-  expandNotificationCard,
+  channelRow,
+  openTeamNotifications,
   signIn,
   signInAsMaddie,
 } from "./helpers";
@@ -67,29 +68,26 @@ test("maddie configures notifications for her team", async ({ page }) => {
     await page.goto("/notifications");
   });
 
-  await test.step("Then she sees cards for both of her teams", async () => {
-    await expect(
-      page.getByRole("button", { name: "Team Rocket" }),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Support" })).toBeVisible();
+  await test.step("Then she sees both of her teams", async () => {
+    const teamList = page.getByRole("navigation", { name: "Teams" });
+    await expect(teamList.getByText("Team Rocket", { exact: true })).toBeVisible();
+    await expect(teamList.getByText("Support", { exact: true })).toBeVisible();
   });
 
   await test.step("When she saves a Slack webhook for Support", async () => {
-    await expandNotificationCard(page, "Support");
-    const slackForm = page
-      .locator("form")
-      .filter({ hasText: "Slack webhook URL" });
-    await slackForm
+    await openTeamNotifications(page, "Support");
+    await page.getByRole("button", { name: "Set up Slack" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog
       .getByPlaceholder("https://hooks.slack.com/services/...")
       .fill("https://hooks.slack.test/services/support");
-    await slackForm.getByRole("button", { name: "Save webhook" }).click();
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
   });
 
-  await test.step("Then the Support card shows Slack alerts are enabled", async () => {
-    const card = page.locator("section").filter({ hasText: "Support" });
+  await test.step("Then Slack shows as on for Support", async () => {
     await expect(
-      card.getByText("Slack alerts are enabled.", { exact: true }),
+      channelRow(page, "Slack").getByText("On", { exact: true }),
     ).toBeVisible();
-    await expect(card.getByText("Enabled", { exact: true })).toBeVisible();
   });
 });

@@ -11,5 +11,5 @@ export {
   signInAsAdmin,
   signInAsMaddie,
 } from "./auth";
-export { expandNotificationCard } from "./notifications";
+export { channelRow, openTeamNotifications } from "./notifications";
 export { ensureTeamMembership } from "./teams";

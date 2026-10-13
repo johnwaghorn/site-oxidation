@@ -1,0 +1,196 @@
+.notifications-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.notification-team-list {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 280px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface);
+}
+
+.notification-team-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.notification-team-list a:hover {
+  background-color: var(--color-surface-muted);
+}
+
+.notification-team-list a[aria-current="page"] {
+  background-color: var(--color-primary-soft);
+  color: var(--color-link-hover);
+}
+
+.notification-team-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-settings {
+  flex: 999 1 480px;
+  min-width: 0;
+}
+
+.notification-section-title {
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.channel-list {
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.channel-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.channel-info {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.channel-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.channel-name .pill {
+  padding: 2px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.channel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notification-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 32px;
+  margin: 0;
+  padding: 16px 0 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.notification-events legend {
+  float: left;
+  width: 100%;
+}
+
+/* Checkbox styled as an on/off switch */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.switch input {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  border-radius: 999px;
+  background-color: var(--color-border);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.switch input::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--color-muted);
+  content: "";
+  transition: left 0.15s ease;
+}
+
+.switch input:checked {
+  background-color: var(--color-primary);
+}
+
+.switch input:checked::after {
+  left: 19px;
+  background-color: var(--color-primary-text);
+}
+
+.switch input:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.switch input:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.button-danger-outline {
+  border-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.pill-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.warning-box {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
