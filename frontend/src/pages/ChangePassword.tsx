@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
+import { useAuth } from "../hooks/useAuth";
 import { SecretInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
@@ -37,6 +38,7 @@ export function ChangePasswordForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { refresh } = useAuth();
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -51,9 +53,14 @@ export function ChangePasswordForm({
     };
     setIsLoading(true);
     try {
-      const { error: apiError } = await api.POST("/api/auth/change-password", {
-        body: payload,
-      });
+      const { error: apiError, response } = await api.POST(
+        "/api/auth/change-password",
+        { body: payload },
+      );
+      if (response.status === 409) {
+        await refresh();
+        return;
+      }
       if (apiError) {
         setError(apiError.message ?? "Failed to change password");
         return;
