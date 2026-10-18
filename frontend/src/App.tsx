@@ -14,6 +14,7 @@ import { AdminUserDetail } from "./pages/AdminUserDetail";
 import { AdminCanary } from "./pages/AdminCanary";
 import { Notifications } from "./pages/Notifications";
 import { ImportExport } from "./pages/ImportExport";
+import { NotFound } from "./pages/NotFound";
 import { useAuth } from "./hooks/useAuth";
 import { useSetupStatus } from "./hooks/useSetup";
 import { useThemePreference } from "./hooks/useThemePreference";
@@ -102,6 +103,7 @@ function App() {
               <Route path="/admin/canary" element={<AdminCanary />} />
             </>
           )}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
       <Modal
