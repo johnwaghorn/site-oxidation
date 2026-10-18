@@ -5,6 +5,7 @@ use utoipa::OpenApi;
 use super::admin::schema::AdminApiDoc;
 use super::auth::schema::AuthApiDoc;
 use super::healthcheck::schema::HealthApiDoc;
+use super::import_export::schema::ImportExportApiDoc;
 use super::setup::schema::SetupApiDoc;
 use super::sites::schema::SitesApiDoc;
 use super::teams::schema::TeamsApiDoc;
@@ -14,6 +15,7 @@ use super::version::schema::VersionApiDoc;
 #[openapi(
     nest(
           (path = "/api", api = SitesApiDoc),
+          (path = "/api", api = ImportExportApiDoc),
           (path = "/api", api = TeamsApiDoc),
           (path = "/api", api = AdminApiDoc),
           (path = "/api", api = AuthApiDoc),

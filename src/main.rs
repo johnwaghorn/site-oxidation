@@ -105,6 +105,7 @@ async fn main() -> Result<()> {
     let auth_routes = api::auth::auth_routes();
     let setup_routes = api::setup::setup_routes();
     let site_routes = api::sites::site_routes();
+    let import_export_routes = api::import_export::import_export_routes();
     let team_routes = api::teams::team_routes();
     let admin_routes = api::admin::admin_routes();
     let version_routes = api::version::version_routes();
@@ -116,6 +117,7 @@ async fn main() -> Result<()> {
             Router::new()
                 .merge(auth_routes)
                 .merge(site_routes)
+                .merge(import_export_routes)
                 .merge(team_routes)
                 .merge(admin_routes)
                 .merge(version_routes),

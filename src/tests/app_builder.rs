@@ -55,6 +55,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();
+    let import_export_routes = crate::api::import_export::import_export_routes();
     let team_routes = crate::api::teams::team_routes();
     let admin_routes = crate::api::admin::admin_routes();
     let version_routes = crate::api::version::version_routes();
@@ -67,6 +68,7 @@ pub fn test_app_with_private_ips(pool: SqlitePool, allow_private_ips: bool) -> R
             Router::new()
                 .merge(auth_routes)
                 .merge(site_routes)
+                .merge(import_export_routes)
                 .merge(team_routes)
                 .merge(admin_routes)
                 .merge(version_routes),
@@ -107,6 +109,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
     };
     let auth_routes = crate::api::auth::auth_routes();
     let site_routes = crate::api::sites::site_routes();
+    let import_export_routes = crate::api::import_export::import_export_routes();
     let team_routes = crate::api::teams::team_routes();
     let admin_routes = crate::api::admin::admin_routes();
     let version_routes = crate::api::version::version_routes();
@@ -119,6 +122,7 @@ pub fn test_app_with_cors(pool: SqlitePool, allowed_origin: &str) -> Router {
             Router::new()
                 .merge(auth_routes)
                 .merge(site_routes)
+                .merge(import_export_routes)
                 .merge(team_routes)
                 .merge(admin_routes)
                 .merge(version_routes),

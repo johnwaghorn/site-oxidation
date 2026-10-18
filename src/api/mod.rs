@@ -6,6 +6,7 @@ pub(crate) mod auth;
 pub mod errors;
 pub(crate) mod extractors;
 pub(crate) mod healthcheck;
+pub(crate) mod import_export;
 pub(crate) mod pagination;
 pub(crate) mod schema;
 pub(crate) mod search;

@@ -3,7 +3,7 @@ use axum::{Json, http::StatusCode};
 use sqlx::SqlitePool;
 use std::time::Instant;
 
-use super::responses::{ComponentHealth, HealthChecks, HealthcheckResponse};
+use super::responses::{ComponentHealth, HealthChecks, HealthStatus, HealthcheckResponse};
 
 const DATABASE_UNAVAILABLE_MESSAGE: &str = "Database unavailable";
 
@@ -22,32 +22,27 @@ pub async fn health(State(pool): State<SqlitePool>) -> (StatusCode, Json<Healthc
     let db_latency = u64::try_from(db_check_start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
     let database = match db_result {
         Ok(_) => ComponentHealth {
-            status: "healthy",
+            status: HealthStatus::Healthy,
             latency_ms: Some(db_latency),
             error: None,
         },
         Err(e) => {
             tracing::error!("Healthcheck database query failed: {e}");
             ComponentHealth {
-                status: "unhealthy",
+                status: HealthStatus::Unhealthy,
                 latency_ms: None,
                 error: Some(DATABASE_UNAVAILABLE_MESSAGE.to_owned()),
             }
         }
     };
-    let all_components_healthy = database.status == "healthy";
+    let overall = database.status;
+    let status_code = match overall {
+        HealthStatus::Healthy => StatusCode::OK,
+        HealthStatus::Unhealthy => StatusCode::SERVICE_UNAVAILABLE,
+    };
     let response = HealthcheckResponse {
-        status: if all_components_healthy {
-            "healthy"
-        } else {
-            "unhealthy"
-        },
+        status: overall,
         checks: HealthChecks { database },
     };
-    let status = if all_components_healthy {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (status, Json(response))
+    (status_code, Json(response))
 }

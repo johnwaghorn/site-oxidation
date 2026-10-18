@@ -1,4 +1,6 @@
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import type { components } from "../src/generated/schema";
 import {
   MADDIE_PASSWORD,
   TEMP_USER_PASSWORD,
@@ -7,6 +9,8 @@ import {
   signIn,
   signInAsMaddie,
 } from "./helpers";
+
+type SiteExportResponse = components["schemas"]["SiteExportResponse"];
 
 test("maddie changes her temporary password on first sign-in", async ({
   page,
@@ -105,5 +109,34 @@ test("maddie checks which version is running", async ({ page }) => {
   await test.step("Then she sees the running version", async () => {
     const dialog = page.getByRole("dialog", { name: "About Site Oxidation" });
     await expect(dialog.getByText(/^Version: v\d+\.\d+\.\d+$/)).toBeVisible();
+  });
+});
+
+test("maddie exports her sites", async ({ page }) => {
+  await test.step("Given maddie is signed in", async () => {
+    await signInAsMaddie(page);
+  });
+
+  const download = await test.step("When she exports her sites", async () => {
+    await page.getByRole("link", { name: "Import & Export" }).click();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export sites" }).click();
+    return downloadPromise;
+  });
+
+  await test.step("Then the file holds her team's site settings", async () => {
+    expect(download.suggestedFilename()).toMatch(
+      /^site-oxidation-sites-\d{4}-\d{2}-\d{2}\.json$/,
+    );
+    const file: SiteExportResponse = JSON.parse(
+      await readFile(await download.path(), "utf8"),
+    );
+    expect(file.version).toBe(1);
+    expect(file.sites).toContainEqual(
+      expect.objectContaining({
+        name: "Maddie Blog",
+        url: "https://maddie.waghorn.tech",
+      }),
+    );
   });
 });

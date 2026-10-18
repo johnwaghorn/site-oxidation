@@ -340,6 +340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["export_sites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/unassigned-count": {
         parameters: {
             query?: never;
@@ -516,7 +532,7 @@ export interface components {
             error?: string | null;
             /** Format: int64 */
             latency_ms?: number | null;
-            status: string;
+            status: components["schemas"]["HealthStatus"];
         };
         CreateTeamRequest: {
             name: components["schemas"]["TeamName"];
@@ -550,12 +566,24 @@ export interface components {
         ExpectedStatus: number;
         /** @example Waghorn Technology */
         ExpectedText: string;
+        ExportedSite: {
+            /** Format: int64 */
+            expected_status: number;
+            expected_text?: string | null;
+            name: string;
+            /** Format: int64 */
+            probe_interval_seconds: number;
+            tls_allow_untrusted: boolean;
+            url: string;
+        };
         HealthChecks: {
             database: components["schemas"]["ComponentHealth"];
         };
+        /** @enum {string} */
+        HealthStatus: "healthy" | "unhealthy";
         HealthcheckResponse: {
             checks: components["schemas"]["HealthChecks"];
-            status: string;
+            status: components["schemas"]["HealthStatus"];
         };
         LoginSuccess: {
             username: string;
@@ -645,6 +673,14 @@ export interface components {
         };
         SetupStatus: {
             setup_required: boolean;
+        };
+        SiteExportResponse: {
+            /** Format: date-time */
+            exported_at: string;
+            exported_by: string;
+            sites: components["schemas"]["ExportedSite"][];
+            /** Format: int32 */
+            version: number;
         };
         /** @example Waghorn Technology Ltd */
         SiteName: string;
@@ -2617,6 +2653,44 @@ export interface operations {
             };
             /** @description Site payload validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    export_sites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings of every site the user can see, for import into another instance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteExportResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

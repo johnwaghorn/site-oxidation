@@ -3,12 +3,12 @@
 use utoipa::OpenApi;
 
 use super::endpoints;
-use super::responses::{ComponentHealth, HealthChecks, HealthcheckResponse};
+use super::responses::{ComponentHealth, HealthChecks, HealthStatus, HealthcheckResponse};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(endpoints::health),
-    components(schemas(HealthcheckResponse, HealthChecks, ComponentHealth)),
+    components(schemas(HealthcheckResponse, HealthChecks, ComponentHealth, HealthStatus)),
     tags(
         (name = "health", description = "Service health"),
     ),
