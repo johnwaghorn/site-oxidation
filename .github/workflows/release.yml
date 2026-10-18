@@ -16,8 +16,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check-version:
+    name: Check tag matches Cargo.toml
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          cargo_version=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f2)
+          if [ "v${cargo_version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${cargo_version}. Use scripts/release.sh."
+            exit 1
+          fi
+
   review:
     name: Release approval
+    needs: check-version
     runs-on: ubuntu-24.04
     # Review gate.
     environment: release

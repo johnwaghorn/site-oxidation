@@ -37,4 +37,5 @@ export const queryKeys = {
   adminUsers: (filters: AdminUsersFilters) =>
     ["admin", "users", filters] as const,
   adminCanary: ["admin", "canary"] as const,
+  version: ["version"] as const,
 };

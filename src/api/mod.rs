@@ -13,5 +13,6 @@ pub(crate) mod setup;
 pub(crate) mod sites;
 pub(crate) mod teams;
 pub(crate) mod text;
+pub(crate) mod version;
 
 pub use schema::ApiDoc;

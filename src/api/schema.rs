@@ -4,9 +4,11 @@ use utoipa::OpenApi;
 
 use super::admin::schema::AdminApiDoc;
 use super::auth::schema::AuthApiDoc;
+use super::healthcheck::schema::HealthApiDoc;
 use super::setup::schema::SetupApiDoc;
 use super::sites::schema::SitesApiDoc;
 use super::teams::schema::TeamsApiDoc;
+use super::version::schema::VersionApiDoc;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -16,6 +18,8 @@ use super::teams::schema::TeamsApiDoc;
           (path = "/api", api = AdminApiDoc),
           (path = "/api", api = AuthApiDoc),
           (path = "/api", api = SetupApiDoc),
+          (path = "/api", api = VersionApiDoc),
+          (path = "/api", api = HealthApiDoc),
     ),
     info(
         title = "Site Oxidation API",

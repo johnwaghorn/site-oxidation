@@ -16,7 +16,7 @@ use crate::auth::{Authenticator, delete_expired_sessions};
 use crate::security::resolver::SafeResolver;
 use anyhow::{Context, Result};
 use api::ApiDoc;
-use axum::Router;
+use axum::{Router, routing::any};
 use config::AppConfig;
 use monitoring::run_due_site_checks;
 use password_auth::generate_hash;
@@ -107,6 +107,7 @@ async fn main() -> Result<()> {
     let site_routes = api::sites::site_routes();
     let team_routes = api::teams::team_routes();
     let admin_routes = api::admin::admin_routes();
+    let version_routes = api::version::version_routes();
     let mut app = Router::new()
         .nest("/api", health_routes)
         .nest("/api", setup_routes)
@@ -116,8 +117,10 @@ async fn main() -> Result<()> {
                 .merge(auth_routes)
                 .merge(site_routes)
                 .merge(team_routes)
-                .merge(admin_routes),
+                .merge(admin_routes)
+                .merge(version_routes),
         )
+        .route("/api/{*path}", any(api::errors::api_not_found))
         .layer(security::cors::cors_layer(&config)?)
         .fallback_service(static_service)
         .with_state(state);

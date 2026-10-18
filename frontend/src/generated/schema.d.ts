@@ -276,6 +276,22 @@ export interface paths {
         patch: operations["update_theme_preference"];
         trace?: never;
     };
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/bootstrap": {
         parameters: {
             query?: never;
@@ -436,6 +452,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -480,6 +512,12 @@ export interface components {
          * @example 60
          */
         CheckInterval: number;
+        ComponentHealth: {
+            error?: string | null;
+            /** Format: int64 */
+            latency_ms?: number | null;
+            status: string;
+        };
         CreateTeamRequest: {
             name: components["schemas"]["TeamName"];
         };
@@ -512,6 +550,13 @@ export interface components {
         ExpectedStatus: number;
         /** @example Waghorn Technology */
         ExpectedText: string;
+        HealthChecks: {
+            database: components["schemas"]["ComponentHealth"];
+        };
+        HealthcheckResponse: {
+            checks: components["schemas"]["HealthChecks"];
+            status: string;
+        };
         LoginSuccess: {
             username: string;
         };
@@ -759,6 +804,9 @@ export interface components {
         };
         /** @example john */
         Username: string;
+        VersionResponse: {
+            version: string;
+        };
         /** @example https://hooks.slack.com/services/example */
         WebhookUrl: string;
     };
@@ -2334,6 +2382,35 @@ export interface operations {
             };
         };
     };
+    health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All components healthy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthcheckResponse"];
+                };
+            };
+            /** @description One or more components unhealthy */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthcheckResponse"];
+                };
+            };
+        };
+    };
     bootstrap: {
         parameters: {
             query?: never;
@@ -3241,6 +3318,35 @@ export interface operations {
             };
             /** @description The Microsoft Teams webhook rejected or did not accept the test message */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Running application version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

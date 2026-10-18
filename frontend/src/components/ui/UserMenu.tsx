@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ThemePreference } from "../../hooks/useThemePreference";
+import { useVersion } from "../../hooks/useVersion";
+import { Modal } from "./Modal";
 
 interface UserMenuProps {
   username: string;
@@ -38,7 +40,9 @@ export function UserMenu({
 }: UserMenuProps) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const version = useVersion();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -147,6 +151,15 @@ export function UserMenu({
           <button
             onClick={() => {
               setIsOpen(false);
+              setIsAboutOpen(true);
+            }}
+            style={menuItemStyle}
+          >
+            About
+          </button>
+          <button
+            onClick={() => {
+              setIsOpen(false);
               onLogout();
             }}
             style={{ ...menuItemStyle, color: "var(--color-danger)" }}
@@ -155,6 +168,15 @@ export function UserMenu({
           </button>
         </div>
       )}
+      <Modal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
+        title="About Site Oxidation"
+      >
+        <p style={{ margin: 0, color: "var(--color-muted)" }}>
+          Version: {version ? `v${version}` : "Unknown"}
+        </p>
+      </Modal>
     </div>
   );
 }

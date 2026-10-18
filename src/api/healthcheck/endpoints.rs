@@ -1,36 +1,21 @@
 use axum::extract::State;
-use axum::routing::get;
-use axum::{Json, Router, http::StatusCode};
-use serde::Serialize;
+use axum::{Json, http::StatusCode};
 use sqlx::SqlitePool;
 use std::time::Instant;
 
-use crate::state::AppState;
+use super::responses::{ComponentHealth, HealthChecks, HealthcheckResponse};
 
-#[derive(Serialize)]
-pub struct HealthcheckResponse {
-    status: &'static str,
-    version: &'static str,
-    checks: HealthChecks,
-}
+const DATABASE_UNAVAILABLE_MESSAGE: &str = "Database unavailable";
 
-#[derive(Serialize)]
-pub struct HealthChecks {
-    database: ComponentHealth,
-}
-
-#[derive(Serialize)]
-pub struct ComponentHealth {
-    status: &'static str,
-    latency_ms: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
-}
-
-pub fn health_routes() -> Router<AppState> {
-    Router::new().route("/health", get(health))
-}
-
+#[utoipa::path(
+    get,
+    path = "/health",
+    responses(
+        (status = 200, description = "All components healthy", body = HealthcheckResponse),
+        (status = 503, description = "One or more components unhealthy", body = HealthcheckResponse),
+    ),
+    tag = "health",
+)]
 pub async fn health(State(pool): State<SqlitePool>) -> (StatusCode, Json<HealthcheckResponse>) {
     let db_check_start_time = Instant::now();
     let db_result = sqlx::query("SELECT 1").fetch_one(&pool).await;
@@ -41,11 +26,14 @@ pub async fn health(State(pool): State<SqlitePool>) -> (StatusCode, Json<Healthc
             latency_ms: Some(db_latency),
             error: None,
         },
-        Err(e) => ComponentHealth {
-            status: "unhealthy",
-            latency_ms: None,
-            error: Some(e.to_string()),
-        },
+        Err(e) => {
+            tracing::error!("Healthcheck database query failed: {e}");
+            ComponentHealth {
+                status: "unhealthy",
+                latency_ms: None,
+                error: Some(DATABASE_UNAVAILABLE_MESSAGE.to_owned()),
+            }
+        }
     };
     let all_components_healthy = database.status == "healthy";
     let response = HealthcheckResponse {
@@ -54,7 +42,6 @@ pub async fn health(State(pool): State<SqlitePool>) -> (StatusCode, Json<Healthc
         } else {
             "unhealthy"
         },
-        version: env!("CARGO_PKG_VERSION"),
         checks: HealthChecks { database },
     };
     let status = if all_components_healthy {

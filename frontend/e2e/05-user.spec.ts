@@ -91,3 +91,19 @@ test("maddie configures notifications for her team", async ({ page }) => {
     ).toBeVisible();
   });
 });
+
+test("maddie checks which version is running", async ({ page }) => {
+  await test.step("Given maddie is signed in", async () => {
+    await signInAsMaddie(page);
+  });
+
+  await test.step("When she opens About from her account menu", async () => {
+    await page.getByRole("button", { name: /maddie/ }).click();
+    await page.getByRole("button", { name: "About" }).click();
+  });
+
+  await test.step("Then she sees the running version", async () => {
+    const dialog = page.getByRole("dialog", { name: "About Site Oxidation" });
+    await expect(dialog.getByText(/^Version: v\d+\.\d+\.\d+$/)).toBeVisible();
+  });
+});

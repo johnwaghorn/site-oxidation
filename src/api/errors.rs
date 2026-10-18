@@ -18,6 +18,10 @@ pub struct ApiErrorResponse {
     body: ApiError,
 }
 
+pub async fn api_not_found() -> ApiErrorResponse {
+    ApiErrorResponse::not_found("Endpoint")
+}
+
 pub fn internal_err<E>(msg: &str, e: E) -> ApiErrorResponse
 where
     E: Display,
