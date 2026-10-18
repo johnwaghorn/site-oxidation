@@ -67,12 +67,12 @@ export function AppShell({
               Notifications
             </NavLink>
             <NavLink
-              to="/backups"
+              to="/import-export"
               className={({ isActive }) =>
                 `app-sidebar-link${isActive ? " active" : ""}`
               }
             >
-              Backups & Restores
+              Import & Export
             </NavLink>
 
             {isAdmin && (

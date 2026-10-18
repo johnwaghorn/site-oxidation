@@ -13,7 +13,7 @@ import { AdminUsers } from "./pages/AdminUsers";
 import { AdminUserDetail } from "./pages/AdminUserDetail";
 import { AdminCanary } from "./pages/AdminCanary";
 import { Notifications } from "./pages/Notifications";
-import { Backups } from "./pages/Backups";
+import { ImportExport } from "./pages/ImportExport";
 import { useAuth } from "./hooks/useAuth";
 import { useSetupStatus } from "./hooks/useSetup";
 import { useThemePreference } from "./hooks/useThemePreference";
@@ -87,7 +87,7 @@ function App() {
           <Route path="/" element={<Dashboard role={role} teams={teams} />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/notifications/:teamId" element={<Notifications />} />
-          <Route path="/backups" element={<Backups />} />
+          <Route path="/import-export" element={<ImportExport />} />
           <Route path="/sites/:id" element={<SiteDetail />} />
           {role === "admin" && (
             <>
