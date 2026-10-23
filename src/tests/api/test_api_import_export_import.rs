@@ -1,6 +1,6 @@
 use crate::tests::{
-    TEST_PASSWORD, insert_team_sites, insert_test_user, login_and_get_cookie, parse_json_body,
-    test_app, test_app_with_private_ips,
+    TEST_PASSWORD, count_sites, insert_team_sites, insert_test_user, login_and_get_cookie,
+    parse_json_body, test_app, test_app_with_private_ips,
 };
 use axum::{
     body::Body,
@@ -8,13 +8,6 @@ use axum::{
 };
 use sqlx::{Row, SqlitePool};
 use tower::ServiceExt;
-
-async fn count_sites(pool: &SqlitePool) -> i64 {
-    sqlx::query_scalar("SELECT COUNT(*) FROM sites")
-        .fetch_one(pool)
-        .await
-        .unwrap()
-}
 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_import_requires_authentication(pool: SqlitePool) {

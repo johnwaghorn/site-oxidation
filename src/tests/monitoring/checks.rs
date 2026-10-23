@@ -216,11 +216,7 @@ async fn test_shared_failure_creates_separate_outages(pool: SqlitePool) {
     )
     .await;
     assert_eq!(server.request_count(), 1);
-    let outages: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(outages, 2);
+    assert_eq!(count_outages(&pool).await, 2);
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -357,11 +353,7 @@ async fn test_grouped_monitors_share_one_notification_per_webhook(pool: SqlitePo
     };
     let url = format!("http://127.0.0.1:{dead_port}/");
     for (team_name, monitor_name) in [("Team Rocket", "Monitor A"), ("Team Aqua", "Monitor B")] {
-        let team_id: i64 = sqlx::query_scalar("INSERT INTO teams (name) VALUES (?) RETURNING id")
-            .bind(team_name)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let team_id = insert_team(&pool, team_name).await;
         sqlx::query(
             "INSERT INTO team_notification_settings (team_id, slack_webhook_url) VALUES (?, ?)",
         )

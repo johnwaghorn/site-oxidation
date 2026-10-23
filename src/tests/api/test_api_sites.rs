@@ -1,7 +1,7 @@
 use crate::models::site::SiteStatus;
 use crate::tests::{
     TEST_PROBE_INTERVAL_SECONDS, TEST_SITE_NAME, TEST_SITE_URL, authenticated_admin_app,
-    insert_test_site, parse_json_body,
+    count_outages, insert_test_site, parse_json_body,
 };
 use axum::{
     body::Body,
@@ -9,6 +9,28 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+
+async fn insert_site_in_each_status(pool: &SqlitePool) {
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, status) VALUES \
+         ('Up Site', 'https://up.waghorn.tech', 200, 'up'), \
+         ('Down Site', 'https://down.waghorn.tech', 200, 'down'), \
+         ('Blocked Site', 'https://blocked.waghorn.tech', 200, 'blocked'), \
+         ('Pending Site', 'https://pending.waghorn.tech', 200, 'pending')",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+fn site_names(body: &serde_json::Value) -> Vec<&str> {
+    body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|site| site["name"].as_str().unwrap())
+        .collect()
+}
 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_sites_returns_inserted_site(pool: SqlitePool) {
@@ -101,21 +123,10 @@ async fn test_list_sites_filters_by_name_or_url_and_ignores_blank_search(pool: S
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_list_sites_filters_by_status_and_down_includes_blocked(pool: SqlitePool) {
-    sqlx::query(
-        "INSERT INTO sites (name, url, expected_status, status) VALUES \
-         ('Up Site', 'https://up.waghorn.tech', 200, 'up'), \
-         ('Down Site', 'https://down.waghorn.tech', 200, 'down'), \
-         ('Blocked Site', 'https://blocked.waghorn.tech', 200, 'blocked'), \
-         ('Pending Site', 'https://pending.waghorn.tech', 200, 'pending')",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+async fn test_status_up_filter_returns_only_up_sites(pool: SqlitePool) {
+    insert_site_in_each_status(&pool).await;
     let (app, cookie) = authenticated_admin_app(pool, true).await;
-
     let response = app
-        .clone()
         .oneshot(
             Request::builder()
                 .uri("/sites?status=up")
@@ -127,11 +138,14 @@ async fn test_list_sites_filters_by_status_and_down_includes_blocked(pool: Sqlit
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    assert_eq!(body["total"], 1, "only the up site should match status=up");
-    assert_eq!(body["data"][0]["name"], "Up Site");
+    assert_eq!(site_names(&body), ["Up Site"]);
+}
 
+#[sqlx::test(migrations = "./migrations")]
+async fn test_status_down_filter_includes_blocked_sites(pool: SqlitePool) {
+    insert_site_in_each_status(&pool).await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
     let response = app
-        .clone()
         .oneshot(
             Request::builder()
                 .uri("/sites?status=down")
@@ -143,25 +157,13 @@ async fn test_list_sites_filters_by_status_and_down_includes_blocked(pool: Sqlit
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    assert_eq!(
-        body["total"], 2,
-        "status=down should match down and blocked sites"
-    );
-    let names: Vec<&str> = body["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|s| s["name"].as_str().unwrap())
-        .collect();
-    assert!(
-        names.contains(&"Down Site"),
-        "down site missing from {names:?}"
-    );
-    assert!(
-        names.contains(&"Blocked Site"),
-        "blocked site missing from {names:?}"
-    );
+    assert_eq!(site_names(&body), ["Blocked Site", "Down Site"]);
+}
 
+#[sqlx::test(migrations = "./migrations")]
+async fn test_no_status_filter_returns_every_site(pool: SqlitePool) {
+    insert_site_in_each_status(&pool).await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
     let response = app
         .oneshot(
             Request::builder()
@@ -174,10 +176,7 @@ async fn test_list_sites_filters_by_status_and_down_includes_blocked(pool: Sqlit
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    assert_eq!(
-        body["total"], 4,
-        "no status filter should return every site"
-    );
+    assert_eq!(body["total"], 4);
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -372,11 +371,7 @@ async fn test_delete_site_cascades_outages(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(count, 0);
+    assert_eq!(count_outages(&pool).await, 0);
 }
 
 #[sqlx::test(migrations = "./migrations")]

@@ -1,7 +1,8 @@
 use crate::models::site::SiteStatus;
 use crate::tests::{
-    TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, authenticated_admin_app, insert_test_site,
-    insert_test_user, login_and_get_cookie, parse_json_body, test_app,
+    TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, add_team_member, authenticated_admin_app,
+    insert_team, insert_test_site, insert_test_user, login_and_get_cookie, parse_json_body,
+    test_app,
 };
 use axum::{
     body::Body,
@@ -80,19 +81,9 @@ async fn test_list_outages_returns_404_for_nonexistent_site(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_non_admin_cannot_see_outages_for_other_teams_sites(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team A')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team B')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team A").await;
+    insert_team(&pool, "Team B").await;
+    add_team_member(&pool, 1, user_id).await;
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'down', 2)",
     )

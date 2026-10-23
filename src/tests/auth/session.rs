@@ -1,5 +1,5 @@
 use super::*;
-use crate::tests::{TEST_PASSWORD, insert_test_user};
+use crate::tests::{TEST_PASSWORD, count_sessions, insert_test_user};
 use axum_extra::extract::cookie::Key;
 use password_auth::generate_hash;
 
@@ -13,13 +13,6 @@ async fn insert_session_row(pool: &SqlitePool, id: &str, user_id: i64, expiry_da
     .execute(pool)
     .await
     .unwrap();
-}
-
-async fn count_sessions(pool: &SqlitePool) -> i64 {
-    sqlx::query_scalar("SELECT COUNT(*) FROM sessions")
-        .fetch_one(pool)
-        .await
-        .unwrap()
 }
 
 async fn bump_auth_revision(pool: &SqlitePool, user_id: i64) {

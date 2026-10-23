@@ -5,7 +5,7 @@ use crate::notifications::delivery::PendingDelivery;
 use crate::notifications::{Notifier, planning};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeFailureKind, ProbeResult};
-use crate::tests::TestHttpServer;
+use crate::tests::{TEST_SITE_NAME, TEST_SITE_URL, TestHttpServer};
 use chrono::{Duration as ChronoDuration, Utc};
 use reqwest::Client;
 use sqlx::SqlitePool;
@@ -13,8 +13,8 @@ use sqlx::SqlitePool;
 fn site_row() -> SiteRow {
     SiteRow {
         id: 1,
-        name: "Waghorn Technology Ltd".to_owned(),
-        url: "https://waghorn.tech".to_owned(),
+        name: TEST_SITE_NAME.to_owned(),
+        url: TEST_SITE_URL.to_owned(),
         expected_status: 200,
         expected_text: None,
         status: SiteStatus::Up,

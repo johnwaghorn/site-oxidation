@@ -1,5 +1,6 @@
 use crate::tests::{
-    TEST_PASSWORD, insert_test_user, login_and_get_cookie, parse_json_body, test_app,
+    TEST_PASSWORD, add_team_member, insert_team, insert_test_user, login_and_get_cookie,
+    parse_json_body, test_app,
 };
 use axum::{
     body::Body,
@@ -9,21 +10,12 @@ use sqlx::SqlitePool;
 use tower::ServiceExt;
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_team_member_can_manage_slack_webhook(pool: SqlitePool) {
+async fn test_team_member_saves_slack_webhook_trimmed(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
-    let app = test_app(pool.clone());
+    let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
     let response = app
         .clone()
@@ -48,18 +40,6 @@ async fn test_team_member_can_manage_slack_webhook(pool: SqlitePool) {
         "https://hooks.slack.test/services/team-rocket"
     );
 
-    let saved: Option<String> = sqlx::query_scalar(
-        "SELECT slack_webhook_url FROM team_notification_settings WHERE team_id = ?",
-    )
-    .bind(team_id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(
-        saved.as_deref(),
-        Some("https://hooks.slack.test/services/team-rocket")
-    );
-
     let response = app
         .oneshot(
             Request::builder()
@@ -81,11 +61,7 @@ async fn test_team_member_can_manage_slack_webhook(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_blank_slack_webhook_clears_value(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     sqlx::query(
         "INSERT INTO team_notification_settings (team_id, slack_webhook_url) VALUES (?, 'https://hooks.slack.test/services/team-rocket')",
     )
@@ -93,12 +69,7 @@ async fn test_blank_slack_webhook_clears_value(pool: SqlitePool) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool.clone());
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -131,17 +102,8 @@ async fn test_blank_slack_webhook_clears_value(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_get_notifications_returns_defaults_without_settings_row(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -172,17 +134,8 @@ async fn test_get_notifications_returns_defaults_without_settings_row(pool: Sqli
 #[sqlx::test(migrations = "./migrations")]
 async fn test_can_update_non_slack_notification_settings(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -236,17 +189,8 @@ async fn test_can_update_non_slack_notification_settings(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_partial_update_preserves_existing_notification_settings(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
     sqlx::query(
         "INSERT INTO team_notification_settings (
             team_id, microsoft_teams_webhook_url,
@@ -307,11 +251,7 @@ async fn test_partial_update_preserves_existing_notification_settings(pool: Sqli
 #[sqlx::test(migrations = "./migrations")]
 async fn test_null_fields_are_ignored(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     sqlx::query(
         "INSERT INTO team_notification_settings (team_id, slack_webhook_url, smtp_host, smtp_port) VALUES (?, 'https://hooks.slack.test/services/team-rocket', 'smtp.waghorn.tech', 587)",
     )
@@ -319,12 +259,7 @@ async fn test_null_fields_are_ignored(pool: SqlitePool) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool.clone());
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -361,17 +296,8 @@ async fn test_null_fields_are_ignored(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_partial_smtp_config_is_rejected_and_rolled_back(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool.clone());
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -407,17 +333,8 @@ async fn test_partial_smtp_config_is_rejected_and_rolled_back(pool: SqlitePool) 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_smtp_auth_requires_credentials(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -452,22 +369,13 @@ async fn test_smtp_auth_requires_credentials(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_non_smtp_update_skips_validation_of_existing_partial_config(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     sqlx::query("INSERT INTO team_notification_settings (team_id, smtp_host) VALUES (?, 'smtp.waghorn.tech')")
         .bind(team_id)
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -493,11 +401,7 @@ async fn test_non_smtp_update_skips_validation_of_existing_partial_config(pool: 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_non_member_cannot_manage_team_slack_webhook(pool: SqlitePool) {
     insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -521,11 +425,7 @@ async fn test_non_member_cannot_manage_team_slack_webhook(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_admin_can_manage_any_team_slack_webhook(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
@@ -554,17 +454,8 @@ async fn test_admin_can_manage_any_team_slack_webhook(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_invalid_slack_webhook_url_is_rejected(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -586,17 +477,8 @@ async fn test_invalid_slack_webhook_url_is_rejected(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_test_email_requires_configured_smtp(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -617,11 +499,7 @@ async fn test_test_email_requires_configured_smtp(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_test_email_reports_send_failure(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     let dead_port = {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         listener.local_addr().unwrap().port()
@@ -636,12 +514,7 @@ async fn test_test_email_reports_send_failure(pool: SqlitePool) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -669,17 +542,8 @@ async fn test_test_email_reports_send_failure(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_test_slack_requires_configuration(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -700,11 +564,7 @@ async fn test_test_slack_requires_configuration(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_test_slack_posts_to_configured_webhook(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     let server = crate::tests::TestHttpServer::start().await;
     sqlx::query(
         "INSERT INTO team_notification_settings (team_id, slack_webhook_url) VALUES (?, ?)",
@@ -714,12 +574,7 @@ async fn test_test_slack_posts_to_configured_webhook(pool: SqlitePool) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -746,11 +601,7 @@ async fn test_test_slack_posts_to_configured_webhook(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_test_teams_posts_adaptive_card(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     let server = crate::tests::TestHttpServer::start().await;
     sqlx::query(
         "INSERT INTO team_notification_settings (team_id, microsoft_teams_webhook_url) VALUES (?, ?)",
@@ -760,12 +611,7 @@ async fn test_test_teams_posts_adaptive_card(pool: SqlitePool) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
@@ -793,11 +639,7 @@ async fn test_test_teams_posts_adaptive_card(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_test_email_blocks_private_hosts_by_default(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    let team_id: i64 =
-        sqlx::query_scalar("INSERT INTO teams (name) VALUES ('Team Rocket') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let team_id = insert_team(&pool, "Team Rocket").await;
     sqlx::query(
         "INSERT INTO team_notification_settings (
             team_id, smtp_host, smtp_tls_mode, smtp_auth, smtp_from_email, smtp_to_email
@@ -807,12 +649,7 @@ async fn test_test_email_blocks_private_hosts_by_default(pool: SqlitePool) {
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)")
-        .bind(team_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    add_team_member(&pool, team_id, user_id).await;
     let app = crate::tests::test_app_with_private_ips(pool, false);
     let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
     let response = app

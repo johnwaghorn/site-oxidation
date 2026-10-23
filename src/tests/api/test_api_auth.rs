@@ -1,7 +1,7 @@
 use crate::tests::{
-    TEST_NEW_PASSWORD, TEST_PASSWORD, WRONG_PASSWORD, build_change_password_request,
-    build_login_request, extract_cookies, insert_test_user, login_and_get_cookie, parse_json_body,
-    test_app,
+    TEST_NEW_PASSWORD, TEST_PASSWORD, WRONG_PASSWORD, add_team_member,
+    build_change_password_request, build_login_request, count_sessions, extract_cookies,
+    insert_team, insert_test_user, login_and_get_cookie, parse_json_body, test_app,
 };
 use axum::{
     body::Body,
@@ -14,10 +14,8 @@ use tracing_test::traced_test;
 #[sqlx::test(migrations = "./migrations")]
 async fn test_admin_me_includes_all_teams_without_memberships(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team A'), ('Team B')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team A").await;
+    insert_team(&pool, "Team B").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -41,15 +39,9 @@ async fn test_admin_me_includes_all_teams_without_memberships(pool: SqlitePool) 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_non_admin_me_includes_only_memberships(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team A'), ('Team B')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team A").await;
+    insert_team(&pool, "Team B").await;
+    add_team_member(&pool, 1, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "user1", TEST_PASSWORD).await;
     let response = app
@@ -280,11 +272,11 @@ async fn test_password_change_logs_out_other_sessions(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let new_cookie = extract_cookies(&response);
-    let session_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sessions")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(session_count, 1, "old sessions are replaced by one new one");
+    assert_eq!(
+        count_sessions(&pool).await,
+        1,
+        "old sessions are replaced by one new one"
+    );
     for old_cookie in [&cookie, &other_cookie] {
         let response = app
             .clone()

@@ -1,6 +1,6 @@
 use crate::tests::{
-    TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, insert_test_user, login_and_get_cookie,
-    parse_json_body, test_app,
+    TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, add_team_member, insert_team, insert_test_user,
+    login_and_get_cookie, parse_json_body, test_app,
 };
 use axum::{
     body::Body,
@@ -53,10 +53,7 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_teams_accepts_frontend_pagination_query(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -75,10 +72,8 @@ async fn test_list_teams_accepts_frontend_pagination_query(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_list_teams_filters_by_search_and_ignores_blank_search(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Engineering'), ('Marketing')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Engineering").await;
+    insert_team(&pool, "Marketing").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
 
@@ -116,10 +111,8 @@ async fn test_list_teams_filters_by_search_and_ignores_blank_search(pool: Sqlite
 #[sqlx::test(migrations = "./migrations")]
 async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    insert_team(&pool, "Team Beta").await;
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES \
          ('Alpha Site', 'https://alpha.waghorn.tech', 200, 'pending', 1), \
@@ -167,10 +160,8 @@ async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_team_sites_search_matches_name_or_url_within_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    insert_team(&pool, "Team Beta").await;
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES \
          ('Docs', 'https://docs.waghorn.tech', 200, 'up', 1), \
@@ -210,10 +201,7 @@ async fn test_team_sites_search_matches_name_or_url_within_team(pool: SqlitePool
 #[sqlx::test(migrations = "./migrations")]
 async fn test_unassign_site_from_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'pending', 1)",
     )
@@ -247,10 +235,8 @@ async fn test_unassign_site_from_team(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_cannot_unassign_site_from_wrong_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    insert_team(&pool, "Team Beta").await;
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'pending', 1)",
     )
@@ -286,16 +272,9 @@ async fn test_team_member_count_excludes_inactive_users(pool: SqlitePool) {
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?), (1, ?)")
-        .bind(active_id)
-        .bind(inactive_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    add_team_member(&pool, 1, active_id).await;
+    add_team_member(&pool, 1, inactive_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -316,10 +295,7 @@ async fn test_team_member_count_excludes_inactive_users(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_create_duplicate_team_returns_409(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
 
@@ -392,10 +368,7 @@ async fn test_create_team_validation_error_uses_api_error_envelope(pool: SqliteP
 #[sqlx::test(migrations = "./migrations")]
 async fn test_rename_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Old Name')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Old Name").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
 
@@ -438,10 +411,7 @@ async fn test_rename_nonexistent_team_returns_404(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_delete_empty_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
 
@@ -462,10 +432,7 @@ async fn test_delete_empty_team(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_cannot_delete_team_with_sites(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     sqlx::query(
         "INSERT INTO sites (name, url, expected_status, status, team_id) VALUES (?, ?, 200, 'pending', 1)",
     )
@@ -494,15 +461,8 @@ async fn test_cannot_delete_team_with_sites(pool: SqlitePool) {
 async fn test_cannot_delete_non_admin_users_last_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    add_team_member(&pool, 1, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -523,16 +483,10 @@ async fn test_cannot_delete_non_admin_users_last_team(pool: SqlitePool) {
 async fn test_can_delete_team_when_non_admin_user_has_another_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?), (2, ?)")
-        .bind(user_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    insert_team(&pool, "Team Beta").await;
+    add_team_member(&pool, 1, user_id).await;
+    add_team_member(&pool, 2, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -553,15 +507,9 @@ async fn test_can_delete_team_when_non_admin_user_has_another_team(pool: SqliteP
 async fn test_add_and_remove_team_member(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha'), ('Team Beta')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (2, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    insert_team(&pool, "Team Beta").await;
+    add_team_member(&pool, 2, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -596,15 +544,8 @@ async fn test_add_and_remove_team_member(pool: SqlitePool) {
 async fn test_cannot_remove_non_admin_users_last_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    add_team_member(&pool, 1, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -624,15 +565,8 @@ async fn test_cannot_remove_non_admin_users_last_team(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_can_remove_admins_last_team(pool: SqlitePool) {
     let admin_id = insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(admin_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    add_team_member(&pool, 1, admin_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -652,10 +586,7 @@ async fn test_can_remove_admins_last_team(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_can_add_admin_to_team(pool: SqlitePool) {
     let admin_id = insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -677,15 +608,8 @@ async fn test_can_add_admin_to_team(pool: SqlitePool) {
 async fn test_add_duplicate_member_returns_409(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
+    add_team_member(&pool, 1, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
 
@@ -729,10 +653,7 @@ async fn test_add_member_to_nonexistent_team_returns_404(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_add_nonexistent_user_to_team_returns_404(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -753,10 +674,7 @@ async fn test_add_nonexistent_user_to_team_returns_404(pool: SqlitePool) {
 #[sqlx::test(migrations = "./migrations")]
 async fn test_remove_nonexistent_membership_returns_404(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team Alpha')")
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team Alpha").await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
     let response = app
@@ -777,11 +695,7 @@ async fn test_remove_nonexistent_membership_returns_404(pool: SqlitePool) {
 async fn test_team_options_unfiltered_and_search(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     for name in ["Engineering", "Marketing", "Operations"] {
-        sqlx::query("INSERT INTO teams (name) VALUES (?)")
-            .bind(name)
-            .execute(&pool)
-            .await
-            .unwrap();
+        insert_team(&pool, name).await;
     }
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
@@ -822,15 +736,9 @@ async fn test_team_options_unfiltered_and_search(pool: SqlitePool) {
 async fn test_list_teams_filters_by_member_and_excluded_member(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
-    sqlx::query("INSERT INTO teams (name) VALUES ('Team A'), ('Team B')")
-        .execute(&pool)
-        .await
-        .unwrap();
-    sqlx::query("INSERT INTO team_members (team_id, user_id) VALUES (1, ?)")
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    insert_team(&pool, "Team A").await;
+    insert_team(&pool, "Team B").await;
+    add_team_member(&pool, 1, user_id).await;
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
 

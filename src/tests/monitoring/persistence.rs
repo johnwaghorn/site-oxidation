@@ -125,11 +125,7 @@ async fn test_no_duplicate_outage_when_already_down(pool: SqlitePool) {
     )
     .await
     .unwrap();
-    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM outages")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert_eq!(count, 0);
+    assert_eq!(count_outages(&pool).await, 0);
 }
 
 #[sqlx::test(migrations = "./migrations")]

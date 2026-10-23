@@ -13,7 +13,7 @@ use crate::config::AppConfig;
 use crate::models::site::SiteStatus;
 use crate::notifications::Notifier;
 use crate::probe::http::{PRIVATE_IP_BLOCKED_MESSAGE, ProbeFailureKind, ProbeResult};
-use crate::tests::{TestHttpServer, insert_test_site, test_config};
+use crate::tests::{TestHttpServer, count_outages, insert_team, insert_test_site, test_config};
 use reqwest::{Client, StatusCode};
 use sqlx::SqlitePool;
 use std::time::{Duration, Instant, SystemTime};
@@ -30,11 +30,7 @@ async fn insert_probe_site(
     probe_interval_seconds: i64,
     tls_allow_untrusted: bool,
 ) -> i64 {
-    let team_id: i64 = sqlx::query_scalar("INSERT INTO teams (name) VALUES (?) RETURNING id")
-        .bind(format!("{name} Team"))
-        .fetch_one(pool)
-        .await
-        .unwrap();
+    let team_id = insert_team(pool, &format!("{name} Team")).await;
     sqlx::query_scalar(
         "INSERT INTO sites (
             name, url, expected_status, expected_text, status,

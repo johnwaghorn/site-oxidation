@@ -88,10 +88,7 @@ async fn test_ambiguous_failures_share_one_connectivity_recheck(pool: SqlitePool
         2,
         "three failing groups must share one recheck, not fan out"
     );
-    let outage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let outage_count = count_outages(&pool).await;
     assert_eq!(
         outage_count, 3,
         "the recheck found connectivity healthy, so the failures stand"
@@ -150,10 +147,7 @@ async fn test_degraded_connectivity_does_not_suppress_a_reachable_failure(pool: 
         .fetch_one(&pool)
         .await
         .unwrap();
-    let outage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let outage_count = count_outages(&pool).await;
     assert_eq!(
         status,
         SiteStatus::Down,
@@ -211,10 +205,7 @@ async fn test_degraded_connectivity_persists_successes_and_suppresses_failures(p
         .fetch_one(&pool)
         .await
         .unwrap();
-    let outage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM outages")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let outage_count = count_outages(&pool).await;
     assert_eq!(successful_status, SiteStatus::Up);
     assert_eq!(failed_status, SiteStatus::Up);
     assert_eq!(outage_count, 0);
