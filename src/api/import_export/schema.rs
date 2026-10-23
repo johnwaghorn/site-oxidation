@@ -1,15 +1,16 @@
 #![allow(clippy::needless_for_each)]
 
-use crate::api::errors::ApiError;
 use utoipa::OpenApi;
 
-use super::endpoints;
-use super::responses::{ExportedSite, SiteExportResponse};
+use super::export::schema::ExportApiDoc;
+use super::import::schema::ImportApiDoc;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(endpoints::export_sites),
-    components(schemas(SiteExportResponse, ExportedSite, ApiError)),
+    nest(
+        (path = "/sites", api = ExportApiDoc),
+        (path = "/sites", api = ImportApiDoc),
+    ),
     tags(
         (name = "import-export", description = "Move sites between instances"),
     ),

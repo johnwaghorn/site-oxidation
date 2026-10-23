@@ -1,15 +1,15 @@
-mod endpoints;
-mod queries;
-pub mod responses;
+pub mod export;
+pub mod import;
 pub mod schema;
 
 use axum::Router;
-use axum::routing::get;
 
 use crate::state::AppState;
 
-use endpoints::export_sites;
+const SITE_EXPORT_VERSION: u32 = 1;
 
 pub fn import_export_routes() -> Router<AppState> {
-    Router::new().route("/sites/export", get(export_sites))
+    Router::new()
+        .merge(export::export_routes())
+        .merge(import::import_routes())
 }

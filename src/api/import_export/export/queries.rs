@@ -1,4 +1,3 @@
-// Export
 pub const EXPORT_SITES_ADMIN: &str = concat!(
     "SELECT name, url, expected_status, expected_text, probe_interval_seconds, tls_allow_untrusted ",
     "FROM sites ORDER BY id"

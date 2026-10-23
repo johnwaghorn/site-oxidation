@@ -356,6 +356,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["import_sites"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/unassigned-count": {
         parameters: {
             query?: never;
@@ -585,6 +601,21 @@ export interface components {
             checks: components["schemas"]["HealthChecks"];
             status: components["schemas"]["HealthStatus"];
         };
+        /** @enum {string} */
+        ImportOutcome: "added" | "skipped";
+        ImportedSite: {
+            expected_status?: components["schemas"]["ExpectedStatus"];
+            expected_text?: components["schemas"]["ExpectedText"] | null;
+            name: components["schemas"]["SiteName"];
+            probe_interval_seconds?: components["schemas"]["CheckInterval"];
+            tls_allow_untrusted?: boolean;
+            url: components["schemas"]["SiteUrl"];
+        };
+        ImportedSiteResult: {
+            name: string;
+            outcome: components["schemas"]["ImportOutcome"];
+            url: string;
+        };
         LoginSuccess: {
             username: string;
         };
@@ -681,6 +712,14 @@ export interface components {
             sites: components["schemas"]["ExportedSite"][];
             /** Format: int32 */
             version: number;
+        };
+        SiteImportRequest: {
+            sites: components["schemas"]["ImportedSite"][];
+            /** Format: int32 */
+            version: number;
+        };
+        SiteImportResponse: {
+            sites: components["schemas"]["ImportedSiteResult"][];
         };
         /** @example Waghorn Technology Ltd */
         SiteName: string;
@@ -2691,6 +2730,69 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    import_sites: {
+        parameters: {
+            query?: {
+                /** @description Required unless the caller is an admin. Without it, an admin's sites are imported with no team. */
+                team_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteImportRequest"];
+            };
+        };
+        responses: {
+            /** @description What happened to each site in the file, in file order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteImportResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not a member of the team */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Invalid file; nothing was imported */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

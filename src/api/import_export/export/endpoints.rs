@@ -6,15 +6,13 @@ use super::queries::{EXPORT_SITES_ADMIN, EXPORT_SITES_USER};
 use super::responses::{ExportedSite, SiteExportResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::RequireAppAccess;
+use crate::api::import_export::SITE_EXPORT_VERSION;
 use crate::models::user::UserRole;
 use crate::state::AppState;
 
-// Use so import can tell old files apart
-const SITE_EXPORT_VERSION: u32 = 1;
-
 #[utoipa::path(
     get,
-    path = "/sites/export",
+    path = "/export",
     responses(
         (status = 200, description = "Settings of every site the user can see, for import into another instance", body = SiteExportResponse),
         (status = 401, description = "Unauthorized", body = ApiError),

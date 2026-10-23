@@ -1,11 +1,11 @@
-mod access;
+pub(crate) mod access;
 mod endpoints;
-mod fields;
+pub(crate) mod fields;
 pub mod params;
 mod queries;
 pub mod requests;
 pub mod responses;
-mod rules;
+pub(crate) mod rules;
 pub mod schema;
 
 use crate::state::AppState;
