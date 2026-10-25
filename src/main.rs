@@ -122,6 +122,7 @@ async fn main() -> Result<()> {
         config,
         notifier.clone(),
     );
+    spawn_canary_history_pruner(pool.clone());
     spawn_notification_outbox_worker(notifier, pool);
     axum::serve(
         listener,
@@ -140,6 +141,19 @@ fn spawn_expired_session_cleanup(pool: SqlitePool) {
             interval.tick().await;
             if let Err(err) = delete_expired_sessions(&pool).await {
                 tracing::error!("Failed to delete expired sessions: {err}");
+            }
+        }
+    });
+}
+
+fn spawn_canary_history_pruner(pool: SqlitePool) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_hours(1));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            interval.tick().await;
+            if let Err(err) = canary::delete_old_history(&pool).await {
+                tracing::error!("Failed to delete old canary history: {err}");
             }
         }
     });

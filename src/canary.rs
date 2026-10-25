@@ -6,6 +6,7 @@ use std::time::Duration;
 use utoipa::ToSchema;
 
 const MAX_ERROR_CHARS: usize = 500;
+const HISTORY_RETENTION: &str = "-365 days";
 
 #[derive(Clone, Debug)]
 pub struct CanaryConfig {
@@ -130,6 +131,17 @@ pub async fn update_settings(pool: &SqlitePool, config: &CanaryConfig) -> Result
     .execute(&mut *transaction)
     .await?;
     transaction.commit().await
+}
+
+pub async fn delete_old_history(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
+    let deleted = sqlx::query(
+        "DELETE FROM canary_history
+         WHERE ended_at IS NOT NULL AND ended_at < datetime('now', ?)",
+    )
+    .bind(HISTORY_RETENTION)
+    .execute(pool)
+    .await?;
+    Ok(deleted.rows_affected())
 }
 
 pub async fn load_history_summary(pool: &SqlitePool) -> Result<CanaryHistorySummary, sqlx::Error> {
@@ -435,5 +447,24 @@ mod tests {
             .await
             .unwrap();
         assert!(history(&pool).await.is_empty());
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn test_old_history_is_deleted_but_recent_and_open_periods_stay(pool: SqlitePool) {
+        sqlx::query(
+            "INSERT INTO canary_history (state, url, active_since, started_at, ended_at) VALUES
+             ('healthy', ?1, datetime('now', '-500 days'), datetime('now', '-500 days'), datetime('now', '-400 days')),
+             ('failing', ?1, datetime('now', '-500 days'), datetime('now', '-400 days'), datetime('now', '-10 days')),
+             ('healthy', ?1, datetime('now', '-500 days'), datetime('now', '-10 days'), NULL)",
+        )
+        .bind(URL)
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert_eq!(delete_old_history(&pool).await.unwrap(), 1);
+        let history = history(&pool).await;
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0].state, CanaryHealth::Failing);
+        assert!(history[1].ended_at.is_none());
     }
 }
