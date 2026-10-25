@@ -1,7 +1,7 @@
 use super::access::{ensure_site_access, resolve_team_id};
 use super::canary_warning::set_canary_warnings;
 use super::fields::ExpectedText;
-use super::params::{ListSitesParams, SiteStatusFilter};
+use super::params::{ListSitesParams, ListSitesQuery};
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES, DELETE_SITE,
     INSERT_SITE, LIST_OUTAGES, LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN,
@@ -12,7 +12,7 @@ use super::rules;
 use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::{JsonPayload, RequireAdmin, RequireAppAccess};
-use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
+use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::models::user::UserRole;
 use crate::state::AppState;
@@ -21,16 +21,6 @@ use axum::{
     extract::{Path, Query, State},
     http::status::StatusCode,
 };
-
-#[derive(serde::Deserialize)]
-pub struct ListSitesQuery {
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    page: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    per_page: Option<u32>,
-    search: Option<String>,
-    status: Option<SiteStatusFilter>,
-}
 
 async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, ApiErrorResponse> {
     let mut site = sqlx::query_as::<_, SiteResponse>(SELECT_SITE_ADMIN)

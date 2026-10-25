@@ -1,3 +1,4 @@
+use crate::api::pagination::deserialize_u32_params;
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
 
@@ -15,5 +16,15 @@ pub enum SiteStatusFilter {
 #[allow(dead_code)]
 pub struct ListSitesParams {
     /// Restrict results by status. `down` includes blocked sites.
+    pub status: Option<SiteStatusFilter>,
+}
+
+#[derive(Deserialize)]
+pub struct ListSitesQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    pub page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    pub per_page: Option<u32>,
+    pub search: Option<String>,
     pub status: Option<SiteStatusFilter>,
 }

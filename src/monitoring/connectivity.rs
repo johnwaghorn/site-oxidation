@@ -20,6 +20,47 @@ impl CanaryVerdict {
     }
 }
 
+pub(super) async fn run_and_record_canary(
+    verifying_client: &Client,
+    pool: &SqlitePool,
+) -> CanaryVerdict {
+    let settings = match canary::load_settings(pool).await {
+        Ok(settings) => settings,
+        Err(error) => {
+            tracing::error!("Failed to load canary settings: {error}");
+            return CanaryVerdict::Inconclusive;
+        }
+    };
+    if !settings.config.enabled {
+        return CanaryVerdict::Disabled;
+    }
+    let result = canary::check(verifying_client, &settings.config).await;
+    if let Err(error) = &result {
+        tracing::warn!("Canary check failed. Probe connectivity is degraded: {error}");
+    }
+    match canary::record_result_if_current(pool, settings.settings_revision, &result).await {
+        Ok(canary::CanaryResultWrite::Recorded) => {
+            if result.is_ok() {
+                CanaryVerdict::Reachable
+            } else {
+                CanaryVerdict::Unreachable
+            }
+        }
+        Ok(canary::CanaryResultWrite::DiscardedStaleRevision) => {
+            tracing::warn!("Canary settings changed mid-check, so this probe run is abandoned");
+            CanaryVerdict::Inconclusive
+        }
+        Err(error) => {
+            tracing::error!("Failed to record canary result: {error}");
+            if result.is_ok() {
+                CanaryVerdict::Reachable
+            } else {
+                CanaryVerdict::Unreachable
+            }
+        }
+    }
+}
+
 pub(super) struct CachedCanaryVerdict {
     pub(super) completed_at: Instant,
     pub(super) verdict: CanaryVerdict,
@@ -64,46 +105,5 @@ impl AmbiguousFailureGuard<'_> {
             verdict,
         });
         verdict
-    }
-}
-
-pub(super) async fn run_and_record_canary(
-    verifying_client: &Client,
-    pool: &SqlitePool,
-) -> CanaryVerdict {
-    let settings = match canary::load_settings(pool).await {
-        Ok(settings) => settings,
-        Err(error) => {
-            tracing::error!("Failed to load canary settings: {error}");
-            return CanaryVerdict::Inconclusive;
-        }
-    };
-    if !settings.config.enabled {
-        return CanaryVerdict::Disabled;
-    }
-    let result = canary::check(verifying_client, &settings.config).await;
-    if let Err(error) = &result {
-        tracing::warn!("Canary check failed. Probe connectivity is degraded: {error}");
-    }
-    match canary::record_result_if_current(pool, settings.settings_revision, &result).await {
-        Ok(canary::CanaryResultWrite::Recorded) => {
-            if result.is_ok() {
-                CanaryVerdict::Reachable
-            } else {
-                CanaryVerdict::Unreachable
-            }
-        }
-        Ok(canary::CanaryResultWrite::DiscardedStaleRevision) => {
-            tracing::warn!("Canary settings changed mid-check, so this probe run is abandoned");
-            CanaryVerdict::Inconclusive
-        }
-        Err(error) => {
-            tracing::error!("Failed to record canary result: {error}");
-            if result.is_ok() {
-                CanaryVerdict::Reachable
-            } else {
-                CanaryVerdict::Unreachable
-            }
-        }
     }
 }
