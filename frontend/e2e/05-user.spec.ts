@@ -98,6 +98,67 @@ test("maddie configures notifications for her team", async ({ page }) => {
   });
 });
 
+test("maddie turns off email alerts", async ({ page }) => {
+  await test.step("Given maddie has email alerts set up for Support", async () => {
+    await signInAsMaddie(page);
+    await openTeamNotifications(page, "Support");
+    await page.getByRole("button", { name: "Set up Email" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("SMTP host").fill("smtp.waghorn.tech");
+    await dialog
+      .getByRole("switch", { name: "Sign in with a username and password" })
+      .uncheck();
+    await dialog.getByLabel("From address").fill("alerts@waghorn.tech");
+    await dialog.getByLabel("To address").fill("maddie@waghorn.tech");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(
+      channelRow(page, "Email").getByText("On", { exact: true }),
+    ).toBeVisible();
+  });
+  await test.step("When she turns email off", async () => {
+    await page.getByRole("button", { name: "Edit Email" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "Turn off email" }).click();
+    await expect(dialog).toBeHidden();
+  });
+  await test.step("Then email shows as off for Support", async () => {
+    await expect(
+      channelRow(page, "Email").getByText("Off", { exact: true }),
+    ).toBeVisible();
+  });
+});
+
+for (const channel of ["Slack", "Microsoft Teams"]) {
+  test(`maddie turns off ${channel} alerts`, async ({ page }) => {
+    await test.step(`Given maddie has ${channel} alerts set up for Team Rocket`, async () => {
+      await signInAsMaddie(page);
+      await openTeamNotifications(page, "Team Rocket");
+      await page.getByRole("button", { name: `Set up ${channel}` }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog
+        .getByRole("textbox")
+        .fill("https://hooks.waghorn.tech/team-rocket");
+      await dialog.getByRole("button", { name: "Save" }).click();
+      await expect(dialog).toBeHidden();
+      await expect(
+        channelRow(page, channel).getByText("On", { exact: true }),
+      ).toBeVisible();
+    });
+    await test.step(`When she turns ${channel} off`, async () => {
+      await page.getByRole("button", { name: `Edit ${channel}` }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("button", { name: `Turn off ${channel}` }).click();
+      await expect(dialog).toBeHidden();
+    });
+    await test.step(`Then ${channel} shows as off for Team Rocket`, async () => {
+      await expect(
+        channelRow(page, channel).getByText("Off", { exact: true }),
+      ).toBeVisible();
+    });
+  });
+}
+
 test("maddie checks which version is running", async ({ page }) => {
   await test.step("Given maddie is signed in", async () => {
     await signInAsMaddie(page);
