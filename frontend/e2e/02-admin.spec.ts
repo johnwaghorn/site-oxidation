@@ -38,8 +38,8 @@ test("save canary settings", async ({ page }) => {
   });
 
   await test.step("And I set a canary URL and timeout", async () => {
-    await page.getByRole("button", { name: "Edit settings" }).click();
-    const dialog = page.getByRole("dialog", { name: "Canary settings" });
+    await page.getByRole("button", { name: "Set canary" }).click();
+    const dialog = page.getByRole("dialog", { name: "Set canary" });
     await dialog
       .getByLabel("Canary URL")
       .fill("http://127.0.0.1:8123/api/health");
@@ -63,5 +63,35 @@ test("save canary settings", async ({ page }) => {
       page.getByRole("link", { name: /http:\/\/127\.0\.0\.1:8123\/api\/health/ }),
     ).toBeVisible();
     await expect(page.getByText("5 seconds", { exact: true })).toBeVisible();
+  });
+});
+
+test("remove the canary", async ({ page }) => {
+  await test.step("Given the canary is set", async () => {
+    await page.goto("/admin/canary");
+    await expect(
+      page.getByRole("button", { name: "Edit settings" }),
+    ).toBeVisible();
+  });
+
+  await test.step("When I remove it from the settings dialog", async () => {
+    await page.getByRole("button", { name: "Edit settings" }).click();
+    await page
+      .getByRole("dialog", { name: "Canary settings" })
+      .getByRole("button", { name: "Remove canary" })
+      .click();
+    await page
+      .getByRole("dialog", { name: "Remove the canary?" })
+      .getByRole("button", { name: "Remove canary" })
+      .click();
+  });
+
+  await test.step("Then the page offers to set a canary again", async () => {
+    await expect(page.getByRole("button", { name: "Set canary" })).toBeVisible();
+    await expect(
+      page.getByRole("switch", { name: "Scheduled checks" }),
+    ).not.toBeChecked();
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Set canary" })).toBeVisible();
   });
 });

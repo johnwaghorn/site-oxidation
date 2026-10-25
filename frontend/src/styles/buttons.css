@@ -69,6 +69,11 @@
   color: var(--color-danger-on);
 }
 
+.button-danger-outline {
+  border-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
 /* A button that reads as an inline link */
 .button-link {
   padding: 0;

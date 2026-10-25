@@ -5,6 +5,7 @@ import {
   useTestAdminCanary,
   useUpdateAdminCanary,
 } from "../hooks/useAdminCanary";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { ExternalLink } from "../components/ui/ExternalLink";
 import { FormInput } from "../components/ui/FormControls";
@@ -157,22 +158,35 @@ function CanaryStatusPage({ settings }: { settings: CanarySettings }) {
         </dl>
 
         <div className="canary-actions">
-          <button
-            type="button"
-            className="button-primary-action"
-            onClick={() => testCanary.mutate()}
-            disabled={testCanary.isPending || !hasUrl}
-          >
-            {testCanary.isPending ? "Checking..." : "Check now"}
-          </button>
-          <button
-            type="button"
-            className="button-secondary-action"
-            aria-haspopup="dialog"
-            onClick={() => setIsEditing(true)}
-          >
-            Edit settings
-          </button>
+          {hasUrl ? (
+            <>
+              <button
+                type="button"
+                className="button-primary-action"
+                onClick={() => testCanary.mutate()}
+                disabled={testCanary.isPending}
+              >
+                {testCanary.isPending ? "Checking..." : "Check now"}
+              </button>
+              <button
+                type="button"
+                className="button-secondary-action"
+                aria-haspopup="dialog"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit settings
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="button-primary-action"
+              aria-haspopup="dialog"
+              onClick={() => setIsEditing(true)}
+            >
+              Set canary
+            </button>
+          )}
           <span className="canary-hint">
             {hasUrl
               ? "Scheduled checks run on the same schedule as your site probes. Check now works even when they are off."
@@ -204,7 +218,7 @@ function CanaryStatusPage({ settings }: { settings: CanarySettings }) {
       <Modal
         isOpen={isEditing}
         onClose={() => setIsEditing(false)}
-        title="Canary settings"
+        title={hasUrl ? "Canary settings" : "Set canary"}
       >
         <CanarySettingsForm
           settings={settings}
@@ -225,6 +239,7 @@ function CanarySettingsForm({
   const updateSettings = useUpdateAdminCanary();
   const [url, setUrl] = useState(settings.url ?? "");
   const [timeoutSecs, setTimeoutSecs] = useState(settings.timeout_secs);
+  const [isConfirmingRemove, setIsConfirmingRemove] = useState(false);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -239,54 +254,82 @@ function CanarySettingsForm({
   };
 
   return (
-    <form className="form-column" onSubmit={handleSubmit}>
-      <label className="field-label">
-        <span className="field-label-text">Canary URL</span>
-        <FormInput
-          type="url"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder="https://waghorn.tech"
-          required={settings.enabled}
-          minLength={10}
-          maxLength={2048}
-        />
-        <span className="canary-hint">
-          Pick something reliable that isn't one of your monitored sites.
-        </span>
-      </label>
+    <>
+      <form className="form-column" onSubmit={handleSubmit}>
+        <label className="field-label">
+          <span className="field-label-text">Canary URL</span>
+          <FormInput
+            type="url"
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder="https://waghorn.tech"
+            required={settings.enabled}
+            minLength={10}
+            maxLength={2048}
+          />
+          <span className="canary-hint">
+            Pick something reliable that isn't one of your monitored sites.
+          </span>
+        </label>
 
-      <label className="field-label canary-timeout-field">
-        <span className="field-label-text">Timeout in seconds</span>
-        <FormInput
-          type="number"
-          value={timeoutSecs}
-          onChange={(event) => setTimeoutSecs(Number(event.target.value))}
-          required
-          min={1}
-          max={300}
-        />
-      </label>
+        <label className="field-label canary-timeout-field">
+          <span className="field-label-text">Timeout in seconds</span>
+          <FormInput
+            type="number"
+            value={timeoutSecs}
+            onChange={(event) => setTimeoutSecs(Number(event.target.value))}
+            required
+            min={1}
+            max={300}
+          />
+        </label>
 
-      {updateSettings.isError && <ErrorMessage error={updateSettings.error} />}
+        {updateSettings.isError && (
+          <ErrorMessage error={updateSettings.error} />
+        )}
 
-      <div className="dialog-actions">
-        <span style={{ flex: "1 1 0" }} />
-        <button
-          type="button"
-          className="button-secondary-action"
-          onClick={onDone}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="button-primary-action"
-          disabled={updateSettings.isPending}
-        >
-          {updateSettings.isPending ? "Saving..." : "Save"}
-        </button>
-      </div>
-    </form>
+        <div className="dialog-actions">
+          {settings.url && (
+            <button
+              type="button"
+              className="button-secondary-action button-danger-outline"
+              disabled={updateSettings.isPending}
+              onClick={() => setIsConfirmingRemove(true)}
+            >
+              Remove canary
+            </button>
+          )}
+          <span style={{ flex: "1 1 0" }} />
+          <button
+            type="button"
+            className="button-secondary-action"
+            onClick={onDone}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="button-primary-action"
+            disabled={updateSettings.isPending}
+          >
+            {updateSettings.isPending ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+      <ConfirmDialog
+        isOpen={isConfirmingRemove}
+        onClose={() => setIsConfirmingRemove(false)}
+        onConfirm={() =>
+          updateSettings.mutate(
+            { enabled: false, url: null, timeout_secs: settings.timeout_secs },
+            { onSuccess: onDone },
+          )
+        }
+        title="Remove the canary?"
+        message="Without one, a drop in the monitor's own internet connection can be recorded as outages on every site."
+        confirmText="Remove canary"
+        isDestructive
+      />
+    </>
   );
 }

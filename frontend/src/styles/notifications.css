@@ -117,11 +117,6 @@
   width: 100%;
 }
 
-.button-danger-outline {
-  border-color: var(--color-danger-bg);
-  color: var(--color-danger-text);
-}
-
 .pill-warning {
   background-color: var(--color-warning-bg);
   color: var(--color-warning-text);
