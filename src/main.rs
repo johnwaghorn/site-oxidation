@@ -13,6 +13,8 @@ mod state;
 mod tests;
 
 use crate::auth::{Authenticator, delete_expired_sessions};
+use crate::notifications::Notifier;
+use crate::security::rate_limit::LoginRateLimiter;
 use crate::security::resolver::SafeResolver;
 use anyhow::{Context, Result};
 use api::ApiDoc;
@@ -21,6 +23,7 @@ use config::AppConfig;
 use monitoring::run_due_site_checks;
 use password_auth::generate_hash;
 use reqwest::Client;
+use sqlx::SqlitePool;
 use state::AppState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -30,7 +33,6 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
-#[allow(clippy::too_many_lines)]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let config = AppConfig::from_env().context("Failed to load app config from env")?;
@@ -40,35 +42,16 @@ async fn main() -> Result<()> {
             config.database_path.display()
         )
     })?;
-    let _deletion_task = tokio::task::spawn({
-        let pool = pool.clone();
-        async move {
-            let mut interval = tokio::time::interval(Duration::from_mins(1));
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            loop {
-                interval.tick().await;
-                if let Err(err) = delete_expired_sessions(&pool).await {
-                    tracing::error!("Failed to delete expired sessions: {err}");
-                }
-            }
-        }
-    });
+    spawn_expired_session_cleanup(pool.clone());
     let key = security::session_key::get_or_create_key(&config.session_key_path, &config.data_dir)
         .context("Failed to load or create session key")?;
     let dummy_hash: String = task::spawn_blocking(|| generate_hash("__dummy__"))
         .await
         .context("Failed to generate dummy password hash")?;
     let authenticator = Authenticator::new(pool.clone(), dummy_hash, key, config.cookie_secure);
-    let login_limiter = Arc::new(security::rate_limit::LoginRateLimiter::new(
-        5,
-        Duration::from_mins(1),
-    ));
-    let admin_limiter = Arc::new(security::rate_limit::LoginRateLimiter::new(
-        20,
-        Duration::from_mins(1),
-    ));
-    let pruner_limiter = Arc::clone(&login_limiter);
-    let pruner_admin_limiter = Arc::clone(&admin_limiter);
+    let login_limiter = Arc::new(LoginRateLimiter::new(5, Duration::from_mins(1)));
+    let admin_limiter = Arc::new(LoginRateLimiter::new(20, Duration::from_mins(1)));
+    spawn_rate_limit_pruner(Arc::clone(&login_limiter), Arc::clone(&admin_limiter));
     let resolver: Arc<SafeResolver> = Arc::new(SafeResolver {
         allow_private: config.probe_allow_private_ips,
     });
@@ -89,8 +72,7 @@ async fn main() -> Result<()> {
     let notification_client = probe_builder()
         .build()
         .context("Failed to build notification client")?;
-    let notifier =
-        notifications::Notifier::new(notification_client, config.smtp_allow_private_hosts);
+    let notifier = Notifier::new(notification_client, config.smtp_allow_private_hosts);
     let state = AppState {
         pool: pool.clone(),
         config: config.clone(),
@@ -135,13 +117,58 @@ async fn main() -> Result<()> {
         .await
         .with_context(|| format!("Failed to bind server listener on {addr}"))?;
     tracing::info!("Server started on {}", addr);
-    let checker_pool = pool.clone();
-    let checker_config = config.clone();
-    let checker_notifier = notifier.clone();
-    let outbox_pool = pool.clone();
-    let outbox_notifier = notifier.clone();
-    // Background site checker: wakes every n seconds and probes any sites
-    // whose configured check interval has elapsed.
+    spawn_due_site_checker(
+        verifying_client,
+        untrusted_client,
+        pool.clone(),
+        config,
+        notifier.clone(),
+    );
+    spawn_notification_outbox_worker(notifier, pool);
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .context("Axum server terminated with an error")?;
+    Ok(())
+}
+
+fn spawn_expired_session_cleanup(pool: SqlitePool) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_mins(1));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            interval.tick().await;
+            if let Err(err) = delete_expired_sessions(&pool).await {
+                tracing::error!("Failed to delete expired sessions: {err}");
+            }
+        }
+    });
+}
+
+fn spawn_rate_limit_pruner(
+    login_limiter: Arc<LoginRateLimiter>,
+    admin_limiter: Arc<LoginRateLimiter>,
+) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_mins(5));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            interval.tick().await;
+            login_limiter.prune_expired();
+            admin_limiter.prune_expired();
+        }
+    });
+}
+
+fn spawn_due_site_checker(
+    verifying_client: Client,
+    untrusted_client: Client,
+    pool: SqlitePool,
+    config: AppConfig,
+    notifier: Notifier,
+) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -150,39 +177,24 @@ async fn main() -> Result<()> {
             run_due_site_checks(
                 &verifying_client,
                 &untrusted_client,
-                &checker_pool,
-                &checker_config,
-                &checker_notifier,
+                &pool,
+                &config,
+                &notifier,
             )
             .await;
         }
     });
-    // Notification delivery is independent of probe transitions so queued
-    // alerts survive transient failures and process restarts.
+}
+
+// Notification delivery is independent of probe transitions so queued
+// alerts survive transient failures and process restarts.
+fn spawn_notification_outbox_worker(notifier: Notifier, pool: SqlitePool) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(30));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
-            outbox_notifier.process_outbox(&outbox_pool).await;
+            notifier.process_outbox(&pool).await;
         }
     });
-    // Rate-limit cleanup worker periodically removes expired login/admin
-    // limiter entries from memory.
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_mins(5));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        loop {
-            interval.tick().await;
-            pruner_limiter.prune_expired();
-            pruner_admin_limiter.prune_expired();
-        }
-    });
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-    )
-    .await
-    .context("Axum server terminated with an error")?;
-    Ok(())
 }

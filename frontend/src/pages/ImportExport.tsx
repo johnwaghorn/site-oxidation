@@ -26,9 +26,10 @@ type ImportView =
       detail: string;
     };
 
-// The server prefixes JSON errors with this and suffixes them with a line/column
-const DESERIALIZE_PREFIX =
+const SERVER_JSON_ERROR_PREFIX =
   "Failed to deserialize the JSON body into the target type: ";
+const SERVER_JSON_ERROR_POSITION_SUFFIX = / at line \d+ column \d+$/;
+const SITE_FIELD_ERROR = /^sites\[(\d+)\][^:]*: (.*)$/;
 
 function downloadJson(filename: string, data: unknown) {
   const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -42,7 +43,7 @@ function downloadJson(filename: string, data: unknown) {
   URL.revokeObjectURL(url);
 }
 
-function isImportFile(value: unknown): value is SiteImportRequest {
+function isSiteExportFile(value: unknown): value is SiteImportRequest {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -53,20 +54,28 @@ function isImportFile(value: unknown): value is SiteImportRequest {
   );
 }
 
-// Turns "sites[2].url: site url must ..." into "Site 3 in the file" and "Site url must ..."
-function describeProblem(message: string) {
-  const text = message
-    .replace(DESERIALIZE_PREFIX, "")
-    .replace(/ at line \d+ column \d+$/, "");
-  const match = /^sites\[(\d+)\][^:]*: (.*)$/.exec(text);
-  const detail = match ? match[2] : text;
+function stripServerJsonErrorWrapping(message: string) {
+  return message
+    .replace(SERVER_JSON_ERROR_PREFIX, "")
+    .replace(SERVER_JSON_ERROR_POSITION_SUFFIX, "");
+}
+
+function capitalise(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function splitImportErrorIntoSiteNumberAndDetail(message: string) {
+  const text = stripServerJsonErrorWrapping(message);
+  const siteFieldError = SITE_FIELD_ERROR.exec(text);
+  if (!siteFieldError) return { location: null, detail: capitalise(text) };
+  const [, siteIndex, detail] = siteFieldError;
   return {
-    location: match ? `Site ${Number(match[1]) + 1} in the file` : null,
-    detail: detail.charAt(0).toUpperCase() + detail.slice(1),
+    location: `Site ${Number(siteIndex) + 1} in the file`,
+    detail: capitalise(detail),
   };
 }
 
-function hasFiles(event: DragEvent) {
+function isDraggingFiles(event: DragEvent) {
   return event.dataTransfer.types.includes("Files");
 }
 
@@ -99,7 +108,7 @@ export function ImportExport() {
       });
       return;
     }
-    if (!isImportFile(parsed)) {
+    if (!isSiteExportFile(parsed)) {
       setView({
         kind: "rejected",
         fileName: file.name,
@@ -118,7 +127,7 @@ export function ImportExport() {
           setView({
             kind: "rejected",
             fileName: file.name,
-            ...describeProblem(error.message),
+            ...splitImportErrorIntoSiteNumberAndDetail(error.message),
           }),
       },
     );
@@ -136,18 +145,19 @@ export function ImportExport() {
     <div
       className={`page-wrapper transfer-page${isDragging ? " is-dragging" : ""}`}
       onDragEnter={(event) => {
-        if (!hasFiles(event)) return;
+        if (!isDraggingFiles(event)) return;
         event.preventDefault();
         setDragDepth((depth) => depth + 1);
       }}
       onDragOver={(event) => {
-        if (hasFiles(event)) event.preventDefault();
+        if (isDraggingFiles(event)) event.preventDefault();
       }}
       onDragLeave={(event) => {
-        if (hasFiles(event)) setDragDepth((depth) => Math.max(0, depth - 1));
+        if (isDraggingFiles(event))
+          setDragDepth((depth) => Math.max(0, depth - 1));
       }}
       onDrop={(event) => {
-        if (!hasFiles(event)) return;
+        if (!isDraggingFiles(event)) return;
         event.preventDefault();
         setDragDepth(0);
         const file = event.dataTransfer.files[0];
