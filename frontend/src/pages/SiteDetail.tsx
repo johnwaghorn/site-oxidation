@@ -124,8 +124,12 @@ export function SiteDetail() {
         </h1>
         <StatusBadge status={site.status} />
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
-        {site.shares_host_with_canary && (
-          <CanaryBadge isAdmin={role === "admin"} />
+        {site.canary_warning && (
+          <CanaryBadge
+            warning={site.canary_warning}
+            since={site.canary_warning_since}
+            isAdmin={role === "admin"}
+          />
         )}
         <button
           type="button"

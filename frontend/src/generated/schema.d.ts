@@ -531,6 +531,8 @@ export interface components {
         /** @enum {string} */
         CanaryState: "disabled" | "unknown" | "healthy" | "degraded";
         /** @enum {string} */
+        CanaryWarning: "inactive" | "shares_host";
+        /** @enum {string} */
         CertStatus: "valid" | "expiring" | "critical" | "expired" | "invalid" | "none";
         ChangePasswordRequest: {
             current_password: string;
@@ -668,6 +670,9 @@ export interface components {
         };
         PaginatedResponse_SiteResponse: {
             data: {
+                canary_warning?: components["schemas"]["CanaryWarning"] | null;
+                /** Format: date-time */
+                canary_warning_since?: string | null;
                 /** Format: date-time */
                 cert_expires_at?: string | null;
                 cert_status?: components["schemas"]["CertStatus"] | null;
@@ -685,7 +690,6 @@ export interface components {
                 name: string;
                 /** Format: int64 */
                 probe_interval_seconds: number;
-                shares_host_with_canary: boolean;
                 status: components["schemas"]["SiteStatus"];
                 /** Format: int64 */
                 team_id?: number | null;
@@ -735,6 +739,9 @@ export interface components {
             url: components["schemas"]["SiteUrl"];
         };
         SiteResponse: {
+            canary_warning?: components["schemas"]["CanaryWarning"] | null;
+            /** Format: date-time */
+            canary_warning_since?: string | null;
             /** Format: date-time */
             cert_expires_at?: string | null;
             cert_status?: components["schemas"]["CertStatus"] | null;
@@ -752,7 +759,6 @@ export interface components {
             name: string;
             /** Format: int64 */
             probe_interval_seconds: number;
-            shares_host_with_canary: boolean;
             status: components["schemas"]["SiteStatus"];
             /** Format: int64 */
             team_id?: number | null;
@@ -1642,6 +1648,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: {
+                            canary_warning?: components["schemas"]["CanaryWarning"] | null;
+                            /** Format: date-time */
+                            canary_warning_since?: string | null;
                             /** Format: date-time */
                             cert_expires_at?: string | null;
                             cert_status?: components["schemas"]["CertStatus"] | null;
@@ -1659,7 +1668,6 @@ export interface operations {
                             name: string;
                             /** Format: int64 */
                             probe_interval_seconds: number;
-                            shares_host_with_canary: boolean;
                             status: components["schemas"]["SiteStatus"];
                             /** Format: int64 */
                             team_id?: number | null;
@@ -2591,6 +2599,9 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: {
+                            canary_warning?: components["schemas"]["CanaryWarning"] | null;
+                            /** Format: date-time */
+                            canary_warning_since?: string | null;
                             /** Format: date-time */
                             cert_expires_at?: string | null;
                             cert_status?: components["schemas"]["CertStatus"] | null;
@@ -2608,7 +2619,6 @@ export interface operations {
                             name: string;
                             /** Format: int64 */
                             probe_interval_seconds: number;
-                            shares_host_with_canary: boolean;
                             status: components["schemas"]["SiteStatus"];
                             /** Format: int64 */
                             team_id?: number | null;
