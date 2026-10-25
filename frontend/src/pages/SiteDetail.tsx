@@ -9,6 +9,7 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Modal } from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { CanaryBadge } from "../components/ui/CanaryBadge";
 import { CertBadge } from "../components/ui/CertBadge";
 import type { components } from "../generated/schema";
 
@@ -123,6 +124,9 @@ export function SiteDetail() {
         </h1>
         <StatusBadge status={site.status} />
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
+        {site.shares_host_with_canary && (
+          <CanaryBadge isAdmin={role === "admin"} />
+        )}
         <button
           type="button"
           className="button-primary-action"

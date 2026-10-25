@@ -1,7 +1,8 @@
+use crate::canary;
 use crate::models::site::SiteStatus;
 use crate::tests::{
     TEST_PROBE_INTERVAL_SECONDS, TEST_SITE_NAME, TEST_SITE_URL, authenticated_admin_app,
-    count_outages, insert_test_site, parse_json_body,
+    count_outages, enable_canary, insert_test_site, parse_json_body,
 };
 use axum::{
     body::Body,
@@ -30,6 +31,92 @@ fn site_names(body: &serde_json::Value) -> Vec<&str> {
         .iter()
         .map(|site| site["name"].as_str().unwrap())
         .collect()
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_sharing_host_with_canary_is_flagged(pool: SqlitePool) {
+    let site = insert_test_site(&pool, SiteStatus::Up).await;
+    enable_canary(&pool, "https://www.waghorn.tech/status").await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{}", site.id))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["shares_host_with_canary"], true);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_list_sites_flags_only_sites_sharing_host_with_canary(pool: SqlitePool) {
+    insert_test_site(&pool, SiteStatus::Up).await;
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status) VALUES ('Blog', 'https://blog.waghorn.tech', 200)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    enable_canary(&pool, TEST_SITE_URL).await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let flags: Vec<(&str, bool)> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|site| {
+            (
+                site["name"].as_str().unwrap(),
+                site["shares_host_with_canary"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(flags, [("Blog", false), (TEST_SITE_NAME, true)]);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_is_not_flagged_when_canary_is_disabled(pool: SqlitePool) {
+    let site = insert_test_site(&pool, SiteStatus::Up).await;
+    canary::update_settings(
+        &pool,
+        &canary::CanaryConfig {
+            enabled: false,
+            url: Some(TEST_SITE_URL.to_owned()),
+            timeout_secs: 1,
+        },
+    )
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{}", site.id))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["shares_host_with_canary"], false);
 }
 
 #[sqlx::test(migrations = "./migrations")]
