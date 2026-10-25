@@ -14,7 +14,7 @@ use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_confli
 use crate::api::extractors::{JsonPayload, RequireAdmin};
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
 use crate::api::search::{SearchParams, normalise_search};
-use crate::api::sites::canary_host::flag_sites_sharing_canary_host;
+use crate::api::sites::canary_warning::set_canary_warnings;
 use crate::api::sites::responses::SiteResponse;
 
 #[derive(Deserialize)]
@@ -26,6 +26,15 @@ pub struct ListTeamsQuery {
     search: Option<String>,
     member_id: Option<i64>,
     exclude_member_id: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct ListTeamSitesQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    per_page: Option<u32>,
+    search: Option<String>,
 }
 
 #[utoipa::path(
@@ -100,15 +109,6 @@ pub async fn get_team(
     Ok(Json(team))
 }
 
-#[derive(Deserialize)]
-pub struct ListTeamSitesQuery {
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    page: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    per_page: Option<u32>,
-    search: Option<String>,
-}
-
 #[utoipa::path(
     get,
     path = "/teams/{id}/sites",
@@ -157,7 +157,7 @@ pub async fn list_team_sites(
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count team sites", e))?;
-    flag_sites_sharing_canary_host(&pool, &mut sites).await?;
+    set_canary_warnings(&pool, &mut sites).await?;
     Ok(Json(PaginatedResponse {
         data: sites,
         page: pagination.page(),

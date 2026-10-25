@@ -1,5 +1,5 @@
 use super::access::{ensure_site_access, resolve_team_id};
-use super::canary_host::flag_sites_sharing_canary_host;
+use super::canary_warning::set_canary_warnings;
 use super::fields::ExpectedText;
 use super::params::{ListSitesParams, SiteStatusFilter};
 use super::queries::{
@@ -22,13 +22,23 @@ use axum::{
     http::status::StatusCode,
 };
 
+#[derive(serde::Deserialize)]
+pub struct ListSitesQuery {
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    page: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_u32_params")]
+    per_page: Option<u32>,
+    search: Option<String>,
+    status: Option<SiteStatusFilter>,
+}
+
 async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, ApiErrorResponse> {
     let mut site = sqlx::query_as::<_, SiteResponse>(SELECT_SITE_ADMIN)
         .bind(id)
         .fetch_one(pool)
         .await
         .map_err(|e| internal_err(&format!("Failed to reload site {id}"), e))?;
-    flag_sites_sharing_canary_host(pool, std::slice::from_mut(&mut site)).await?;
+    set_canary_warnings(pool, std::slice::from_mut(&mut site)).await?;
     Ok(site)
 }
 
@@ -87,7 +97,7 @@ pub async fn list_sites(
             .map_err(|e| internal_err(&format!("Failed to count sites for user {}", user.id), e))?;
         (sites, total)
     };
-    flag_sites_sharing_canary_host(&state.pool, &mut sites).await?;
+    set_canary_warnings(&state.pool, &mut sites).await?;
     Ok(Json(PaginatedResponse {
         data: sites,
         page: pagination.page(),
@@ -117,16 +127,6 @@ pub async fn count_unassigned_sites(
         .await
         .map_err(|e| internal_err("Failed to count unassigned sites", e))?;
     Ok(Json(UnassignedCountResponse { count }))
-}
-
-#[derive(serde::Deserialize)]
-pub struct ListSitesQuery {
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    page: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    per_page: Option<u32>,
-    search: Option<String>,
-    status: Option<SiteStatusFilter>,
 }
 
 #[utoipa::path(
@@ -169,7 +169,7 @@ pub async fn get_site(
         )
     })?
     .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
-    flag_sites_sharing_canary_host(&state.pool, std::slice::from_mut(&mut site)).await?;
+    set_canary_warnings(&state.pool, std::slice::from_mut(&mut site)).await?;
     Ok(Json(site))
 }
 

@@ -1,12 +1,12 @@
+use serde::Deserialize;
+use utoipa::ToSchema;
+
 mod authenticator;
 mod queries;
 mod session;
 
 pub use authenticator::Authenticator;
 pub use session::{AuthSession, SESSION_COOKIE, delete_expired_sessions};
-
-use serde::Deserialize;
-use utoipa::ToSchema;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AuthError {

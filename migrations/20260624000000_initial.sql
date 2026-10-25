@@ -66,7 +66,15 @@ CREATE TABLE canary_settings (
     CHECK(enabled = 0 OR url IS NOT NULL)
 );
 
-INSERT INTO canary_settings (id) VALUES (1);
+CREATE TABLE canary_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    state TEXT NOT NULL CHECK(state IN ('healthy', 'failing')),
+    url TEXT NOT NULL CHECK(length(url) BETWEEN 10 AND 2048),
+    active_since DATETIME NOT NULL,
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at DATETIME,
+    CHECK(ended_at IS NULL OR ended_at >= started_at)
+);
 
 CREATE TABLE sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,7 +115,10 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 CREATE INDEX idx_sessions_expiry_date ON sessions (expiry_date);
 CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
+CREATE UNIQUE INDEX idx_one_open_canary_period ON canary_history((ended_at IS NULL)) WHERE ended_at IS NULL;
 CREATE INDEX idx_team_members_user_id ON team_members(user_id);
 CREATE UNIQUE INDEX idx_sites_team_url ON sites(team_id, url);
 CREATE UNIQUE INDEX idx_sites_url_no_team ON sites(url) WHERE team_id IS NULL;
 CREATE INDEX idx_notification_outbox_due ON notification_outbox(next_attempt_at, id);
+
+INSERT INTO canary_settings (id) VALUES (1);

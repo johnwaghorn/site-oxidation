@@ -21,7 +21,16 @@ pub struct SiteResponse {
     pub cert_status: Option<CertStatus>,
     pub cert_expires_at: Option<DateTime<Utc>>,
     #[sqlx(skip)]
-    pub shares_host_with_canary: bool,
+    pub canary_warning: Option<CanaryWarning>,
+    #[sqlx(skip)]
+    pub canary_warning_since: Option<DateTime<Utc>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CanaryWarning {
+    Inactive,
+    SharesHost,
 }
 
 #[derive(Serialize, sqlx::FromRow, ToSchema)]

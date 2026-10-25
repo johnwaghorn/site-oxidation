@@ -8,7 +8,7 @@ use utoipa::OpenApi;
 use super::endpoints;
 use super::params::SiteStatusFilter;
 use super::requests::SitePayload;
-use super::responses::{OutageResponse, SiteResponse, UnassignedCountResponse};
+use super::responses::{CanaryWarning, OutageResponse, SiteResponse, UnassignedCountResponse};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -31,6 +31,7 @@ use super::responses::{OutageResponse, SiteResponse, UnassignedCountResponse};
         SiteStatus,
         SiteStatusFilter,
         CertStatus,
+        CanaryWarning,
         ApiError,
     )),
     tags(

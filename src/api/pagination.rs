@@ -19,24 +19,6 @@ pub struct PaginationParams {
     pub per_page: Option<u32>,
 }
 
-pub(crate) fn deserialize_u32_params<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let param = Option::<u64>::deserialize(deserializer)?;
-    Ok(match param {
-        None => None,
-        Some(v) => {
-            if let Ok(value) = u32::try_from(v) {
-                Some(value)
-            } else {
-                tracing::warn!("Pagination value {v} exceeds u32 max, using default value");
-                None
-            }
-        }
-    })
-}
-
 impl PaginationParams {
     const DEFAULT_PAGE: u32 = 1;
     const DEFAULT_PER_PAGE: u32 = 20;
@@ -72,6 +54,24 @@ pub struct PaginatedResponse<T> {
     pub page: u32,
     pub per_page: u32,
     pub total: i64,
+}
+
+pub(crate) fn deserialize_u32_params<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let param = Option::<u64>::deserialize(deserializer)?;
+    Ok(match param {
+        None => None,
+        Some(v) => {
+            if let Ok(value) = u32::try_from(v) {
+                Some(value)
+            } else {
+                tracing::warn!("Pagination value {v} exceeds u32 max, using default value");
+                None
+            }
+        }
+    })
 }
 
 #[cfg(test)]
