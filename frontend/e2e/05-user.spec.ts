@@ -74,7 +74,9 @@ test("maddie configures notifications for her team", async ({ page }) => {
 
   await test.step("Then she sees both of her teams", async () => {
     const teamList = page.getByRole("navigation", { name: "Teams" });
-    await expect(teamList.getByText("Team Rocket", { exact: true })).toBeVisible();
+    await expect(
+      teamList.getByText("Team Rocket", { exact: true }),
+    ).toBeVisible();
     await expect(teamList.getByText("Support", { exact: true })).toBeVisible();
   });
 
@@ -138,5 +140,28 @@ test("maddie exports her sites", async ({ page }) => {
         url: "https://maddie.waghorn.tech",
       }),
     );
+  });
+});
+
+test("maddie re-imports her own export", async ({ page }) => {
+  await test.step("Given maddie is on the import page", async () => {
+    await signInAsMaddie(page);
+    await page.getByRole("link", { name: "Import & Export" }).click();
+  });
+  const download = await test.step("When she exports her sites", async () => {
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export sites" }).click();
+    return downloadPromise;
+  });
+  await test.step("And imports that file into Team Rocket", async () => {
+    await page.getByRole("combobox").selectOption({ label: "Team Rocket" });
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles(await download.path());
+  });
+  await test.step("Then her blog is reported as already there", async () => {
+    await page.getByText(/^Show all \d+ sites?$/).click();
+    const row = page.locator("li", { hasText: "Maddie Blog" });
+    await expect(row.getByText("Already here", { exact: true })).toBeVisible();
   });
 });

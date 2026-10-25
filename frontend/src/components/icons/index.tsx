@@ -2,4 +2,7 @@ export { CloseIcon } from "./CloseIcon";
 export { ExternalLinkIcon } from "./ExternalLinkIcon";
 export { EyeIcon } from "./EyeIcon";
 export { EyeOffIcon } from "./EyeOffIcon";
+export { FileCheckIcon } from "./FileCheckIcon";
+export { FileDownIcon } from "./FileDownIcon";
+export { FileXIcon } from "./FileXIcon";
 export { SearchIcon } from "./SearchIcon";

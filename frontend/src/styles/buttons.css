@@ -68,3 +68,24 @@
   background-color: var(--color-danger);
   color: var(--color-danger-on);
 }
+
+/* A button that reads as an inline link */
+.button-link {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--color-link);
+  font: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.button-link:hover {
+  border: none;
+  color: var(--color-link-hover);
+  text-decoration-color: currentColor;
+}

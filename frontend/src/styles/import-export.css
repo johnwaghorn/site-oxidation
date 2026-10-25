@@ -1,0 +1,202 @@
+/* Import & Export page */
+
+.transfer-page {
+  min-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 16px;
+  max-width: none;
+  border: 2px dashed var(--color-border-strong);
+  border-radius: 28px;
+  background-color: var(--color-surface);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.transfer-page.is-dragging {
+  border: 3px dashed var(--color-primary);
+  background-color: var(--color-primary-soft);
+}
+
+.transfer-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.transfer-header .page-title {
+  margin: 0 0 8px 0;
+}
+
+.transfer-export {
+  flex: 0 1 300px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface-elevated);
+}
+
+.transfer-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+}
+
+/* The file card in the middle of the page */
+.transfer-file {
+  width: 104px;
+  height: 120px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 3px solid var(--color-primary);
+  border-radius: 16px;
+  background-color: var(--color-surface-elevated);
+  color: var(--color-link);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  transform: rotate(-6deg);
+}
+
+.transfer-file svg {
+  width: 36px;
+  height: 36px;
+}
+
+.transfer-page.is-dragging .transfer-file {
+  box-shadow: var(--shadow-primary-action-hover);
+}
+
+.transfer-file.is-done {
+  border-color: var(--color-success-text);
+  color: var(--color-success-text);
+  transform: rotate(4deg);
+}
+
+.transfer-file.is-rejected {
+  border-color: var(--color-danger);
+  color: var(--color-danger-text);
+  transform: rotate(-8deg);
+}
+
+.transfer-headline {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.transfer-team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.transfer-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.transfer-tile {
+  min-width: 180px;
+  box-sizing: border-box;
+  padding: 20px 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background-color: var(--color-surface-elevated);
+  color: var(--color-muted);
+}
+
+.transfer-tile.is-added {
+  border-color: var(--color-success);
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.transfer-tile-count {
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer-tile-label {
+  margin-top: 6px;
+  font-weight: 700;
+}
+
+.transfer-details {
+  width: 100%;
+  max-width: 520px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface-elevated);
+  text-align: left;
+}
+
+.transfer-details summary {
+  padding: 12px 16px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.transfer-details ul {
+  margin: 0;
+  padding: 0 16px 12px 16px;
+  list-style: none;
+}
+
+.transfer-details li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-surface-muted);
+  overflow-wrap: anywhere;
+}
+
+.transfer-outcome {
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.transfer-outcome.is-added {
+  color: var(--color-success-text);
+}
+
+.transfer-problem {
+  width: 100%;
+  max-width: 520px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-danger);
+  border-radius: 14px;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
