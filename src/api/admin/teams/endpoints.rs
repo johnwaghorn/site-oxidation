@@ -1,10 +1,9 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use super::params::ListTeamsParams;
+use super::params::{ListTeamSitesQuery, ListTeamsParams, ListTeamsQuery};
 use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
 use super::responses::{TeamOption, TeamResponse};
@@ -12,30 +11,10 @@ use super::rules;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::{JsonPayload, RequireAdmin};
-use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
+use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::api::sites::canary_warning::set_canary_warnings;
 use crate::api::sites::responses::SiteResponse;
-
-#[derive(Deserialize)]
-pub struct ListTeamsQuery {
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    page: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    per_page: Option<u32>,
-    search: Option<String>,
-    member_id: Option<i64>,
-    exclude_member_id: Option<i64>,
-}
-
-#[derive(Deserialize)]
-pub struct ListTeamSitesQuery {
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    page: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    per_page: Option<u32>,
-    search: Option<String>,
-}
 
 #[utoipa::path(
     get,

@@ -2,11 +2,10 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use password_auth::generate_hash;
-use serde::Deserialize;
 use sqlx::SqlitePool;
 use tokio::task;
 
-use super::params::ListUsersParams;
+use super::params::{ListUsersParams, ListUsersQuery};
 use super::queries;
 use super::requests::{CreateUserRequest, ResetPasswordRequest, UpdateUserRequest};
 use super::responses::{CreateUserResponse, UserResponse};
@@ -16,23 +15,11 @@ use crate::api::errors::{
     ApiError, ApiErrorResponse, foreign_key_err, internal_err, unique_conflict_err,
 };
 use crate::api::extractors::{DeferredJsonPayload, JsonPayload, RequireAdmin};
-use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
+use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::models::user::UserRole;
 use crate::security::password::{validate_password_bounds, validate_password_not_username};
 use crate::state::AdminLimiter;
-
-#[derive(Deserialize)]
-pub(super) struct ListUsersQuery {
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    page: Option<u32>,
-    #[serde(default, deserialize_with = "deserialize_u32_params")]
-    per_page: Option<u32>,
-    search: Option<String>,
-    team_id: Option<i64>,
-    exclude_team_id: Option<i64>,
-    active: Option<bool>,
-}
 
 #[utoipa::path(
     get,
