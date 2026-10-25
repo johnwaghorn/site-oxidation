@@ -52,7 +52,7 @@ pub async fn import_sites(
         .begin()
         .await
         .map_err(|e| internal_err("Failed to start site import", e))?;
-    let mut results = Vec::with_capacity(file.sites.len());
+    let mut results = Vec::new();
     for site in &file.sites {
         let inserted = sqlx::query(IMPORT_SITE)
             .bind(site.name.as_str())
