@@ -612,7 +612,14 @@ function SmtpForm({
           isEmailConfigured(settings)
             ? () =>
                 updateSmtp.mutate(
-                  { teamId, payload: { smtp_host: "" } },
+                  {
+                    teamId,
+                    payload: {
+                      smtp_host: "",
+                      smtp_from_email: "",
+                      smtp_to_email: "",
+                    },
+                  },
                   { onSuccess: onDone },
                 )
             : undefined

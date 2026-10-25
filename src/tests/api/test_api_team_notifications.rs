@@ -331,6 +331,51 @@ async fn test_partial_smtp_config_is_rejected_and_rolled_back(pool: SqlitePool) 
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_clearing_host_and_addresses_turns_email_off(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    add_team_member(&pool, team_id, user_id).await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/teams/{team_id}/notifications"))
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"smtp_host":"smtp.waghorn.tech","smtp_auth":false,"smtp_from_email":"alerts@waghorn.tech","smtp_to_email":"maddie@waghorn.tech"}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!("/teams/{team_id}/notifications"))
+                .header("cookie", &cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"smtp_host":"","smtp_from_email":"","smtp_to_email":""}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert!(body["smtp_host"].is_null());
+    assert!(body["smtp_from_email"].is_null());
+    assert!(body["smtp_to_email"].is_null());
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_smtp_auth_requires_credentials(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     let team_id = insert_team(&pool, "Team Rocket").await;
