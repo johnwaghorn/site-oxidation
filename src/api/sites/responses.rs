@@ -20,6 +20,8 @@ pub struct SiteResponse {
     pub tls_allow_untrusted: bool,
     pub cert_status: Option<CertStatus>,
     pub cert_expires_at: Option<DateTime<Utc>>,
+    #[sqlx(skip)]
+    pub shares_host_with_canary: bool,
 }
 
 #[derive(Serialize, sqlx::FromRow, ToSchema)]

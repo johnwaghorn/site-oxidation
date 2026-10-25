@@ -1,4 +1,5 @@
 use super::access::{ensure_site_access, resolve_team_id};
+use super::canary_host::flag_sites_sharing_canary_host;
 use super::fields::ExpectedText;
 use super::params::{ListSitesParams, SiteStatusFilter};
 use super::queries::{
@@ -22,11 +23,13 @@ use axum::{
 };
 
 async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, ApiErrorResponse> {
-    sqlx::query_as::<_, SiteResponse>(SELECT_SITE_ADMIN)
+    let mut site = sqlx::query_as::<_, SiteResponse>(SELECT_SITE_ADMIN)
         .bind(id)
         .fetch_one(pool)
         .await
-        .map_err(|e| internal_err(&format!("Failed to reload site {id}"), e))
+        .map_err(|e| internal_err(&format!("Failed to reload site {id}"), e))?;
+    flag_sites_sharing_canary_host(pool, std::slice::from_mut(&mut site)).await?;
+    Ok(site)
 }
 
 #[utoipa::path(
@@ -49,7 +52,7 @@ pub async fn list_sites(
 ) -> Result<Json<PaginatedResponse<SiteResponse>>, ApiErrorResponse> {
     let pagination = PaginationParams::new(params.page, params.per_page);
     let search = normalise_search(params.search.as_deref());
-    let (sites, total) = if user.role == UserRole::Admin {
+    let (mut sites, total) = if user.role == UserRole::Admin {
         let sites = sqlx::query_as::<_, SiteResponse>(LIST_SITES_ADMIN)
             .bind(search)
             .bind(params.status)
@@ -84,6 +87,7 @@ pub async fn list_sites(
             .map_err(|e| internal_err(&format!("Failed to count sites for user {}", user.id), e))?;
         (sites, total)
     };
+    flag_sites_sharing_canary_host(&state.pool, &mut sites).await?;
     Ok(Json(PaginatedResponse {
         data: sites,
         page: pagination.page(),
@@ -146,7 +150,7 @@ pub async fn get_site(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<SiteResponse>, ApiErrorResponse> {
-    let site = if user.role == UserRole::Admin {
+    let mut site = if user.role == UserRole::Admin {
         sqlx::query_as::<_, SiteResponse>(SELECT_SITE_ADMIN)
             .bind(id)
             .fetch_optional(&state.pool)
@@ -165,7 +169,7 @@ pub async fn get_site(
         )
     })?
     .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
-
+    flag_sites_sharing_canary_host(&state.pool, std::slice::from_mut(&mut site)).await?;
     Ok(Json(site))
 }
 

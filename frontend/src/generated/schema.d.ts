@@ -685,6 +685,7 @@ export interface components {
                 name: string;
                 /** Format: int64 */
                 probe_interval_seconds: number;
+                shares_host_with_canary: boolean;
                 status: components["schemas"]["SiteStatus"];
                 /** Format: int64 */
                 team_id?: number | null;
@@ -751,6 +752,7 @@ export interface components {
             name: string;
             /** Format: int64 */
             probe_interval_seconds: number;
+            shares_host_with_canary: boolean;
             status: components["schemas"]["SiteStatus"];
             /** Format: int64 */
             team_id?: number | null;
@@ -1657,6 +1659,7 @@ export interface operations {
                             name: string;
                             /** Format: int64 */
                             probe_interval_seconds: number;
+                            shares_host_with_canary: boolean;
                             status: components["schemas"]["SiteStatus"];
                             /** Format: int64 */
                             team_id?: number | null;
@@ -2605,6 +2608,7 @@ export interface operations {
                             name: string;
                             /** Format: int64 */
                             probe_interval_seconds: number;
+                            shares_host_with_canary: boolean;
                             status: components["schemas"]["SiteStatus"];
                             /** Format: int64 */
                             team_id?: number | null;

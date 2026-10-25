@@ -14,6 +14,7 @@ use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_confli
 use crate::api::extractors::{JsonPayload, RequireAdmin};
 use crate::api::pagination::{PaginatedResponse, PaginationParams, deserialize_u32_params};
 use crate::api::search::{SearchParams, normalise_search};
+use crate::api::sites::canary_host::flag_sites_sharing_canary_host;
 use crate::api::sites::responses::SiteResponse;
 
 #[derive(Deserialize)]
@@ -142,7 +143,7 @@ pub async fn list_team_sites(
     if team_exists == 0 {
         return Err(ApiErrorResponse::not_found("Team"));
     }
-    let sites = sqlx::query_as::<_, SiteResponse>(queries::LIST_TEAM_SITES)
+    let mut sites = sqlx::query_as::<_, SiteResponse>(queries::LIST_TEAM_SITES)
         .bind(id)
         .bind(search)
         .bind(pagination.per_page())
@@ -156,6 +157,7 @@ pub async fn list_team_sites(
         .fetch_one(&pool)
         .await
         .map_err(|e| internal_err("Failed to count team sites", e))?;
+    flag_sites_sharing_canary_host(&pool, &mut sites).await?;
     Ok(Json(PaginatedResponse {
         data: sites,
         page: pagination.page(),

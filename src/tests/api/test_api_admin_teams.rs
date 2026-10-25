@@ -1,6 +1,6 @@
 use crate::tests::{
-    TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, add_team_member, insert_team, insert_test_user,
-    login_and_get_cookie, parse_json_body, test_app,
+    TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, add_team_member, enable_canary, insert_team,
+    insert_test_user, login_and_get_cookie, parse_json_body, test_app,
 };
 use axum::{
     body::Body,
@@ -155,6 +155,48 @@ async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
     assert_eq!(body["total"], 1);
     assert_eq!(body["data"][0]["name"], "Alpha Site");
     assert_eq!(body["data"][0]["team_name"], "Team Alpha");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_team_sites_flag_site_sharing_host_with_canary(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let team_id = insert_team(&pool, "Team Alpha").await;
+    sqlx::query(
+        "INSERT INTO sites (name, url, expected_status, team_id) VALUES \
+         ('Alpha Site', 'https://alpha.waghorn.tech', 200, ?1), \
+         ('Canary Site', 'https://canary.waghorn.tech', 200, ?1)",
+    )
+    .bind(team_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    enable_canary(&pool, "https://canary.waghorn.tech").await;
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/admin/teams/{team_id}/sites"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let flags: Vec<(&str, bool)> = body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|site| {
+            (
+                site["name"].as_str().unwrap(),
+                site["shares_host_with_canary"].as_bool().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(flags, [("Canary Site", true), ("Alpha Site", false)]);
 }
 
 #[sqlx::test(migrations = "./migrations")]

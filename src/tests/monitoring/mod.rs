@@ -8,12 +8,13 @@ use super::connectivity::{
     run_and_record_canary,
 };
 use super::persistence::{persist_site_statuses, update_site_status};
-use crate::canary;
 use crate::config::AppConfig;
 use crate::models::site::SiteStatus;
 use crate::notifications::Notifier;
 use crate::probe::http::{PRIVATE_IP_BLOCKED_MESSAGE, ProbeFailureKind, ProbeResult};
-use crate::tests::{TestHttpServer, count_outages, insert_team, insert_test_site, test_config};
+use crate::tests::{
+    TestHttpServer, count_outages, enable_canary, insert_team, insert_test_site, test_config,
+};
 use reqwest::{Client, StatusCode};
 use sqlx::SqlitePool;
 use std::time::{Duration, Instant, SystemTime};
@@ -55,19 +56,6 @@ fn probe_config() -> AppConfig {
     config.probe_retry_count = 0;
     config.probe_retry_delay_ms = 0;
     config
-}
-
-async fn enable_canary(pool: &SqlitePool, url: &str) {
-    canary::update_settings(
-        pool,
-        &canary::CanaryConfig {
-            enabled: true,
-            url: Some(url.to_owned()),
-            timeout_secs: 1,
-        },
-    )
-    .await
-    .unwrap();
 }
 
 fn mock_site_down_result() -> ProbeResult {

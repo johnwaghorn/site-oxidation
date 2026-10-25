@@ -1,3 +1,4 @@
+use crate::canary;
 use crate::models::notifications::TeamNotificationConfig;
 use crate::models::site::{SiteRow, SiteStatus};
 use axum::Router;
@@ -123,4 +124,17 @@ pub async fn count_sessions(pool: &SqlitePool) -> i64 {
         .fetch_one(pool)
         .await
         .unwrap()
+}
+
+pub async fn enable_canary(pool: &SqlitePool, url: &str) {
+    canary::update_settings(
+        pool,
+        &canary::CanaryConfig {
+            enabled: true,
+            url: Some(url.to_owned()),
+            timeout_secs: 1,
+        },
+    )
+    .await
+    .unwrap();
 }

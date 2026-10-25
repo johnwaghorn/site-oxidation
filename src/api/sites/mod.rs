@@ -1,4 +1,5 @@
 pub(crate) mod access;
+pub(crate) mod canary_host;
 mod endpoints;
 pub(crate) mod fields;
 pub mod params;
