@@ -4,5 +4,6 @@ export { EyeIcon } from "./EyeIcon";
 export { EyeOffIcon } from "./EyeOffIcon";
 export { FileCheckIcon } from "./FileCheckIcon";
 export { FileDownIcon } from "./FileDownIcon";
+export { FileUpIcon } from "./FileUpIcon";
 export { FileXIcon } from "./FileXIcon";
 export { SearchIcon } from "./SearchIcon";

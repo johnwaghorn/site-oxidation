@@ -21,30 +21,6 @@
   background-color: var(--color-primary-soft);
 }
 
-.transfer-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.transfer-header .page-title {
-  margin: 0 0 8px 0;
-}
-
-.transfer-export {
-  flex: 0 1 300px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  background-color: var(--color-surface-elevated);
-}
-
 .transfer-stage {
   flex: 1;
   display: flex;
@@ -94,6 +70,73 @@
   border-color: var(--color-danger);
   color: var(--color-danger-text);
   transform: rotate(-8deg);
+}
+
+.transfer-file.is-outgoing {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  transform: rotate(6deg);
+}
+
+.transfer-split {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+}
+
+.transfer-import,
+.transfer-export {
+  flex: 1 1 320px;
+  max-width: 440px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.transfer-export {
+  padding: 36px 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background-color: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.transfer-or {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.transfer-or::before,
+.transfer-or::after {
+  content: "";
+  width: 2px;
+  flex: 1;
+  max-height: 140px;
+  background-color: var(--color-border);
+}
+
+@media (max-width: 860px) {
+  .transfer-or::before,
+  .transfer-or::after {
+    display: none;
+  }
+}
+
+.transfer-subheadline {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
 }
 
 .transfer-headline {

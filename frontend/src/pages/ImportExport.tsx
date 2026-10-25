@@ -2,7 +2,12 @@ import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { FormSelect } from "../components/ui/FormControls";
-import { FileCheckIcon, FileDownIcon, FileXIcon } from "../components/icons";
+import {
+  FileCheckIcon,
+  FileDownIcon,
+  FileUpIcon,
+  FileXIcon,
+} from "../components/icons";
 import { useAuth } from "../hooks/useAuth";
 import { useExportSites, useImportSites } from "../hooks/useImportExport";
 import type { components } from "../generated/schema";
@@ -164,37 +169,11 @@ export function ImportExport() {
         if (file) void importFile(file);
       }}
     >
-      <div className="transfer-header">
-        <div>
-          <h1 className="page-title">Import & Export</h1>
-          <p className="muted-text" style={{ margin: 0 }}>
-            Drop an export file anywhere on this page to import it.
-          </p>
-        </div>
-        <section className="transfer-export">
-          <strong>Moving elsewhere?</strong>
-          <span className="muted-text" style={{ fontSize: "14px" }}>
-            Download the settings of every site you can see as a file.
-          </span>
-          <div>
-            <button
-              className="button-secondary-action"
-              disabled={exportSites.isPending}
-              onClick={() =>
-                exportSites.mutate(undefined, {
-                  onSuccess: (data) =>
-                    downloadJson(
-                      `site-oxidation-sites-${data.exported_at.slice(0, 10)}.json`,
-                      data,
-                    ),
-                })
-              }
-            >
-              {exportSites.isPending ? "Exporting..." : "Export sites"}
-            </button>
-          </div>
-          <ErrorMessage error={exportSites.error} />
-        </section>
+      <div>
+        <h1 className="page-title">Import & Export</h1>
+        <p className="muted-text" style={{ margin: 0 }}>
+          Bring sites in from a file, or take a copy of yours with you.
+        </p>
       </div>
 
       <input
@@ -213,56 +192,90 @@ export function ImportExport() {
 
       <div className="transfer-stage" aria-live="polite">
         {isDragging || view.kind === "ready" ? (
-          <>
-            <div className="transfer-file" aria-hidden="true">
-              <FileDownIcon />
-              JSON
-            </div>
-            <p className="transfer-headline">
-              {isDragging ? "Let go to import" : "Drop an export file here"}
-            </p>
-            {isTeamRequired && teams.length === 0 ? (
-              <p className="muted-text" style={{ margin: 0 }}>
-                You need to be in a team before you can import sites.
+          <div className="transfer-split">
+            <div className="transfer-import">
+              <div className="transfer-file" aria-hidden="true">
+                <FileDownIcon />
+                IN
+              </div>
+              <p className="transfer-subheadline">
+                {isDragging ? "Let go to import" : "Drop a file to import"}
               </p>
-            ) : (
-              <>
-                <label className="transfer-team">
-                  into
-                  <FormSelect
-                    value={teamId ?? ""}
-                    onChange={(event) =>
-                      setTeamId(
-                        event.target.value ? Number(event.target.value) : null,
-                      )
-                    }
-                  >
-                    {!isTeamRequired && <option value="">No team</option>}
-                    {teams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </FormSelect>
-                </label>
+              {isTeamRequired && teams.length === 0 ? (
                 <p className="muted-text" style={{ margin: 0 }}>
-                  Sites already in the team are skipped. Prefer clicking?{" "}
-                  <button
-                    type="button"
-                    className="button-link"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Choose a file
-                  </button>
+                  You need to be in a team before you can import sites.
                 </p>
-              </>
-            )}
-          </>
+              ) : (
+                <>
+                  <label className="transfer-team">
+                    into team
+                    <FormSelect
+                      value={teamId ?? ""}
+                      onChange={(event) =>
+                        setTeamId(
+                          event.target.value
+                            ? Number(event.target.value)
+                            : null,
+                        )
+                      }
+                    >
+                      {!isTeamRequired && <option value="">No team</option>}
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </FormSelect>
+                  </label>
+                  <p className="muted-text" style={{ margin: 0 }}>
+                    Anywhere on the page works. Sites already in the team are
+                    skipped.{" "}
+                    <button
+                      type="button"
+                      className="button-link"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Choose a file
+                    </button>
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="transfer-or" aria-hidden="true">
+              or
+            </div>
+            <section className="transfer-export">
+              <div className="transfer-file is-outgoing" aria-hidden="true">
+                <FileUpIcon />
+                OUT
+              </div>
+              <h2 className="transfer-subheadline">Export your sites</h2>
+              <p className="muted-text" style={{ margin: 0 }}>
+                Every site you can see, with its check settings, in one file.
+              </p>
+              <button
+                className="button-primary-action"
+                disabled={exportSites.isPending}
+                onClick={() =>
+                  exportSites.mutate(undefined, {
+                    onSuccess: (data) =>
+                      downloadJson(
+                        `site-oxidation-sites-${data.exported_at.slice(0, 10)}.json`,
+                        data,
+                      ),
+                  })
+                }
+              >
+                {exportSites.isPending ? "Exporting..." : "Export sites"}
+              </button>
+              <ErrorMessage error={exportSites.error} />
+            </section>
+          </div>
         ) : view.kind === "importing" ? (
           <>
             <div className="transfer-file" aria-hidden="true">
               <FileDownIcon />
-              JSON
+              IN
             </div>
             <p className="transfer-headline">Importing {view.fileName}...</p>
           </>
