@@ -1,14 +1,14 @@
-mod endpoints;
-mod queries;
-pub mod responses;
-pub mod schema;
-
 use axum::Router;
 use axum::routing::{get, post};
 
 use crate::state::AppState;
 
 use endpoints::{bootstrap, status};
+
+mod endpoints;
+mod queries;
+pub mod responses;
+pub mod schema;
 
 pub fn setup_routes() -> Router<AppState> {
     Router::new()

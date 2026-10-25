@@ -104,6 +104,12 @@ impl TestHttpServer {
     }
 }
 
+impl Drop for TestHttpServer {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
+}
+
 fn has_headers_and_full_body(data: &[u8]) -> bool {
     let request = String::from_utf8_lossy(data);
     let Some((headers, body)) = request.split_once("\r\n\r\n") else {
@@ -121,10 +127,4 @@ fn has_headers_and_full_body(data: &[u8]) -> bool {
         })
         .unwrap_or(0);
     body.len() >= content_length
-}
-
-impl Drop for TestHttpServer {
-    fn drop(&mut self) {
-        self.handle.abort();
-    }
 }

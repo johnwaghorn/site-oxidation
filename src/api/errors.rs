@@ -18,36 +18,6 @@ pub struct ApiErrorResponse {
     body: ApiError,
 }
 
-pub async fn api_not_found() -> ApiErrorResponse {
-    ApiErrorResponse::not_found("Endpoint")
-}
-
-pub fn internal_err<E>(msg: &str, e: E) -> ApiErrorResponse
-where
-    E: Display,
-{
-    tracing::error!("{msg}: {e}");
-    ApiErrorResponse::internal(msg)
-}
-
-pub fn unique_conflict_err(conflict_msg: &str, context: &str, e: sqlx::Error) -> ApiErrorResponse {
-    if e.as_database_error()
-        .is_some_and(sqlx::error::DatabaseError::is_unique_violation)
-    {
-        return ApiErrorResponse::conflict(conflict_msg);
-    }
-    internal_err(context, e)
-}
-
-pub fn foreign_key_err(resource: &str, context: &str, e: sqlx::Error) -> ApiErrorResponse {
-    if e.as_database_error()
-        .is_some_and(sqlx::error::DatabaseError::is_foreign_key_violation)
-    {
-        return ApiErrorResponse::not_found(resource);
-    }
-    internal_err(context, e)
-}
-
 impl ApiErrorResponse {
     pub fn not_found(resource: &str) -> Self {
         Self {
@@ -149,4 +119,34 @@ impl IntoResponse for ApiErrorResponse {
     fn into_response(self) -> Response {
         (self.status, Json(self.body)).into_response()
     }
+}
+
+pub async fn api_not_found() -> ApiErrorResponse {
+    ApiErrorResponse::not_found("Endpoint")
+}
+
+pub fn internal_err<E>(msg: &str, e: E) -> ApiErrorResponse
+where
+    E: Display,
+{
+    tracing::error!("{msg}: {e}");
+    ApiErrorResponse::internal(msg)
+}
+
+pub fn unique_conflict_err(conflict_msg: &str, context: &str, e: sqlx::Error) -> ApiErrorResponse {
+    if e.as_database_error()
+        .is_some_and(sqlx::error::DatabaseError::is_unique_violation)
+    {
+        return ApiErrorResponse::conflict(conflict_msg);
+    }
+    internal_err(context, e)
+}
+
+pub fn foreign_key_err(resource: &str, context: &str, e: sqlx::Error) -> ApiErrorResponse {
+    if e.as_database_error()
+        .is_some_and(sqlx::error::DatabaseError::is_foreign_key_violation)
+    {
+        return ApiErrorResponse::not_found(resource);
+    }
+    internal_err(context, e)
 }

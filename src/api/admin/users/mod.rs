@@ -1,3 +1,10 @@
+use axum::Router;
+use axum::routing::{get, post};
+
+use crate::state::AppState;
+
+use endpoints::{create_user, delete_user, get_user, list_users, reset_password, update_user};
+
 mod endpoints;
 mod fields;
 pub mod params;
@@ -6,13 +13,6 @@ pub mod requests;
 pub mod responses;
 mod rules;
 pub mod schema;
-
-use axum::Router;
-use axum::routing::{get, post};
-
-use crate::state::AppState;
-
-use endpoints::{create_user, delete_user, get_user, list_users, reset_password, update_user};
 
 pub fn user_routes() -> Router<AppState> {
     Router::new()

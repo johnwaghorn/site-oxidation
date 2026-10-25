@@ -1,14 +1,14 @@
-mod endpoints;
-mod queries;
-pub mod requests;
-pub mod responses;
-pub mod schema;
-
 use crate::state::AppState;
 use axum::Router;
 use axum::routing::{get, patch, post};
 
 use endpoints::{change_password, login, logout, me, update_theme_preference};
+
+mod endpoints;
+mod queries;
+pub mod requests;
+pub mod responses;
+pub mod schema;
 
 pub fn auth_routes() -> Router<AppState> {
     Router::new()

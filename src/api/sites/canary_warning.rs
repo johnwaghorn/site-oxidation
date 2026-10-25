@@ -1,4 +1,4 @@
-use super::responses::SiteResponse;
+use super::responses::{CanaryWarning, SiteResponse};
 use crate::api::errors::{ApiErrorResponse, internal_err};
 use crate::canary;
 use sqlx::SqlitePool;
@@ -13,21 +13,29 @@ fn site_url_matches_canary_host(site_url: &str, canary_host: &str) -> bool {
     normalised_url_host(site_url).is_some_and(|site_host| site_host == canary_host)
 }
 
-pub(crate) async fn flag_sites_sharing_canary_host(
+pub(crate) async fn set_canary_warnings(
     pool: &SqlitePool,
     sites: &mut [SiteResponse],
 ) -> Result<(), ApiErrorResponse> {
     let settings = canary::load_settings(pool)
         .await
         .map_err(|error| internal_err("Failed to load canary settings", error))?;
-    if !settings.config.enabled {
-        return Ok(());
-    }
-    let Some(canary_host) = settings.config.url.as_deref().and_then(normalised_url_host) else {
+    let history = canary::load_history_summary(pool)
+        .await
+        .map_err(|error| internal_err("Failed to load canary history", error))?;
+    let active_canary_url = settings.config.url.filter(|_| settings.config.enabled);
+    let Some(canary_host) = active_canary_url.as_deref().and_then(normalised_url_host) else {
+        for site in sites {
+            site.canary_warning = Some(CanaryWarning::Inactive);
+            site.canary_warning_since = history.last_ended_at;
+        }
         return Ok(());
     };
     for site in sites {
-        site.shares_host_with_canary = site_url_matches_canary_host(&site.url, &canary_host);
+        if site_url_matches_canary_host(&site.url, &canary_host) {
+            site.canary_warning = Some(CanaryWarning::SharesHost);
+            site.canary_warning_since = history.active_since;
+        }
     }
     Ok(())
 }

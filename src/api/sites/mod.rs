@@ -1,14 +1,3 @@
-pub(crate) mod access;
-pub(crate) mod canary_host;
-mod endpoints;
-pub(crate) mod fields;
-pub mod params;
-mod queries;
-pub mod requests;
-pub mod responses;
-pub(crate) mod rules;
-pub mod schema;
-
 use crate::state::AppState;
 use axum::{Router, routing::get};
 
@@ -18,6 +7,17 @@ use endpoints::{
 };
 use requests::SitePayload;
 use responses::{OutageResponse, SiteResponse};
+
+pub(crate) mod access;
+pub(crate) mod canary_warning;
+mod endpoints;
+pub(crate) mod fields;
+pub mod params;
+mod queries;
+pub mod requests;
+pub mod responses;
+pub(crate) mod rules;
+pub mod schema;
 
 pub fn site_routes() -> Router<AppState> {
     Router::new()

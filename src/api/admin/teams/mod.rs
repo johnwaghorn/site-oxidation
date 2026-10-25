@@ -1,12 +1,3 @@
-mod endpoints;
-mod fields;
-pub mod params;
-mod queries;
-pub mod requests;
-pub mod responses;
-mod rules;
-pub mod schema;
-
 use axum::Router;
 use axum::routing::{delete, get, post};
 
@@ -16,6 +7,15 @@ use endpoints::{
     add_team_member, create_team, delete_team, get_team, list_team_options, list_team_sites,
     list_teams, remove_team_member, unassign_team_site, update_team,
 };
+
+mod endpoints;
+mod fields;
+pub mod params;
+mod queries;
+pub mod requests;
+pub mod responses;
+mod rules;
+pub mod schema;
 
 pub fn team_routes() -> Router<AppState> {
     Router::new()

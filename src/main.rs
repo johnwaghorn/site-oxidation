@@ -1,17 +1,3 @@
-mod api;
-mod auth;
-mod canary;
-mod config;
-mod db;
-mod models;
-mod monitoring;
-mod notifications;
-mod probe;
-mod security;
-mod state;
-#[cfg(test)]
-mod tests;
-
 use crate::auth::{Authenticator, delete_expired_sessions};
 use crate::notifications::Notifier;
 use crate::security::rate_limit::LoginRateLimiter;
@@ -31,6 +17,18 @@ use tokio::task;
 use tower_http::services::{ServeDir, ServeFile};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+mod api;
+mod auth;
+mod canary;
+mod config;
+mod db;
+mod models;
+mod monitoring;
+mod notifications;
+mod probe;
+mod security;
+mod state;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -198,3 +196,6 @@ fn spawn_notification_outbox_worker(notifier: Notifier, pool: SqlitePool) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests;

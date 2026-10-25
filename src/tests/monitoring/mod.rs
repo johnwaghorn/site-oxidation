@@ -1,7 +1,3 @@
-mod checks;
-mod connectivity;
-mod persistence;
-
 use super::checks::{probe_result_is_stale, run_due_site_checks};
 use super::connectivity::{
     AmbiguousFailureGuard, CANARY_RECHECK_CACHE_TTL, CachedCanaryVerdict, CanaryVerdict,
@@ -20,6 +16,10 @@ use sqlx::SqlitePool;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::Mutex;
 use tracing_test::traced_test;
+
+mod checks;
+mod connectivity;
+mod persistence;
 
 async fn insert_probe_site(
     pool: &SqlitePool,

@@ -1,6 +1,6 @@
 use crate::tests::{
     TEST_PASSWORD, TEST_SITE_NAME, TEST_SITE_URL, add_team_member, enable_canary, insert_team,
-    insert_test_user, login_and_get_cookie, parse_json_body, test_app,
+    insert_test_user, login_and_get_cookie, parse_json_body, site_canary_warnings, test_app,
 };
 use axum::{
     body::Body,
@@ -158,7 +158,7 @@ async fn test_get_team_and_list_assigned_sites(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_team_sites_flag_site_sharing_host_with_canary(pool: SqlitePool) {
+async fn test_team_sites_warn_site_sharing_host_with_canary(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let team_id = insert_team(&pool, "Team Alpha").await;
     sqlx::query(
@@ -185,18 +185,10 @@ async fn test_team_sites_flag_site_sharing_host_with_canary(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    let flags: Vec<(&str, bool)> = body["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|site| {
-            (
-                site["name"].as_str().unwrap(),
-                site["shares_host_with_canary"].as_bool().unwrap(),
-            )
-        })
-        .collect();
-    assert_eq!(flags, [("Canary Site", true), ("Alpha Site", false)]);
+    assert_eq!(
+        site_canary_warnings(&body),
+        [("Canary Site", Some("shares_host")), ("Alpha Site", None)]
+    );
 }
 
 #[sqlx::test(migrations = "./migrations")]

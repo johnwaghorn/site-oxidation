@@ -1,10 +1,10 @@
-mod payloads;
-
 use crate::models::site::SiteRow;
 use crate::models::smtp::SmtpSettings;
 use crate::notifications::delivery::PendingDelivery;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
+
+mod payloads;
 
 pub(in crate::notifications) fn test_delivery(
     smtp: &SmtpSettings,

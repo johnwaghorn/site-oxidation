@@ -1,9 +1,9 @@
-mod payloads;
-
 use crate::models::site::SiteRow;
 use crate::notifications::delivery::PendingDelivery;
 use crate::probe::cert::CertCheck;
 use crate::probe::http::ProbeResult;
+
+mod payloads;
 
 pub(in crate::notifications) fn test_delivery(
     webhook_url: &str,

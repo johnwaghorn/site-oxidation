@@ -1,12 +1,3 @@
-pub(crate) mod access;
-mod endpoints;
-mod fields;
-mod queries;
-pub mod requests;
-pub mod responses;
-mod rules;
-pub mod schema;
-
 use axum::Router;
 use axum::routing::{get, post};
 
@@ -16,6 +7,15 @@ use endpoints::{
     get_notifications, test_email_notification, test_slack_notification, test_teams_notification,
     update_notifications,
 };
+
+pub(crate) mod access;
+mod endpoints;
+mod fields;
+mod queries;
+pub mod requests;
+pub mod responses;
+mod rules;
+pub mod schema;
 
 pub fn team_routes() -> Router<AppState> {
     Router::new()

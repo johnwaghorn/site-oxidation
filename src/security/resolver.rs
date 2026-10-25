@@ -11,28 +11,6 @@ pub enum ResolveError {
     Lookup(#[from] std::io::Error),
 }
 
-pub async fn resolve_addrs(host: &str, port: u16) -> Result<Vec<SocketAddr>, std::io::Error> {
-    Ok(tokio::net::lookup_host((host, port)).await?.collect())
-}
-
-pub async fn resolve_public_addrs(host: &str, port: u16) -> Result<Vec<SocketAddr>, ResolveError> {
-    let addrs = resolve_addrs(host, port).await?;
-    if addrs.iter().any(|addr| is_private_ip(&addr.ip())) {
-        return Err(ResolveError::PrivateIp {
-            host: host.to_owned(),
-        });
-    }
-    Ok(addrs)
-}
-
-pub fn warn_probe_private_host(error: &ResolveError) {
-    if let ResolveError::PrivateIp { host } = error {
-        tracing::warn!(
-            "Blocked '{host}': resolves to private/internal IP (set PROBE_ALLOW_PRIVATE_IPS=true to allow)"
-        );
-    }
-}
-
 pub struct SafeResolver {
     pub allow_private: bool,
 }
@@ -52,6 +30,28 @@ impl Resolve for SafeResolver {
             let boxed: Addrs = Box::new(addrs.into_iter());
             Ok(boxed)
         })
+    }
+}
+
+pub async fn resolve_addrs(host: &str, port: u16) -> Result<Vec<SocketAddr>, std::io::Error> {
+    Ok(tokio::net::lookup_host((host, port)).await?.collect())
+}
+
+pub async fn resolve_public_addrs(host: &str, port: u16) -> Result<Vec<SocketAddr>, ResolveError> {
+    let addrs = resolve_addrs(host, port).await?;
+    if addrs.iter().any(|addr| is_private_ip(&addr.ip())) {
+        return Err(ResolveError::PrivateIp {
+            host: host.to_owned(),
+        });
+    }
+    Ok(addrs)
+}
+
+pub fn warn_probe_private_host(error: &ResolveError) {
+    if let ResolveError::PrivateIp { host } = error {
+        tracing::warn!(
+            "Blocked '{host}': resolves to private/internal IP (set PROBE_ALLOW_PRIVATE_IPS=true to allow)"
+        );
     }
 }
 
