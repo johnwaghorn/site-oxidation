@@ -115,6 +115,7 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 CREATE INDEX idx_sessions_expiry_date ON sessions (expiry_date);
 CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
+CREATE INDEX idx_outages_site_started ON outages(site_id, started_at);
 CREATE UNIQUE INDEX idx_one_open_canary_period ON canary_history((ended_at IS NULL)) WHERE ended_at IS NULL;
 CREATE INDEX idx_team_members_user_id ON team_members(user_id);
 CREATE UNIQUE INDEX idx_sites_team_url ON sites(team_id, url);
