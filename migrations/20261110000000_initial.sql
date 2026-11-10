@@ -104,6 +104,13 @@ CREATE TABLE outages (
     ended_at DATETIME
 );
 
+CREATE TABLE monitoring_periods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK(last_seen_at >= started_at)
+);
+
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY NOT NULL,
     user_id INTEGER NOT NULL,
