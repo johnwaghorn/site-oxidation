@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 export async function openTeamNotifications(page: Page, teamName: string) {
   await page.goto("/notifications");
+  await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
   const teamList = page.getByRole("navigation", { name: "Teams" });
   if (await teamList.isVisible()) {
     await teamList
