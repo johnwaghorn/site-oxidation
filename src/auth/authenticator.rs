@@ -1,15 +1,16 @@
 use axum_extra::extract::cookie::Key;
 use password_auth::verify_password;
 use sqlx::SqlitePool;
-use tokio::task;
 
 use super::{AuthError, Credentials, queries};
 use crate::models::user::User;
+use crate::security::password_hashing::PasswordHashingLimiter;
 
 #[derive(Clone)]
 pub struct Authenticator {
     pub(super) pool: SqlitePool,
     dummy_password_hash: String,
+    hashing_limiter: PasswordHashingLimiter,
     pub(super) key: Key,
     pub(super) cookie_secure: bool,
 }
@@ -24,6 +25,7 @@ impl Authenticator {
         Self {
             pool,
             dummy_password_hash,
+            hashing_limiter: PasswordHashingLimiter::sized_for_this_machine(),
             key,
             cookie_secure,
         }
@@ -36,23 +38,19 @@ impl Authenticator {
             .await?;
         let password = creds.password;
         let dummy_hash = self.dummy_password_hash.clone();
-        task::spawn_blocking(move || {
-            Ok(if let Some(user) = user {
-                if !user.active {
+        let verified_user = self
+            .hashing_limiter
+            .run(move || {
+                let Some(user) = user.filter(|user| user.active) else {
                     mask_username_enumeration_timing(&password, &dummy_hash);
-                    return Ok(None);
-                }
-                if verify_password(&password, &user.password).is_ok() {
-                    Some(user)
-                } else {
-                    None
-                }
-            } else {
-                mask_username_enumeration_timing(&password, &dummy_hash);
-                None
+                    return None;
+                };
+                verify_password(&password, &user.password)
+                    .is_ok()
+                    .then_some(user)
             })
-        })
-        .await?
+            .await?;
+        Ok(verified_user)
     }
 }
 

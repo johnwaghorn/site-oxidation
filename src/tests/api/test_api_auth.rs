@@ -309,6 +309,7 @@ async fn test_password_change_logs_out_other_sessions(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_password_change_with_wrong_current_password_fails(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);
@@ -322,6 +323,8 @@ async fn test_password_change_with_wrong_current_password_fails(pool: SqlitePool
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert!(logs_contain("Failed password change attempt"));
+    assert!(logs_contain("username=admin"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

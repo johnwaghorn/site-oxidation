@@ -28,9 +28,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
         onLoginSuccess();
       } else {
         setError(
-          error.error === "too_many_requests"
-            ? error.message
-            : "Incorrect username or password. Please try again.",
+          error.error === "unauthorized"
+            ? "Incorrect username or password. Please try again."
+            : error.message,
         );
       }
     } catch {

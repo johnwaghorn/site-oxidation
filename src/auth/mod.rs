@@ -14,7 +14,7 @@ pub enum AuthError {
     SqlxError(#[from] sqlx::Error),
 
     #[error(transparent)]
-    Join(#[from] tokio::task::JoinError),
+    PasswordHashing(#[from] crate::security::password_hashing::PasswordHashingError),
 
     #[error("failed to generate session id: {0}")]
     Random(#[from] getrandom::Error),

@@ -18,6 +18,7 @@ use crate::models::user::UserRole;
 use crate::security::password::{
     validate_password_bounds, validate_password_changed, validate_password_not_username,
 };
+use crate::security::password_hashing::PasswordHashingError;
 use crate::security::rate_limit::LoginRateLimiter;
 
 #[utoipa::path(
@@ -30,6 +31,7 @@ use crate::security::rate_limit::LoginRateLimiter;
         (status = 422, description = "Credentials payload validation error", body = ApiError),
         (status = 429, description = "Too many login attempts", body = ApiError),
         (status = 500, description = "Internal server error", body = ApiError),
+        (status = 503, description = "Too many passwords being checked at once", body = ApiError),
     ),
     tag = "auth",
 )]
@@ -50,7 +52,15 @@ pub async fn login(
     let user = auth_session
         .authenticate(creds)
         .await
-        .map_err(|e| internal_err("Authentication failed", e))?;
+        .map_err(|e| match e {
+            AuthError::PasswordHashing(PasswordHashingError::Busy) => {
+                ApiErrorResponse::from_status(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "The server is busy checking other passwords. Please try again in a moment.",
+                )
+            }
+            e => internal_err("Authentication failed", e),
+        })?;
     let user = if let Some(user) = user {
         limiter.clear(&key);
         user
@@ -209,6 +219,7 @@ pub async fn change_password(
     .await
     .map_err(|e| internal_err("Failed to verify current password", e))?;
     if !is_valid {
+        tracing::warn!(user_id = user.id, username = %user.username, "Failed password change attempt: wrong current password");
         return Err(ApiErrorResponse::unauthorized());
     }
     let new_password = payload.new_password;
