@@ -198,7 +198,7 @@
   height: 20px;
   margin: 0;
   border-radius: 999px;
-  background-color: var(--color-border);
+  background-color: var(--color-switch-track);
   appearance: none;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -211,7 +211,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background-color: var(--color-muted);
+  background-color: var(--color-switch-thumb);
   content: "";
   transition: left 0.15s ease;
 }

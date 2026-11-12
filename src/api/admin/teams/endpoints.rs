@@ -15,6 +15,7 @@ use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::api::search::{SearchParams, normalise_search};
 use crate::api::sites::canary_warning::set_canary_warnings;
 use crate::api::sites::responses::SiteResponse;
+use crate::api::sites::uptime::set_site_uptime_figures;
 
 #[utoipa::path(
     get,
@@ -137,6 +138,7 @@ pub async fn list_team_sites(
         .await
         .map_err(|e| internal_err("Failed to count team sites", e))?;
     set_canary_warnings(&pool, &mut sites).await?;
+    set_site_uptime_figures(&pool, &mut sites).await?;
     Ok(Json(PaginatedResponse {
         data: sites,
         page: pagination.page(),

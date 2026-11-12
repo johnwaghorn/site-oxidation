@@ -28,6 +28,8 @@
   --color-warning-bg: #fef3c7;
   --color-warning-text: #92400e;
   --color-caution: #f59e0b;
+  --color-switch-track: #fed7aa;
+  --color-switch-thumb: #7c5a3a;
   --color-neutral-bg: #f5e6d3;
   --color-neutral-text: #7c5a3a;
   --shadow-card: 0 18px 45px rgba(124, 58, 12, 0.13);
@@ -69,6 +71,8 @@
   --color-warning-bg: #451a03;
   --color-warning-text: #fde68a;
   --color-caution: #fbbf24;
+  --color-switch-track: #8a6a4a;
+  --color-switch-thumb: #fff7ed;
   --color-neutral-bg: #2f2115;
   --color-neutral-text: #c9b8a6;
   --shadow-card: 0 18px 45px rgba(0, 0, 0, 0.32);

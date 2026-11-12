@@ -6,9 +6,12 @@ use crate::models::site::{CertStatus, SiteStatus};
 use utoipa::OpenApi;
 
 use super::endpoints;
-use super::params::SiteStatusFilter;
+use super::params::{SiteStatusFilter, UptimeWindowDays};
 use super::requests::SitePayload;
-use super::responses::{CanaryWarning, OutageResponse, SiteResponse, UnassignedCountResponse};
+use super::responses::{
+    CanaryWarning, OutageResponse, SiteResponse, SiteUptimeResponse, UnassignedCountResponse,
+    UptimeDay, WatchSegment, WatchStatus,
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -19,7 +22,8 @@ use super::responses::{CanaryWarning, OutageResponse, SiteResponse, UnassignedCo
         endpoints::create_site,
         endpoints::update_site,
         endpoints::delete_site,
-        endpoints::get_site_outages
+        endpoints::get_site_outages,
+        endpoints::get_site_uptime
     ),
     components(schemas(
         SiteResponse,
@@ -32,6 +36,11 @@ use super::responses::{CanaryWarning, OutageResponse, SiteResponse, UnassignedCo
         SiteStatusFilter,
         CertStatus,
         CanaryWarning,
+        SiteUptimeResponse,
+        UptimeDay,
+        UptimeWindowDays,
+        WatchStatus,
+        WatchSegment,
         ApiError,
     )),
     tags(

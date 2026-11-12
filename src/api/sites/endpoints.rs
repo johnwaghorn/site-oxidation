@@ -1,21 +1,31 @@
 use super::access::{ensure_site_access, resolve_team_id};
 use super::canary_warning::set_canary_warnings;
 use super::fields::ExpectedText;
-use super::params::{ListSitesParams, ListSitesQuery};
+use super::params::{ListSitesParams, ListSitesQuery, SiteUptimeParams, UPTIME_WINDOW_DAY_OPTIONS};
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES, DELETE_SITE,
-    INSERT_SITE, LIST_OUTAGES, LIST_SITES_ADMIN, LIST_SITES_USER, SELECT_SITE_ADMIN,
+    INSERT_SITE, LIST_OUTAGES, LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW, LIST_SITES_ADMIN,
+    LIST_SITES_USER, SELECT_SITE_ADMIN, SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT,
     SELECT_SITE_USER, UPDATE_SITE,
 };
-use super::responses::UnassignedCountResponse;
+use super::responses::{SiteUptimeResponse, UnassignedCountResponse};
 use super::rules;
+use super::uptime::{
+    OutageTimes, UptimeWindow, daily_uptime, set_site_uptime_figures, uptime_window_start,
+    window_summary,
+};
 use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::{JsonPayload, RequireAdmin, RequireAppAccess};
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
 use crate::api::search::{SearchParams, normalise_search};
+use crate::canary;
 use crate::models::user::UserRole;
+use crate::monitoring::periods;
 use crate::state::AppState;
+use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
+
 use axum::{
     Json,
     extract::{Path, Query, State},
@@ -29,6 +39,7 @@ async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, A
         .await
         .map_err(|e| internal_err(&format!("Failed to reload site {id}"), e))?;
     set_canary_warnings(pool, std::slice::from_mut(&mut site)).await?;
+    set_site_uptime_figures(pool, std::slice::from_mut(&mut site)).await?;
     Ok(site)
 }
 
@@ -88,6 +99,7 @@ pub async fn list_sites(
         (sites, total)
     };
     set_canary_warnings(&state.pool, &mut sites).await?;
+    set_site_uptime_figures(&state.pool, &mut sites).await?;
     Ok(Json(PaginatedResponse {
         data: sites,
         page: pagination.page(),
@@ -160,7 +172,97 @@ pub async fn get_site(
     })?
     .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
     set_canary_warnings(&state.pool, std::slice::from_mut(&mut site)).await?;
+    set_site_uptime_figures(&state.pool, std::slice::from_mut(&mut site)).await?;
     Ok(Json(site))
+}
+
+#[utoipa::path(
+    get,
+    path = "/sites/{id}/uptime",
+    params(
+        ("id" = i64, Path, description = "Site ID"),
+        SiteUptimeParams,
+    ),
+    responses(
+          (status = 200, description = "Daily uptime for the window", body = SiteUptimeResponse),
+          (status = 401, description = "Unauthorized", body = ApiError),
+          (status = 404, description = "Site not found", body = ApiError),
+          (status = 422, description = "Unsupported number of days or unknown time zone", body = ApiError),
+          (status = 500, description = "Internal server error", body = ApiError)
+    ),
+    tag = "sites",
+    security(("session_cookie" = []))
+)]
+pub async fn get_site_uptime(
+    RequireAppAccess(user): RequireAppAccess,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Query(params): Query<SiteUptimeParams>,
+) -> Result<Json<SiteUptimeResponse>, ApiErrorResponse> {
+    ensure_site_access(&state.pool, id, &user).await?;
+    if !UPTIME_WINDOW_DAY_OPTIONS.contains(&params.days) {
+        let allowed = UPTIME_WINDOW_DAY_OPTIONS
+            .map(|days| days.to_string())
+            .join(", ");
+        return Err(ApiErrorResponse::validation(&format!(
+            "days must be one of {allowed}"
+        )));
+    }
+    let time_zone: Tz = params
+        .time_zone
+        .parse()
+        .map_err(|_| ApiErrorResponse::validation("Unknown time zone"))?;
+    let (site_url, site_created_at, last_checked_at): (
+        String,
+        DateTime<Utc>,
+        Option<DateTime<Utc>>,
+    ) = sqlx::query_as(SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT)
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| internal_err(&format!("Failed to load site {id} for uptime"), e))?;
+    let now = Utc::now();
+    let monitored_from = if last_checked_at.is_some() {
+        site_created_at
+    } else {
+        now
+    };
+    let days = u64::from(params.days);
+    let window_start = uptime_window_start(now, time_zone, days);
+    let outages = sqlx::query_as::<_, OutageTimes>(LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW)
+        .bind(id)
+        .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| internal_err(&format!("Failed to load outages for site {id}"), e))?;
+    let canary_periods =
+        canary::load_periods_in_uptime_calculation_window(&state.pool, window_start)
+            .await
+            .map_err(|e| internal_err("Failed to load canary history", e))?;
+    let monitoring_periods =
+        periods::load_periods_in_uptime_calculation_window(&state.pool, window_start)
+            .await
+            .map_err(|e| internal_err("Failed to load monitoring periods", e))?;
+    let window = UptimeWindow {
+        site_url: &site_url,
+        monitored_from,
+        now,
+        time_zone,
+        days,
+        outages: &outages,
+        canary_periods: &canary_periods,
+        monitoring_periods: &monitoring_periods,
+    };
+    let summary = window_summary(&window);
+    Ok(Json(SiteUptimeResponse {
+        uptime_basis_points: summary.uptime_basis_points,
+        unwatched_seconds: summary.unwatched_seconds,
+        down_since: outages
+            .iter()
+            .find(|outage| outage.ended_at.is_none())
+            .map(|outage| outage.started_at),
+        days: daily_uptime(&window),
+    }))
 }
 
 #[utoipa::path(

@@ -3,7 +3,7 @@ use crate::api::errors::{ApiErrorResponse, internal_err};
 use crate::canary;
 use sqlx::SqlitePool;
 
-fn normalised_url_host(url: &str) -> Option<String> {
+pub(super) fn normalised_url_host(url: &str) -> Option<String> {
     let parsed_url = reqwest::Url::parse(url).ok()?;
     let host = parsed_url.host_str()?.trim_end_matches('.');
     Some(host.strip_prefix("www.").unwrap_or(host).to_owned())

@@ -4,6 +4,7 @@ import { queryKeys } from "../lib/queryKeys";
 import type { components, operations } from "../generated/schema";
 
 type SitePayload = components["schemas"]["SitePayload"];
+export type UptimeWindowDays = components["schemas"]["UptimeWindowDays"];
 type ListSitesQuery = NonNullable<
   operations["list_sites"]["parameters"]["query"]
 >;
@@ -122,5 +123,23 @@ export function useOutages(siteId: number, page = 1, perPage = 20) {
       return data!;
     },
     enabled: siteId > 0,
+  });
+}
+
+export function useSiteUptime(siteId: number, days: UptimeWindowDays) {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return useQuery({
+    queryKey: queryKeys.siteUptime(siteId, days, timeZone),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/sites/{id}/uptime", {
+        params: { path: { id: siteId }, query: { days, time_zone: timeZone } },
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: siteId > 0,
+    refetchInterval: 10_000,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === siteId ? previousData : undefined,
   });
 }

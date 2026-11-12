@@ -12,6 +12,8 @@ export const queryKeys = {
   site: (id: number) => ["sites", id] as const,
   outages: (siteId: number, page: number, perPage: number) =>
     ["sites", siteId, "outages", { page, perPage }] as const,
+  siteUptime: (siteId: number, days: number, timeZone: string) =>
+    ["sites", siteId, "uptime", { days, timeZone }] as const,
   teamNotifications: (teamId: number) =>
     ["teams", teamId, "notifications"] as const,
   setupStatus: ["setup", "status"] as const,

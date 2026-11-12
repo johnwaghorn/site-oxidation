@@ -122,7 +122,7 @@ async fn main() -> Result<()> {
         config,
         notifier.clone(),
     );
-    spawn_canary_history_pruner(pool.clone());
+    spawn_history_pruner(pool.clone());
     spawn_notification_outbox_worker(notifier, pool);
     axum::serve(
         listener,
@@ -146,7 +146,7 @@ fn spawn_expired_session_cleanup(pool: SqlitePool) {
     });
 }
 
-fn spawn_canary_history_pruner(pool: SqlitePool) {
+fn spawn_history_pruner(pool: SqlitePool) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_hours(1));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -154,6 +154,9 @@ fn spawn_canary_history_pruner(pool: SqlitePool) {
             interval.tick().await;
             if let Err(err) = canary::delete_old_history(&pool).await {
                 tracing::error!("Failed to delete old canary history: {err}");
+            }
+            if let Err(err) = monitoring::periods::delete_old_periods(&pool).await {
+                tracing::error!("Failed to delete old monitoring periods: {err}");
             }
         }
     });
@@ -184,16 +187,30 @@ fn spawn_due_site_checker(
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(10));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut heartbeat = tokio::time::interval(Duration::from_secs(30));
+        heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
-            run_due_site_checks(
+            let checks = run_due_site_checks(
                 &verifying_client,
                 &untrusted_client,
                 &pool,
                 &config,
                 &notifier,
-            )
-            .await;
+            );
+            tokio::pin!(checks);
+            // Heartbeats should carry on if checks are taking a while.
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = heartbeat.tick() => {
+                        if let Err(err) = monitoring::periods::record_heartbeat(&pool).await {
+                            tracing::error!("Failed to record monitor heartbeat: {err}");
+                        }
+                    }
+                    () = &mut checks => break,
+                }
+            }
         }
     });
 }

@@ -60,9 +60,17 @@ impl CanarySettings {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
-enum CanaryHealth {
+pub enum CanaryHealth {
     Healthy,
     Failing,
+}
+
+#[derive(Debug, FromRow)]
+pub struct CanaryPeriod {
+    pub state: CanaryHealth,
+    pub url: String,
+    pub started_at: DateTime<Utc>,
+    pub ended_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, FromRow)]
@@ -142,6 +150,20 @@ pub async fn delete_old_history(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
     .execute(pool)
     .await?;
     Ok(deleted.rows_affected())
+}
+
+pub async fn load_periods_in_uptime_calculation_window(
+    pool: &SqlitePool,
+    window_start: DateTime<Utc>,
+) -> Result<Vec<CanaryPeriod>, sqlx::Error> {
+    sqlx::query_as::<_, CanaryPeriod>(
+        "SELECT state, url, started_at, ended_at FROM canary_history
+         WHERE ended_at IS NULL OR ended_at > ?
+         ORDER BY started_at",
+    )
+    .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+    .fetch_all(pool)
+    .await
 }
 
 pub async fn load_history_summary(pool: &SqlitePool) -> Result<CanaryHistorySummary, sqlx::Error> {

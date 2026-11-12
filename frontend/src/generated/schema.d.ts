@@ -420,6 +420,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/{id}/uptime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_site_uptime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/notifications": {
         parameters: {
             query?: never;
@@ -695,6 +711,13 @@ export interface components {
                 team_id?: number | null;
                 team_name?: string | null;
                 tls_allow_untrusted: boolean;
+                /**
+                 * Format: int64
+                 * @description Uptime over the last `uptime_window_days` days, or since the site was added if that is more recent.
+                 */
+                uptime_basis_points?: number | null;
+                /** Format: int64 */
+                uptime_window_days: number;
                 url: string;
             }[];
             /** Format: int32 */
@@ -764,6 +787,13 @@ export interface components {
             team_id?: number | null;
             team_name?: string | null;
             tls_allow_untrusted: boolean;
+            /**
+             * Format: int64
+             * @description Uptime over the last `uptime_window_days` days, or since the site was added if that is more recent.
+             */
+            uptime_basis_points?: number | null;
+            /** Format: int64 */
+            uptime_window_days: number;
             url: string;
         };
         /** @enum {string} */
@@ -773,6 +803,15 @@ export interface components {
          * @enum {string}
          */
         SiteStatusFilter: "up" | "down";
+        SiteUptimeResponse: {
+            days: components["schemas"]["UptimeDay"][];
+            /** Format: date-time */
+            down_since?: string | null;
+            /** Format: int64 */
+            unwatched_seconds: number;
+            /** Format: int64 */
+            uptime_basis_points?: number | null;
+        };
         /** @example https://waghorn.tech */
         SiteUrl: string;
         /** @example smtp.waghorn.tech */
@@ -868,6 +907,32 @@ export interface components {
             active: boolean;
             role: components["schemas"]["UserRole"];
         };
+        UptimeDay: {
+            /** Format: int64 */
+            canary_failing_seconds: number;
+            /** Format: int64 */
+            canary_healthy_seconds: number;
+            /** Format: int64 */
+            canary_shares_host_seconds: number;
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            down_seconds: number;
+            monitoring_started: boolean;
+            /** Format: int64 */
+            no_canary_seconds: number;
+            /** Format: int64 */
+            not_running_seconds: number;
+            /** Format: int64 */
+            outage_count: number;
+            /** Format: int64 */
+            uptime_basis_points?: number | null;
+            watch_segments: components["schemas"]["WatchSegment"][];
+            /** Format: int64 */
+            watched_seconds: number;
+        };
+        /** @enum {integer} */
+        UptimeWindowDays: 7 | 30 | 90;
         UserResponse: {
             active: boolean;
             /** Format: int64 */
@@ -890,6 +955,15 @@ export interface components {
         VersionResponse: {
             version: string;
         };
+        WatchSegment: {
+            /** Format: date-time */
+            ended_at: string;
+            /** Format: date-time */
+            started_at: string;
+            state: components["schemas"]["WatchStatus"];
+        };
+        /** @enum {string} */
+        WatchStatus: "canary_healthy" | "canary_shares_host" | "no_canary" | "canary_failing" | "not_running";
         /** @example https://hooks.slack.com/services/example */
         WebhookUrl: string;
     };
@@ -1673,6 +1747,13 @@ export interface operations {
                             team_id?: number | null;
                             team_name?: string | null;
                             tls_allow_untrusted: boolean;
+                            /**
+                             * Format: int64
+                             * @description Uptime over the last `uptime_window_days` days, or since the site was added if that is more recent.
+                             */
+                            uptime_basis_points?: number | null;
+                            /** Format: int64 */
+                            uptime_window_days: number;
                             url: string;
                         }[];
                         /** Format: int32 */
@@ -2624,6 +2705,13 @@ export interface operations {
                             team_id?: number | null;
                             team_name?: string | null;
                             tls_allow_untrusted: boolean;
+                            /**
+                             * Format: int64
+                             * @description Uptime over the last `uptime_window_days` days, or since the site was added if that is more recent.
+                             */
+                            uptime_basis_points?: number | null;
+                            /** Format: int64 */
+                            uptime_window_days: number;
                             url: string;
                         }[];
                         /** Format: int32 */
@@ -3137,6 +3225,76 @@ export interface operations {
             };
             /** @description Site not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    get_site_uptime: {
+        parameters: {
+            query: {
+                /**
+                 * @description Days to cover, ending today.
+                 * @example 90
+                 */
+                days: components["schemas"]["UptimeWindowDays"];
+                /**
+                 * @description IANA time zone that decides where each day starts.
+                 * @example Europe/London
+                 */
+                time_zone: string;
+            };
+            header?: never;
+            path: {
+                /** @description Site ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daily uptime for the window */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteUptimeResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Site not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unsupported number of days or unknown time zone */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,0 +1,318 @@
+/* Uptime section on the site page */
+
+.uptime-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.uptime-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.uptime-header h2 {
+  margin: 0 0 4px 0;
+}
+
+.uptime-total {
+  font-size: 24px;
+  color: var(--color-text);
+}
+
+.uptime-range {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface-muted);
+}
+
+.uptime-range button {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.uptime-range button[aria-pressed="true"] {
+  border-color: var(--color-border-strong);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text);
+}
+
+.uptime-chart {
+  position: relative;
+}
+
+.uptime-bars,
+.uptime-canary-line {
+  display: flex;
+  gap: 3px;
+}
+
+.uptime-chart[data-days="90"] .uptime-bars,
+.uptime-chart[data-days="90"] .uptime-canary-line {
+  gap: 2px;
+}
+
+.uptime-bars {
+  height: 48px;
+}
+
+.uptime-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: var(--color-neutral-bg);
+}
+
+/* Only the watched part of the day is coloured */
+.uptime-bar-part {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 1px;
+  background-color: var(--color-success);
+}
+
+.uptime-bar:hover,
+.uptime-bar:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.uptime-bar.is-short .uptime-bar-part,
+.uptime-swatch.is-short {
+  background-color: var(--color-caution);
+}
+
+.uptime-bar.is-long .uptime-bar-part,
+.uptime-swatch.is-long {
+  background-color: var(--color-danger);
+}
+
+.uptime-swatch.is-unmonitored {
+  background-color: var(--color-neutral-bg);
+}
+
+.uptime-bar.is-down-now .uptime-bar-part {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 3px,
+    rgba(255, 255, 255, 0.45) 3px 6px
+  );
+}
+
+.uptime-canary-line {
+  height: 4px;
+  margin-top: 6px;
+}
+
+.uptime-canary {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background-color: var(--color-surface-muted);
+}
+
+/* Placed at the time of day it happened */
+.uptime-canary-part {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 1px;
+}
+
+.uptime-canary-part.is-canary_healthy,
+.uptime-swatch-line.is-canary_healthy {
+  background-color: var(--color-success);
+}
+
+.uptime-canary-part.is-canary_shares_host,
+.uptime-swatch-line.is-canary_shares_host {
+  background-color: var(--color-caution);
+}
+
+.uptime-canary-part.is-canary_failing,
+.uptime-swatch-line.is-canary_failing {
+  background-color: var(--color-danger);
+}
+
+.uptime-canary-part.is-not_running,
+.uptime-swatch-line.is-not_running {
+  background-color: var(--color-muted);
+}
+
+.uptime-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 2;
+  width: 288px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface-elevated);
+  box-shadow: var(--shadow-popover);
+  font-size: 14px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.uptime-tooltip-heading,
+.uptime-tooltip-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.uptime-tooltip-section {
+  gap: 6px;
+}
+
+.uptime-tooltip-down-now {
+  color: var(--color-danger-text);
+  font-weight: 700;
+}
+
+.uptime-tooltip-title {
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.uptime-tooltip-bar {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+}
+
+.uptime-tooltip-bar span {
+  flex: 0 0 0;
+  min-width: 3px;
+  border-radius: 5px;
+}
+
+.uptime-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.uptime-tooltip-duration {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.uptime-tooltip .is-up,
+.uptime-tooltip .is-canary_healthy {
+  background-color: var(--color-success);
+}
+
+.uptime-tooltip .is-short,
+.uptime-tooltip .is-canary_shares_host {
+  background-color: var(--color-caution);
+}
+
+.uptime-tooltip .is-long,
+.uptime-tooltip .is-canary_failing {
+  background-color: var(--color-danger);
+}
+
+.uptime-tooltip .is-no_canary {
+  background-color: color-mix(
+    in srgb,
+    var(--color-muted) 55%,
+    var(--color-surface-elevated)
+  );
+}
+
+.uptime-tooltip .is-not_running {
+  background-color: var(--color-muted);
+}
+
+/* One row for the bars and one for the canary line underneath */
+.uptime-legend {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  justify-content: start;
+  gap: 8px 24px;
+  font-size: 13px;
+}
+
+.uptime-legend-row,
+.uptime-legend ul {
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.uptime-legend-row {
+  grid-column: 1 / -1;
+}
+
+.uptime-legend ul {
+  grid-column: 2 / -1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uptime-legend-label {
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .uptime-legend,
+  .uptime-legend-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .uptime-legend ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+}
+
+.uptime-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.uptime-swatch {
+  width: 10px;
+  height: 10px;
+  margin: 0 2px;
+  border-radius: 3px;
+}
+
+.uptime-swatch.is-up {
+  background-color: var(--color-success);
+}
+
+.uptime-swatch-line {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}

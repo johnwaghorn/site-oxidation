@@ -4,6 +4,7 @@ import type { components } from "../../generated/schema";
 import { StatusBadge } from "../ui/StatusBadge";
 import { CertBadge } from "../ui/CertBadge";
 import { Truncate } from "../ui/Truncate";
+import { describeUptimeCoverage, formatUptime } from "../../lib/uptime";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
 
@@ -33,6 +34,21 @@ export function SiteRow({ site, onDelete }: SiteRowProps) {
       </td>
       <td className="table-cell-center">
         <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
+      </td>
+      <td className="table-cell-right" style={{ fontFamily: "monospace" }}>
+        {site.uptime_basis_points != null ? (
+          <Link
+            to={`/sites/${site.id}#uptime`}
+            title={describeUptimeCoverage(
+              site.created_at,
+              site.uptime_window_days,
+            )}
+          >
+            {formatUptime(site.uptime_basis_points)}
+          </Link>
+        ) : (
+          "-"
+        )}
       </td>
       <td className="table-cell-right" style={{ fontFamily: "monospace" }}>
         {site.last_response_time_ms != null

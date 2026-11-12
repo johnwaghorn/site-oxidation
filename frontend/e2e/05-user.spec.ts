@@ -63,6 +63,40 @@ test("maddie adds a site for her team", async ({ page }) => {
   });
 });
 
+test("maddie looks at her site's uptime", async ({ page }) => {
+  await test.step("Given maddie is on her dashboard", async () => {
+    await signInAsMaddie(page);
+  });
+
+  await test.step("Then the dashboard has an uptime column", async () => {
+    await expect(
+      page.getByRole("columnheader", { name: "Uptime" }),
+    ).toBeVisible();
+  });
+
+  await test.step("When she opens Maddie Blog", async () => {
+    await page.getByRole("link", { name: "Maddie Blog" }).click();
+  });
+
+  await test.step("Then she sees a bar for each of the last 90 days", async () => {
+    const uptime = page.locator("#uptime");
+    await expect(uptime.getByRole("heading", { name: "Uptime" })).toBeVisible();
+    await expect(uptime.getByRole("img")).toHaveCount(90);
+  });
+
+  await test.step("When she switches to the last 7 days", async () => {
+    await page.getByRole("button", { name: "7 days" }).click();
+  });
+
+  await test.step("Then she sees a bar for each of those days", async () => {
+    const uptime = page.locator("#uptime");
+    await expect(uptime.getByRole("img")).toHaveCount(7);
+    await expect(
+      page.getByRole("button", { name: "7 days" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
 test("maddie configures notifications for her team", async ({ page }) => {
   await test.step("Given maddie is signed in", async () => {
     await signInAsMaddie(page);

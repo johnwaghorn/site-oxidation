@@ -4,6 +4,7 @@ import { useSite, useUpdateSite, useOutages } from "../hooks/useSites";
 import { usePagination } from "../hooks/usePagination";
 import { useAuth } from "../hooks/useAuth";
 import { SiteForm } from "../components/sites/SiteForm";
+import { UptimeHistory } from "../components/sites/UptimeHistory";
 import { Pagination } from "../components/ui/Pagination";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
@@ -182,6 +183,8 @@ export function SiteDetail() {
           </p>
         )}
       </div>
+
+      <UptimeHistory siteId={siteId} />
 
       <section>
         <h2>Outage History</h2>

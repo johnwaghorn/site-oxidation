@@ -21,6 +21,12 @@ export function SiteList({ sites, onDelete }: SiteListProps) {
           <th className="table-cell-left">Team</th>
           <th className="table-cell-center">Status</th>
           <th className="table-cell-center">Cert</th>
+          <th
+            className="table-cell-right"
+            title={`Last ${sites[0].uptime_window_days} days, or since the site was added`}
+          >
+            Uptime
+          </th>
           <th className="table-cell-right">Latency</th>
           <th className="table-cell-right">Last Checked</th>
           {onDelete && <th className="table-cell-right">Actions</th>}
