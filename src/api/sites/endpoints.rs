@@ -24,7 +24,7 @@ use crate::models::user::UserRole;
 use crate::monitoring::periods;
 use crate::state::AppState;
 use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
+use jiff::tz::TimeZone;
 
 use axum::{
     Json,
@@ -208,9 +208,7 @@ pub async fn get_site_uptime(
             "days must be one of {allowed}"
         )));
     }
-    let time_zone: Tz = params
-        .time_zone
-        .parse()
+    let time_zone = TimeZone::get(&params.time_zone)
         .map_err(|_| ApiErrorResponse::validation("Unknown time zone"))?;
     let (site_url, site_created_at, last_checked_at): (
         String,
@@ -228,7 +226,7 @@ pub async fn get_site_uptime(
         now
     };
     let days = u64::from(params.days);
-    let window_start = uptime_window_start(now, time_zone, days);
+    let window_start = uptime_window_start(now, &time_zone, days);
     let outages = sqlx::query_as::<_, OutageTimes>(LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW)
         .bind(id)
         .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())

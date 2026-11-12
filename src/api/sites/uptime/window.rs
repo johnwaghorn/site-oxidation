@@ -6,16 +6,16 @@ use crate::api::sites::canary_warning::normalised_url_host;
 use crate::api::sites::responses::{UptimeDay, WatchStatus};
 use crate::canary::CanaryPeriod;
 use crate::monitoring::periods::MonitoringPeriod;
-use chrono::{DateTime, Days, NaiveDate, NaiveTime, TimeDelta, Utc};
-use chrono_tz::Tz;
-
-const MINUTES_IN_A_DAY: i64 = 24 * 60;
+use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveTime, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 
 pub(in crate::api::sites) struct UptimeWindow<'a> {
     pub site_url: &'a str,
     pub monitored_from: DateTime<Utc>,
     pub now: DateTime<Utc>,
-    pub time_zone: Tz,
+    pub time_zone: TimeZone,
     pub days: u64,
     pub outages: &'a [OutageTimes],
     pub canary_periods: &'a [CanaryPeriod],
@@ -29,10 +29,10 @@ pub(in crate::api::sites) struct WindowSummary {
 
 pub(in crate::api::sites) fn uptime_window_start(
     now: DateTime<Utc>,
-    time_zone: Tz,
+    time_zone: &TimeZone,
     days: u64,
 ) -> DateTime<Utc> {
-    let today = now.with_timezone(&time_zone).date_naive();
+    let today = local_date(now, time_zone);
     let first_day = today
         .checked_sub_days(Days::new(days.saturating_sub(1)))
         .unwrap_or(today);
@@ -40,7 +40,7 @@ pub(in crate::api::sites) fn uptime_window_start(
 }
 
 pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<UptimeDay> {
-    let today = window.now.with_timezone(&window.time_zone).date_naive();
+    let today = local_date(window.now, &window.time_zone);
     let running_ranges = monitor_running_ranges(window.monitoring_periods, window.now);
     let canary_shares_site_host = |canary_url: &str| {
         normalised_url_host(canary_url).is_some_and(|canary_host| {
@@ -51,9 +51,9 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
         .rev()
         .filter_map(|days_ago| today.checked_sub_days(Days::new(days_ago)))
         .map(|date| {
-            let day_start = start_of_local_day(date, window.time_zone);
+            let day_start = start_of_local_day(date, &window.time_zone);
             let day_end = date.succ_opt().map_or(window.now, |next| {
-                start_of_local_day(next, window.time_zone)
+                start_of_local_day(next, &window.time_zone)
             });
             let day_range = TimeRange {
                 start: day_start.max(window.monitored_from),
@@ -102,7 +102,7 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
 
 pub(in crate::api::sites) fn window_summary(window: &UptimeWindow<'_>) -> WindowSummary {
     let window_range = TimeRange {
-        start: uptime_window_start(window.now, window.time_zone, window.days)
+        start: uptime_window_start(window.now, &window.time_zone, window.days)
             .max(window.monitored_from),
         end: window.now,
     };
@@ -124,13 +124,35 @@ pub(in crate::api::sites) fn window_summary(window: &UptimeWindow<'_>) -> Window
     }
 }
 
+fn local_date(instant: DateTime<Utc>, time_zone: &TimeZone) -> NaiveDate {
+    Timestamp::from_second(instant.timestamp())
+        .ok()
+        .and_then(|timestamp| {
+            let date = timestamp.to_zoned(time_zone.clone()).date();
+            NaiveDate::from_ymd_opt(
+                date.year().into(),
+                date.month().unsigned_abs().into(),
+                date.day().unsigned_abs().into(),
+            )
+        })
+        .unwrap_or_else(|| instant.date_naive())
+}
+
 /// Where the clocks skip midnight, the day starts at the first local time that exists.
-fn start_of_local_day(date: NaiveDate, time_zone: Tz) -> DateTime<Utc> {
-    let midnight = date.and_time(NaiveTime::MIN);
-    (0..MINUTES_IN_A_DAY)
-        .filter_map(|minutes| midnight.checked_add_signed(TimeDelta::minutes(minutes)))
-        .find_map(|local_time| local_time.and_local_timezone(time_zone).earliest())
-        .map_or_else(|| midnight.and_utc(), |start| start.with_timezone(&Utc))
+fn start_of_local_day(date: NaiveDate, time_zone: &TimeZone) -> DateTime<Utc> {
+    let first_instant = || {
+        let year = i16::try_from(date.year()).ok()?;
+        let month = i8::try_from(date.month()).ok()?;
+        let day = i8::try_from(date.day()).ok()?;
+        let start = Date::new(year, month, day)
+            .ok()?
+            .to_zoned(time_zone.clone())
+            .ok()?
+            .start_of_day()
+            .ok()?;
+        DateTime::from_timestamp(start.timestamp().as_second(), 0)
+    };
+    first_instant().unwrap_or_else(|| date.and_time(NaiveTime::MIN).and_utc())
 }
 
 fn day_before_monitoring_started(date: NaiveDate) -> UptimeDay {

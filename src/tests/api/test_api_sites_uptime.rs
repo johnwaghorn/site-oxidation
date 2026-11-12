@@ -52,9 +52,10 @@ async fn test_site_uptime_returns_one_day_per_entry_ending_today(pool: SqlitePoo
     let body = parse_json_body(response).await;
     let days = body["days"].as_array().unwrap();
     assert_eq!(days.len(), 7);
-    let today_in_london = chrono::Utc::now()
-        .with_timezone(&chrono_tz::Europe::London)
-        .date_naive()
+    let today_in_london = jiff::Zoned::now()
+        .in_tz("Europe/London")
+        .unwrap()
+        .date()
         .to_string();
     assert_eq!(days[6]["date"], today_in_london);
     assert!(body["down_since"].is_null());
