@@ -41,12 +41,12 @@ pub async fn login(
 ) -> Result<(SignedCookieJar, Json<LoginSuccess>), ApiErrorResponse> {
     let attempted_username = creds.username.clone();
     let key = format!("{}:{}", addr.ip(), creds.username.to_lowercase());
-    if limiter.is_blocked(&key) {
+    let Some(attempts_left) = limiter.try_acquire(&key) else {
         return Err(ApiErrorResponse::too_many_requests(&format!(
             "Too many login attempts. Please wait {} seconds before trying again.",
             limiter.window_secs()
         )));
-    }
+    };
     let user = auth_session
         .authenticate(creds)
         .await
@@ -60,8 +60,7 @@ pub async fn login(
             attempted_username,
             addr.ip()
         );
-        let now_blocked = limiter.record_failure(&key);
-        if now_blocked {
+        if attempts_left == 0 {
             tracing::warn!(
                 "Login rate limit reached for {} (blocked for {}s)",
                 addr.ip(),

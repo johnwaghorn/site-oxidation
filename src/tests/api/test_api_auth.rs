@@ -354,3 +354,23 @@ async fn test_login_rate_limit_is_logged(pool: SqlitePool) {
     }
     assert!(logs_contain("Login rate limit reached for 127.0.0.1"));
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_simultaneous_logins_cannot_exceed_the_rate_limit(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let app = test_app(pool);
+    let mut attempts = tokio::task::JoinSet::new();
+    for _ in 0..12 {
+        let app = app.clone();
+        attempts.spawn(async move {
+            app.oneshot(build_login_request("admin", WRONG_PASSWORD))
+                .await
+                .unwrap()
+                .status()
+        });
+    }
+    let statuses = attempts.join_all().await;
+    let count = |status| statuses.iter().filter(|s| **s == status).count();
+    assert_eq!(count(StatusCode::UNAUTHORIZED), 5);
+    assert_eq!(count(StatusCode::TOO_MANY_REQUESTS), 7);
+}

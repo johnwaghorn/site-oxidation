@@ -91,13 +91,12 @@ pub async fn create_user(
     payload: DeferredJsonPayload<CreateUserRequest>,
 ) -> Result<(StatusCode, Json<CreateUserResponse>), ApiErrorResponse> {
     let limiter_key = format!("create_user:{}", admin.id);
-    if limiter.is_blocked(&limiter_key) {
+    if limiter.try_acquire(&limiter_key).is_none() {
         tracing::warn!(admin_id = admin.id, admin_username = %admin.username, action = "create_user", "Rate limited admin action");
         return Err(ApiErrorResponse::too_many_requests(
             "Too many admin actions, try again later",
         ));
     }
-    limiter.record_failure(&limiter_key);
     let payload = payload.validated()?;
     validate_password_bounds(&payload.password)?;
     validate_password_not_username(&payload.password, payload.username.as_str())?;
@@ -279,13 +278,12 @@ pub async fn reset_password(
     payload: DeferredJsonPayload<ResetPasswordRequest>,
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
     let limiter_key = format!("reset_password:{}", admin.id);
-    if limiter.is_blocked(&limiter_key) {
+    if limiter.try_acquire(&limiter_key).is_none() {
         tracing::warn!(admin_id = admin.id, admin_username = %admin.username, action = "reset_password", "Rate limited admin action");
         return Err(ApiErrorResponse::too_many_requests(
             "Too many admin actions, try again later",
         ));
     }
-    limiter.record_failure(&limiter_key);
     let payload = payload.validated()?;
     validate_password_bounds(&payload.temp_password)?;
     let password = payload.temp_password;
