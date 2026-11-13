@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   useSites,
@@ -36,11 +36,13 @@ interface DashboardProps {
 }
 
 export function Dashboard({ role, teams }: DashboardProps) {
-  const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
   const [statusFilter, setStatusFilter] = useState<SiteStatusFilter | null>(
     null,
+  );
+  const { page, perPage, goToPage } = usePagination(
+    `${debouncedSearch}|${statusFilter ?? ""}`,
   );
   const { data, isLoading, error } = useSites({
     page,
@@ -63,10 +65,6 @@ export function Dashboard({ role, teams }: DashboardProps) {
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
   const hasNoSites = data != null && !error && data.total === 0 && !isFiltered;
   const showGetStarted = role === "admin" && hasNoSites;
-
-  useEffect(() => {
-    resetPage();
-  }, [debouncedSearch, statusFilter, resetPage]);
 
   return (
     <div className="page-wrapper">

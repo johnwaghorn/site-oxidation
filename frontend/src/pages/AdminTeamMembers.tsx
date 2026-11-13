@@ -22,9 +22,10 @@ type UserResponse = components["schemas"]["UserResponse"];
 
 export function AdminTeamMembers() {
   const team = useOutletContext<TeamResponse>();
-  const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const { page, perPage, goToPage, correctPage } =
+    usePagination(debouncedSearch);
   const {
     data: members,
     isLoading,
@@ -44,13 +45,9 @@ export function AdminTeamMembers() {
 
   useEffect(() => {
     if (members && members.data.length === 0 && members.total > 0 && page > 1) {
-      goToPage(1);
+      correctPage(1);
     }
-  }, [members, page, goToPage]);
-
-  useEffect(() => {
-    resetPage();
-  }, [debouncedSearch, resetPage]);
+  }, [members, page, correctPage]);
 
   const totalPages = members ? Math.ceil(members.total / members.per_page) : 0;
   const hasNoMembers =

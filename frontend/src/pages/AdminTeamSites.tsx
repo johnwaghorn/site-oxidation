@@ -19,9 +19,10 @@ type TeamResponse = components["schemas"]["TeamResponse"];
 export function AdminTeamSites() {
   const team = useOutletContext<TeamResponse>();
   const teamId = team.id;
-  const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const { page, perPage, goToPage, correctPage } =
+    usePagination(debouncedSearch);
   const {
     data: sites,
     isLoading: sitesLoading,
@@ -34,13 +35,9 @@ export function AdminTeamSites() {
 
   useEffect(() => {
     if (sites && sites.data.length === 0 && sites.total > 0 && page > 1) {
-      goToPage(1);
+      correctPage(1);
     }
-  }, [sites, page, goToPage]);
-
-  useEffect(() => {
-    resetPage();
-  }, [debouncedSearch, resetPage]);
+  }, [sites, page, correctPage]);
 
   const totalPages = sites ? Math.ceil(sites.total / sites.per_page) : 0;
   const hasNoSites =

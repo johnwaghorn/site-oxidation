@@ -23,9 +23,10 @@ type TeamResponse = components["schemas"]["TeamResponse"];
 
 export function AdminTeams() {
   const navigate = useNavigate();
-  const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const { page, perPage, goToPage, correctPage } =
+    usePagination(debouncedSearch);
   const {
     data: teams,
     isLoading,
@@ -88,13 +89,9 @@ export function AdminTeams() {
 
   useEffect(() => {
     if (teams && teams.data.length === 0 && teams.total > 0 && page > 1) {
-      goToPage(1);
+      correctPage(1);
     }
-  }, [teams, page, goToPage]);
-
-  useEffect(() => {
-    resetPage();
-  }, [debouncedSearch, resetPage]);
+  }, [teams, page, correctPage]);
 
   return (
     <div className="page-wrapper">

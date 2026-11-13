@@ -29,9 +29,10 @@ export function AdminUserDetail() {
     isLoading: userLoading,
     error: userError,
   } = useAdminUser(userId);
-  const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const { page, perPage, goToPage, correctPage } =
+    usePagination(debouncedSearch);
   const {
     data: teams,
     isLoading: teamsLoading,
@@ -44,14 +45,10 @@ export function AdminUserDetail() {
   const [teamToLeave, setTeamToLeave] = useState<TeamResponse | null>(null);
 
   useEffect(() => {
-    resetPage();
-  }, [debouncedSearch, resetPage]);
-
-  useEffect(() => {
     if (teams && teams.data.length === 0 && teams.total > 0 && page > 1) {
-      goToPage(1);
+      correctPage(1);
     }
-  }, [teams, page, goToPage]);
+  }, [teams, page, correctPage]);
 
   if (!Number.isInteger(userId) || userId <= 0) {
     return <ErrorMessage error={new Error("User not found")} />;

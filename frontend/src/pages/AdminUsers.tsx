@@ -31,9 +31,10 @@ type UserRole = components["schemas"]["UserRole"];
 type TeamOption = components["schemas"]["TeamOption"];
 
 export function AdminUsers() {
-  const { page, perPage, goToPage, resetPage } = usePagination();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const { page, perPage, goToPage, correctPage } =
+    usePagination(debouncedSearch);
   const {
     data: users,
     isLoading,
@@ -54,13 +55,9 @@ export function AdminUsers() {
 
   useEffect(() => {
     if (users && users.data.length === 0 && users.total > 0 && page > 1) {
-      goToPage(1);
+      correctPage(1);
     }
-  }, [users, page, goToPage]);
-
-  useEffect(() => {
-    resetPage();
-  }, [debouncedSearch, resetPage]);
+  }, [users, page, correctPage]);
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newUsername, setNewUsername] = useState("");
