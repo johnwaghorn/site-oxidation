@@ -30,6 +30,11 @@ type UserResponse = components["schemas"]["UserResponse"];
 type UserRole = components["schemas"]["UserRole"];
 type TeamOption = components["schemas"]["TeamOption"];
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  user: "User",
+  admin: "Admin",
+};
+
 export function AdminUsers() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
@@ -412,8 +417,11 @@ function CreateUserForm({
           onChange={(e) => onRoleChange(e.target.value as UserRole)}
           style={{ display: "block", width: "100%" }}
         >
-          <option value="user">User</option>
-          <option value="admin">Admin</option>
+          {Object.entries(ROLE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </FormSelect>
       </label>
       {needsTeam && <TeamCombobox teamId={teamId} onChange={onTeamChange} />}

@@ -17,7 +17,7 @@ pub(super) fn test_body(triggered_by: &str) -> String {
 }
 
 pub(super) fn site_down_subject(site: &SiteRow) -> String {
-    format!("Site '{}' is DOWN", site.name)
+    format::site_down_title(site)
 }
 
 pub(super) fn site_down_body(site: &SiteRow, result: &ProbeResult) -> String {
@@ -32,7 +32,7 @@ pub(super) fn site_down_body(site: &SiteRow, result: &ProbeResult) -> String {
 }
 
 pub(super) fn site_recovered_subject(site: &SiteRow) -> String {
-    format!("Site '{}' is back UP", site.name)
+    format::site_recovered_title(site)
 }
 
 pub(super) fn site_recovered_body(site: &SiteRow) -> String {
@@ -40,11 +40,7 @@ pub(super) fn site_recovered_body(site: &SiteRow) -> String {
 }
 
 pub(super) fn cert_expiring_subject(site: &SiteRow, cert: &CertCheck) -> String {
-    format!(
-        "TLS certificate for site '{}' {}",
-        site.name,
-        format::cert_summary(cert)
-    )
+    format::cert_expiring_title(site, cert)
 }
 
 pub(super) fn cert_expiring_body(site: &SiteRow, cert: &CertCheck) -> String {
@@ -76,6 +72,8 @@ mod tests {
             status: SiteStatus::Up,
             tls_allow_untrusted: false,
             cert_status: None,
+            team_id: None,
+            team_name: None,
             notifications: TeamNotificationConfig::default(),
         }
     }

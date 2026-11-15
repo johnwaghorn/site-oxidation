@@ -2,7 +2,7 @@ use crate::models::notifications::TeamNotificationConfig;
 use crate::models::site::{CertStatus, SiteRow, SiteStatus};
 use crate::models::smtp::SmtpSettings;
 use crate::notifications::delivery::PendingDelivery;
-use crate::notifications::{Notifier, planning};
+use crate::notifications::{Notifier, outbox, planning};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeFailureKind, ProbeResult};
 use crate::tests::{TEST_SITE_NAME, TEST_SITE_URL, TestHttpServer};
@@ -20,6 +20,8 @@ fn site_row() -> SiteRow {
         status: SiteStatus::Up,
         tls_allow_untrusted: false,
         cert_status: None,
+        team_id: None,
+        team_name: None,
         notifications: TeamNotificationConfig::default(),
     }
 }
@@ -201,4 +203,32 @@ async fn test_broken_smtp_config_cannot_suppress_working_one(pool: SqlitePool) {
     deliver(&pool, &notifier, deliveries).await;
     assert!(logs_contain("username or password is missing"));
     assert!(logs_contain("Connection refused"));
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_queued_delivery_records_the_sites_team(pool: SqlitePool) {
+    let notifier = Notifier::new(Client::new(), true);
+    let mut site = site_row();
+    site.team_id = Some(7);
+    site.team_name = Some("Team Rocket".to_owned());
+    site.notifications.slack_webhook_url = Some("https://hooks.waghorn.tech/slack".to_owned());
+    let deliveries = planning::site_down(&[&site], &down_result()).unwrap();
+    let mut transaction = pool.begin().await.unwrap();
+    notifier
+        .enqueue(&mut transaction, &deliveries)
+        .await
+        .unwrap();
+    transaction.commit().await.unwrap();
+    let entries = outbox::list_entries_oldest_first(&pool, 10, 0)
+        .await
+        .unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].team.as_deref(), Some("Team Rocket"));
+    assert_eq!(entries[0].team_id, Some(7));
+    assert!(
+        entries[0]
+            .summary
+            .as_deref()
+            .is_some_and(|summary| summary.ends_with("is DOWN"))
+    );
 }

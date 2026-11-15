@@ -1,0 +1,105 @@
+/* Notification outbox */
+
+.outbox-table {
+  min-width: 820px;
+  table-layout: fixed;
+  font-size: 14px;
+}
+
+.outbox-table th,
+.outbox-table td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.outbox-row {
+  cursor: pointer;
+}
+
+.outbox-row:hover,
+.outbox-row.is-open,
+.outbox-detail-row {
+  background-color: var(--color-surface-elevated);
+}
+
+.outbox-row.is-open {
+  box-shadow: none;
+}
+
+.outbox-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outbox-toggle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--color-muted);
+}
+
+.outbox-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.outbox-status-dot {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+}
+
+.outbox-status-dot.is-failing {
+  background-color: var(--color-danger);
+}
+
+.outbox-status-dot.is-queued {
+  border: 2px solid var(--color-muted);
+}
+
+.outbox-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.outbox-detail-error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.outbox-detail-label {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.outbox-error-text {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-background);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.outbox-detail-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+}

@@ -76,7 +76,8 @@ pub async fn run_due_site_checks(
     let sites = match sqlx::query_as::<_, SiteRow>(
         r"
             SELECT s.id, s.name, s.url, s.expected_status, s.expected_text, s.status,
-                   s.tls_allow_untrusted, s.cert_status, n.slack_webhook_url,
+                   s.tls_allow_untrusted, s.cert_status, s.team_id, t.name AS team_name,
+                   n.slack_webhook_url,
                    n.microsoft_teams_webhook_url,
                    n.smtp_host, n.smtp_port,
                    COALESCE(n.smtp_tls_mode, 'starttls') AS smtp_tls_mode,
@@ -86,6 +87,7 @@ pub async fn run_due_site_checks(
                    COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered,
                    COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring
             FROM sites s
+            LEFT JOIN teams t ON t.id = s.team_id
             LEFT JOIN team_notification_settings n ON n.team_id = s.team_id
             WHERE EXISTS (
                 SELECT 1

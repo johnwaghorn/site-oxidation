@@ -24,8 +24,8 @@ pub(super) fn test_notification(triggered_by: &str) -> SlackPayload {
 pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> SlackPayload {
     SlackPayload {
         text: format!(
-            ":rotating_light: Site '{}' is DOWN\nURL: {}\nExpected status: {}\nActual status: {}\nError: {}",
-            site.name,
+            ":rotating_light: {}\nURL: {}\nExpected status: {}\nActual status: {}\nError: {}",
+            format::site_down_title(site),
             site.url,
             site.expected_status,
             format::probe_status_code(result),
@@ -37,8 +37,9 @@ pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> SlackPayload {
 pub(super) fn site_recovered(site: &SiteRow) -> SlackPayload {
     SlackPayload {
         text: format!(
-            ":white_check_mark: Site '{}' is back UP\nURL: {}",
-            site.name, site.url
+            ":white_check_mark: {}\nURL: {}",
+            format::site_recovered_title(site),
+            site.url
         ),
     }
 }
@@ -46,9 +47,8 @@ pub(super) fn site_recovered(site: &SiteRow) -> SlackPayload {
 pub(super) fn cert_expiring(site: &SiteRow, cert: &CertCheck) -> SlackPayload {
     SlackPayload {
         text: format!(
-            ":warning: TLS certificate for site '{}' {}\nURL: {}\nExpires: {}",
-            site.name,
-            format::cert_summary(cert),
+            ":warning: {}\nURL: {}\nExpires: {}",
+            format::cert_expiring_title(site, cert),
             site.url,
             format::cert_expiry(cert)
         ),
@@ -74,6 +74,8 @@ mod tests {
             status: SiteStatus::Up,
             tls_allow_untrusted: false,
             cert_status: None,
+            team_id: None,
+            team_name: None,
             notifications: TeamNotificationConfig {
                 slack_webhook_url: Some("https://hooks.slack.test/services/test".to_owned()),
                 ..TeamNotificationConfig::default()

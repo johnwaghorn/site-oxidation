@@ -15,6 +15,12 @@ interface UserMenuProps {
   onThemePreferenceChange: (preference: ThemePreference) => void;
 }
 
+const THEME_LABELS: Record<ThemePreference, string> = {
+  system: "System",
+  light: "Light",
+  dark: "Dark",
+};
+
 const menuItemStyle: CSSProperties = {
   display: "block",
   width: "100%",
@@ -122,9 +128,11 @@ export function UserMenu({
                   font: "inherit",
                 }}
               >
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
+                {Object.entries(THEME_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </label>
           </div>

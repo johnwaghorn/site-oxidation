@@ -1,7 +1,23 @@
-use crate::models::site::CertStatus;
+use crate::models::site::{CertStatus, SiteRow};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeResult, UNKNOWN_PROBE_ERROR_MESSAGE};
 use chrono::Utc;
+
+pub(super) fn site_down_title(site: &SiteRow) -> String {
+    format!("Site '{}' is DOWN", site.name)
+}
+
+pub(super) fn site_recovered_title(site: &SiteRow) -> String {
+    format!("Site '{}' is back UP", site.name)
+}
+
+pub(super) fn cert_expiring_title(site: &SiteRow, cert: &CertCheck) -> String {
+    format!(
+        "TLS certificate for site '{}' {}",
+        site.name,
+        cert_summary(cert)
+    )
+}
 
 pub(super) fn probe_status_code(result: &ProbeResult) -> String {
     result

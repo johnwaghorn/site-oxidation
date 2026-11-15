@@ -12,6 +12,7 @@ import { AdminTeamSites } from "./pages/AdminTeamSites";
 import { AdminUsers } from "./pages/AdminUsers";
 import { AdminUserDetail } from "./pages/AdminUserDetail";
 import { AdminCanary } from "./pages/AdminCanary";
+import { AdminNotificationOutbox } from "./pages/AdminNotificationOutbox";
 import { Notifications } from "./pages/Notifications";
 import { ImportExport } from "./pages/ImportExport";
 import { NotFound } from "./pages/NotFound";
@@ -102,6 +103,10 @@ function App() {
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/users/:id" element={<AdminUserDetail />} />
               <Route path="/admin/canary" element={<AdminCanary />} />
+              <Route
+                path="/admin/notification-outbox"
+                element={<AdminNotificationOutbox />}
+              />
             </>
           )}
           <Route path="*" element={<NotFound />} />

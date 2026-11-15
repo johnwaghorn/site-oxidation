@@ -33,19 +33,24 @@ pub(crate) fn site_down(
         if let Some(url) = site.notifications.slack_webhook_url.as_deref()
             && targets.slack_urls.insert(url)
         {
-            deliveries.push(slack::site_down_delivery(url, site, result)?);
+            deliveries.push(
+                slack::site_down_delivery(url, site, result)?
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
         if let Some(url) = site.notifications.microsoft_teams_webhook_url.as_deref()
             && targets.teams_urls.insert(url)
         {
-            deliveries.push(teams::site_down_delivery(url, site, result)?);
+            deliveries.push(
+                teams::site_down_delivery(url, site, result)?
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
         if targets.should_send_email(site) {
-            deliveries.push(email::site_down_delivery(
-                &site.notifications.smtp,
-                site,
-                result,
-            ));
+            deliveries.push(
+                email::site_down_delivery(&site.notifications.smtp, site, result)
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
     }
     Ok(deliveries)
@@ -61,18 +66,24 @@ pub(crate) fn site_recovered(sites: &[&SiteRow]) -> anyhow::Result<Vec<PendingDe
         if let Some(url) = site.notifications.slack_webhook_url.as_deref()
             && targets.slack_urls.insert(url)
         {
-            deliveries.push(slack::site_recovered_delivery(url, site)?);
+            deliveries.push(
+                slack::site_recovered_delivery(url, site)?
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
         if let Some(url) = site.notifications.microsoft_teams_webhook_url.as_deref()
             && targets.teams_urls.insert(url)
         {
-            deliveries.push(teams::site_recovered_delivery(url, site)?);
+            deliveries.push(
+                teams::site_recovered_delivery(url, site)?
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
         if targets.should_send_email(site) {
-            deliveries.push(email::site_recovered_delivery(
-                &site.notifications.smtp,
-                site,
-            ));
+            deliveries.push(
+                email::site_recovered_delivery(&site.notifications.smtp, site)
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
     }
     Ok(deliveries)
@@ -91,19 +102,24 @@ pub(crate) fn cert_expiring(
         if let Some(url) = site.notifications.slack_webhook_url.as_deref()
             && targets.slack_urls.insert(url)
         {
-            deliveries.push(slack::cert_expiring_delivery(url, site, cert)?);
+            deliveries.push(
+                slack::cert_expiring_delivery(url, site, cert)?
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
         if let Some(url) = site.notifications.microsoft_teams_webhook_url.as_deref()
             && targets.teams_urls.insert(url)
         {
-            deliveries.push(teams::cert_expiring_delivery(url, site, cert)?);
+            deliveries.push(
+                teams::cert_expiring_delivery(url, site, cert)?
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
         if targets.should_send_email(site) {
-            deliveries.push(email::cert_expiring_delivery(
-                &site.notifications.smtp,
-                site,
-                cert,
-            ));
+            deliveries.push(
+                email::cert_expiring_delivery(&site.notifications.smtp, site, cert)
+                    .for_team(site.team_id, site.team_name.as_deref()),
+            );
         }
     }
     Ok(deliveries)

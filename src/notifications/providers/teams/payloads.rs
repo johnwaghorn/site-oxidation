@@ -19,7 +19,7 @@ pub(super) fn test_notification(triggered_by: &str) -> Value {
 // Microsoft Teams workflow webhooks expect an Adaptive Card
 pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> Value {
     card(
-        &format!("Site '{}' is DOWN", site.name),
+        &format::site_down_title(site),
         "Attention",
         &json!([
             { "title": "URL", "value": site.url },
@@ -32,7 +32,7 @@ pub(super) fn site_down(site: &SiteRow, result: &ProbeResult) -> Value {
 
 pub(super) fn site_recovered(site: &SiteRow) -> Value {
     card(
-        &format!("Site '{}' is back UP", site.name),
+        &format::site_recovered_title(site),
         "Good",
         &json!([{ "title": "URL", "value": site.url }]),
     )
@@ -40,11 +40,7 @@ pub(super) fn site_recovered(site: &SiteRow) -> Value {
 
 pub(super) fn cert_expiring(site: &SiteRow, cert: &CertCheck) -> Value {
     card(
-        &format!(
-            "TLS certificate for site '{}' {}",
-            site.name,
-            format::cert_summary(cert)
-        ),
+        &format::cert_expiring_title(site, cert),
         "Warning",
         &json!([
             { "title": "URL", "value": site.url },
@@ -100,6 +96,8 @@ mod tests {
             status: SiteStatus::Up,
             tls_allow_untrusted: false,
             cert_status: None,
+            team_id: None,
+            team_name: None,
             notifications: TeamNotificationConfig {
                 microsoft_teams_webhook_url: Some("https://teams.waghorn.tech/webhook".to_owned()),
                 ..TeamNotificationConfig::default()

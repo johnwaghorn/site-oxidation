@@ -66,6 +66,8 @@ pub async fn insert_test_site(pool: &SqlitePool, status: SiteStatus) -> SiteRow 
         status,
         tls_allow_untrusted: false,
         cert_status: None,
+        team_id: None,
+        team_name: None,
         notifications: TeamNotificationConfig::default(),
     }
 }

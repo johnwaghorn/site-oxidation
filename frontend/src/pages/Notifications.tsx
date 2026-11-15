@@ -38,6 +38,16 @@ type TestNotificationMutation = UseMutationResult<
   number
 >;
 type Channel = "slack" | "teams" | "email";
+type NotificationEventKey = Extract<
+  keyof UpdateTeamNotificationsRequest,
+  `notify_${string}`
+>;
+
+const SMTP_TLS_MODE_LABELS: Record<SmtpTlsMode, string> = {
+  starttls: "STARTTLS",
+  tls: "TLS",
+  none: "None",
+};
 
 const SENDS_ALERTS_FILTERS: {
   label: string;
@@ -355,7 +365,7 @@ function ChannelRow({
 }
 
 const notificationEvents: {
-  key: "notify_site_down" | "notify_site_recovered" | "notify_cert_expiring";
+  key: NotificationEventKey;
   label: string;
   payload: (enabled: boolean) => UpdateTeamNotificationsRequest;
 }[] = [
@@ -596,9 +606,11 @@ function SmtpForm({
             value={tlsMode}
             onChange={(event) => setTlsMode(event.target.value as SmtpTlsMode)}
           >
-            <option value="starttls">STARTTLS</option>
-            <option value="tls">TLS</option>
-            <option value="none">None</option>
+            {Object.entries(SMTP_TLS_MODE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </FormSelect>
         </label>
         <label className="field-label">

@@ -13,6 +13,7 @@ import "./styles/cards.css";
 import "./styles/feedback.css";
 import "./styles/canary.css";
 import "./styles/notifications.css";
+import "./styles/notification-outbox.css";
 import "./styles/not-found.css";
 import "./styles/import-export.css";
 import "./styles/uptime.css";

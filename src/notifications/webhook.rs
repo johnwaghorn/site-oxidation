@@ -18,6 +18,6 @@ pub(in crate::notifications) async fn post<T: Serialize>(
     {
         Ok(response) if response.status().is_success() => Ok(()),
         Ok(response) => Err(format!("webhook returned status {}", response.status())),
-        Err(error) => Err(format!("request failed: {error}")),
+        Err(error) => Err(format!("request failed: {}", error.without_url())),
     }
 }

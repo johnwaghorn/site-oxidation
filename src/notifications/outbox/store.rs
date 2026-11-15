@@ -1,4 +1,5 @@
 use crate::notifications::delivery::PendingDelivery;
+use chrono::{DateTime, Utc};
 use sqlx::{FromRow, Sqlite, SqlitePool, Transaction};
 
 #[derive(FromRow)]
@@ -6,6 +7,78 @@ pub(super) struct OutboxRow {
     pub(super) id: i64,
     pub(super) delivery: String,
     pub(super) attempts: i64,
+}
+
+#[derive(FromRow)]
+struct StoredEntry {
+    id: i64,
+    delivery: String,
+    attempts: i64,
+    last_error: Option<String>,
+    created_at: DateTime<Utc>,
+    next_attempt_at: DateTime<Utc>,
+}
+
+pub(crate) struct OutboxEntry {
+    pub id: i64,
+    pub provider: Option<String>,
+    pub summary: Option<String>,
+    pub team_id: Option<i64>,
+    pub team: Option<String>,
+    pub attempts: i64,
+    pub last_error: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub next_attempt_at: DateTime<Utc>,
+}
+
+impl OutboxEntry {
+    pub(crate) fn is_failing(&self) -> bool {
+        self.attempts > 0
+    }
+}
+
+impl From<StoredEntry> for OutboxEntry {
+    fn from(stored: StoredEntry) -> Self {
+        let description = NotificationDescription::read_from_stored_delivery(&stored.delivery);
+        Self {
+            id: stored.id,
+            provider: description.provider,
+            summary: description.summary,
+            team_id: description.team_id,
+            team: description.team,
+            attempts: stored.attempts,
+            last_error: stored.last_error,
+            created_at: stored.created_at,
+            next_attempt_at: stored.next_attempt_at,
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct NotificationDescription {
+    pub provider: Option<String>,
+    pub summary: Option<String>,
+    pub team_id: Option<i64>,
+    pub team: Option<String>,
+}
+
+impl NotificationDescription {
+    fn read_from_stored_delivery(stored_delivery: &str) -> Self {
+        serde_json::from_str::<PendingDelivery>(stored_delivery).map_or_default(|delivery| Self {
+            provider: Some(delivery.provider),
+            summary: delivery.summary,
+            team_id: delivery.team_id,
+            team: delivery.team,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum CancelOutcome {
+    Cancelled(NotificationDescription),
+    BeingSent,
+    NotFailing,
+    NotFound,
 }
 
 pub(in crate::notifications) async fn enqueue(
@@ -60,4 +133,55 @@ pub(super) async fn record_failure(
     .execute(pool)
     .await?;
     Ok(())
+}
+
+pub(crate) async fn list_entries_oldest_first(
+    pool: &SqlitePool,
+    limit: u32,
+    offset: u32,
+) -> sqlx::Result<Vec<OutboxEntry>> {
+    let stored = sqlx::query_as::<_, StoredEntry>(
+        "SELECT id, delivery, attempts, last_error, created_at, next_attempt_at \
+         FROM notification_outbox ORDER BY id LIMIT ? OFFSET ?",
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+    Ok(stored.into_iter().map(OutboxEntry::from).collect())
+}
+
+pub(crate) async fn count_entries(pool: &SqlitePool) -> sqlx::Result<i64> {
+    sqlx::query_scalar("SELECT COUNT(*) FROM notification_outbox")
+        .fetch_one(pool)
+        .await
+}
+
+pub(in crate::notifications) async fn is_queued(pool: &SqlitePool, id: i64) -> sqlx::Result<bool> {
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM notification_outbox WHERE id = ?)")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+}
+
+pub(in crate::notifications) async fn cancel_failing_entry(
+    pool: &SqlitePool,
+    id: i64,
+) -> sqlx::Result<CancelOutcome> {
+    let cancelled_delivery: Option<String> = sqlx::query_scalar(
+        "DELETE FROM notification_outbox WHERE id = ? AND attempts > 0 RETURNING delivery",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?;
+    if let Some(cancelled_delivery) = cancelled_delivery {
+        return Ok(CancelOutcome::Cancelled(
+            NotificationDescription::read_from_stored_delivery(&cancelled_delivery),
+        ));
+    }
+    Ok(if is_queued(pool, id).await? {
+        CancelOutcome::NotFailing
+    } else {
+        CancelOutcome::NotFound
+    })
 }

@@ -43,5 +43,8 @@ export const queryKeys = {
   adminUsers: (filters: AdminUsersFilters) =>
     ["admin", "users", filters] as const,
   adminCanary: ["admin", "canary"] as const,
+  adminNotificationOutboxAll: ["admin", "notification-outbox"] as const,
+  adminNotificationOutbox: (page: number, perPage: number) =>
+    ["admin", "notification-outbox", { page, perPage }] as const,
   version: ["version"] as const,
 };

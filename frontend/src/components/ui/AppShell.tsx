@@ -102,6 +102,14 @@ export function AppShell({
                 >
                   Canary
                 </NavLink>
+                <NavLink
+                  to="/admin/notification-outbox"
+                  className={({ isActive }) =>
+                    `app-sidebar-link${isActive ? " active" : ""}`
+                  }
+                >
+                  Notification outbox
+                </NavLink>
               </div>
             )}
           </nav>

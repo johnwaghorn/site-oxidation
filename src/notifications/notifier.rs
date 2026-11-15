@@ -1,4 +1,5 @@
 use super::delivery::PendingDelivery;
+use super::outbox::CancelOutcome;
 use super::providers::{email, slack, teams};
 use super::{outbox, sender};
 use crate::models::smtp::SmtpSettings;
@@ -12,6 +13,7 @@ pub struct Notifier {
     client: Client,
     allow_private_smtp_hosts: bool,
     outbox_lock: Arc<Mutex<()>>,
+    outbox_entry_being_sent: Arc<Mutex<Option<i64>>>,
 }
 
 impl Notifier {
@@ -20,6 +22,7 @@ impl Notifier {
             client,
             allow_private_smtp_hosts,
             outbox_lock: Arc::new(Mutex::new(())),
+            outbox_entry_being_sent: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -33,10 +36,29 @@ impl Notifier {
 
     pub async fn process_outbox(&self, pool: &SqlitePool) {
         let _guard = self.outbox_lock.lock().await;
-        if let Err(error) = outbox::process(pool, &self.client, self.allow_private_smtp_hosts).await
+        if let Err(error) = outbox::process(
+            pool,
+            &self.client,
+            self.allow_private_smtp_hosts,
+            &self.outbox_entry_being_sent,
+        )
+        .await
         {
             tracing::error!("Failed to process notification outbox: {error}");
         }
+    }
+
+    pub(crate) async fn cancel_failing_outbox_entry(
+        &self,
+        pool: &SqlitePool,
+        id: i64,
+    ) -> sqlx::Result<CancelOutcome> {
+        let entry_being_sent_locked_so_the_worker_waits_for_this_cancel =
+            self.outbox_entry_being_sent.lock().await;
+        if *entry_being_sent_locked_so_the_worker_waits_for_this_cancel == Some(id) {
+            return Ok(CancelOutcome::BeingSent);
+        }
+        outbox::cancel_failing_entry(pool, id).await
     }
 
     pub async fn test_email(&self, smtp: &SmtpSettings, triggered_by: &str) -> Result<(), String> {

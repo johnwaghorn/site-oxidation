@@ -49,6 +49,8 @@ pub struct SiteRow {
     pub status: SiteStatus,
     pub tls_allow_untrusted: bool,
     pub cert_status: Option<CertStatus>,
+    pub team_id: Option<i64>,
+    pub team_name: Option<String>,
     #[sqlx(flatten)]
     pub notifications: TeamNotificationConfig,
 }
