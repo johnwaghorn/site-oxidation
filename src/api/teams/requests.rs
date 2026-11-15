@@ -40,6 +40,24 @@ impl<T> PatchValue<T> {
             value,
         }
     }
+
+    fn set_or_cleared(&self) -> Option<&'static str> {
+        self.provided.then_some(if self.value.is_some() {
+            "set"
+        } else {
+            "cleared"
+        })
+    }
+}
+
+impl PatchValue<bool> {
+    fn on_or_off(&self) -> Option<&'static str> {
+        self.provided.then_some(if self.value == Some(true) {
+            "on"
+        } else {
+            "off"
+        })
+    }
 }
 
 pub struct PreparedNotificationUpdate {
@@ -59,6 +77,38 @@ pub struct PreparedNotificationUpdate {
 }
 
 impl PreparedNotificationUpdate {
+    pub fn describe_settings_in_request_without_secrets(&self) -> Vec<String> {
+        [
+            ("slack_webhook_url", self.slack_webhook_url.set_or_cleared()),
+            (
+                "microsoft_teams_webhook_url",
+                self.microsoft_teams_webhook_url.set_or_cleared(),
+            ),
+            ("smtp_host", self.smtp_host.set_or_cleared()),
+            ("smtp_port", self.smtp_port.set_or_cleared()),
+            ("smtp_tls_mode", self.smtp_tls_mode.set_or_cleared()),
+            ("smtp_auth", self.smtp_auth.on_or_off()),
+            ("smtp_username", self.smtp_username.set_or_cleared()),
+            ("smtp_password", self.smtp_password.set_or_cleared()),
+            ("smtp_from_email", self.smtp_from_email.set_or_cleared()),
+            ("smtp_to_email", self.smtp_to_email.set_or_cleared()),
+            ("notify_site_down", self.notify_site_down.on_or_off()),
+            (
+                "notify_site_recovered",
+                self.notify_site_recovered.on_or_off(),
+            ),
+            (
+                "notify_cert_expiring",
+                self.notify_cert_expiring.on_or_off(),
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(setting_name, what_happened)| {
+            what_happened.map(|what_happened| format!("{setting_name} {what_happened}"))
+        })
+        .collect()
+    }
+
     pub fn touches_smtp(&self) -> bool {
         self.smtp_host.provided
             || self.smtp_port.provided

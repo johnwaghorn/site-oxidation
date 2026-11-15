@@ -51,7 +51,7 @@ pub const INSERT_TEAM: &str = "INSERT INTO teams (name) VALUES (?) RETURNING id"
 
 pub const UPDATE_TEAM: &str = "UPDATE teams SET name = ? WHERE id = ? RETURNING id";
 
-pub const DELETE_TEAM: &str = concat!(
+pub const DELETE_TEAM_RETURNING_NAME: &str = concat!(
     "DELETE FROM teams WHERE id = ?1 AND NOT EXISTS (",
     "  SELECT 1 FROM team_members tm ",
     "  JOIN users u ON u.id = tm.user_id ",
@@ -59,7 +59,7 @@ pub const DELETE_TEAM: &str = concat!(
     "    SELECT 1 FROM team_members other ",
     "    WHERE other.user_id = tm.user_id AND other.team_id != ?1",
     "  )",
-    ") RETURNING id"
+    ") RETURNING name"
 );
 
 pub const COUNT_TEAM_SITES: &str = concat!(

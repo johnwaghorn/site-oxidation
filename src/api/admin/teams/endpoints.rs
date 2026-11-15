@@ -225,7 +225,7 @@ pub async fn list_team_options(
     security(("session_cookie" = [])),
 )]
 pub async fn create_team(
-    RequireAdmin(_admin): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     JsonPayload(payload): JsonPayload<CreateTeamRequest>,
 ) -> Result<(StatusCode, Json<TeamResponse>), ApiErrorResponse> {
@@ -234,6 +234,7 @@ pub async fn create_team(
         .fetch_one(&pool)
         .await
         .map_err(|e| unique_conflict_err("Team name already exists", "Failed to create team", e))?;
+    tracing::info!(user_id = admin.id, username = %admin.username, team_id = id, team_name = %payload.name.as_str(), "Team created");
     Ok((
         StatusCode::CREATED,
         Json(TeamResponse {
@@ -263,7 +264,7 @@ pub async fn create_team(
     security(("session_cookie" = [])),
 )]
 pub async fn update_team(
-    RequireAdmin(_admin): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
     JsonPayload(payload): JsonPayload<UpdateTeamRequest>,
@@ -278,6 +279,7 @@ pub async fn update_team(
     if updated.is_none() {
         return Err(ApiErrorResponse::not_found("Team"));
     }
+    tracing::info!(user_id = admin.id, username = %admin.username, team_id = id, team_name = %payload.name.as_str(), "Team renamed");
     Ok(Json(SuccessResponse { success: true }))
 }
 
@@ -297,17 +299,18 @@ pub async fn update_team(
     security(("session_cookie" = [])),
 )]
 pub async fn delete_team(
-    RequireAdmin(_admin): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiErrorResponse> {
     rules::ensure_team_has_no_sites(&pool, id).await?;
-    let deleted: Option<i64> = sqlx::query_scalar(queries::DELETE_TEAM)
+    let deleted_team_name: Option<String> = sqlx::query_scalar(queries::DELETE_TEAM_RETURNING_NAME)
         .bind(id)
         .fetch_optional(&pool)
         .await
         .map_err(|e| internal_err("Failed to delete team", e))?;
-    rules::ensure_team_deleted(&pool, id, deleted).await?;
+    let team_name = rules::ensure_team_deleted(&pool, id, deleted_team_name).await?;
+    tracing::info!(user_id = admin.id, username = %admin.username, team_id = id, team_name = %team_name, "Team deleted");
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -330,7 +333,7 @@ pub async fn delete_team(
     security(("session_cookie" = [])),
 )]
 pub async fn add_team_member(
-    RequireAdmin(_admin): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path(team_id): Path<i64>,
     JsonPayload(payload): JsonPayload<AddMemberRequest>,
@@ -363,6 +366,7 @@ pub async fn add_team_member(
                 e,
             )
         })?;
+    tracing::info!(user_id = admin.id, username = %admin.username, team_id, member_user_id = payload.user_id, "Team member added");
     Ok((StatusCode::CREATED, Json(SuccessResponse { success: true })))
 }
 
@@ -385,7 +389,7 @@ pub async fn add_team_member(
     security(("session_cookie" = [])),
 )]
 pub async fn remove_team_member(
-    RequireAdmin(_admin): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path((team_id, user_id)): Path<(i64, i64)>,
 ) -> Result<StatusCode, ApiErrorResponse> {
@@ -397,5 +401,6 @@ pub async fn remove_team_member(
         .map_err(|e| internal_err("Failed to remove team member", e))?;
 
     rules::ensure_membership_removed(&pool, team_id, user_id, deleted).await?;
+    tracing::info!(user_id = admin.id, username = %admin.username, team_id, member_user_id = user_id, "Team member removed");
     Ok(StatusCode::NO_CONTENT)
 }

@@ -8,8 +8,10 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_team_member_saves_slack_webhook_trimmed(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     let team_id = insert_team(&pool, "Team Rocket").await;
@@ -56,9 +58,14 @@ async fn test_team_member_saves_slack_webhook_trimmed(pool: SqlitePool) {
         body["slack_webhook_url"],
         "https://hooks.slack.test/services/team-rocket"
     );
+    assert!(logs_contain("Team notifications updated"));
+    assert!(logs_contain("username=maddie"));
+    assert!(logs_contain("settings_in_request=slack_webhook_url set"));
+    assert!(!logs_contain("hooks.slack.test"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_blank_slack_webhook_clears_value(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     let team_id = insert_team(&pool, "Team Rocket").await;
@@ -97,6 +104,9 @@ async fn test_blank_slack_webhook_clears_value(pool: SqlitePool) {
     .await
     .unwrap();
     assert_eq!(saved, None);
+    assert!(logs_contain(
+        "settings_in_request=slack_webhook_url cleared"
+    ));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -132,6 +142,7 @@ async fn test_get_notifications_returns_defaults_without_settings_row(pool: Sqli
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_can_update_non_slack_notification_settings(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     let team_id = insert_team(&pool, "Team Rocket").await;
@@ -184,6 +195,10 @@ async fn test_can_update_non_slack_notification_settings(pool: SqlitePool) {
     assert_eq!(body["notify_site_down"], true);
     assert_eq!(body["notify_site_recovered"], false);
     assert_eq!(body["notify_cert_expiring"], false);
+    assert!(logs_contain(
+        "settings_in_request=microsoft_teams_webhook_url set, smtp_host set, smtp_port set, smtp_tls_mode set, smtp_auth off, smtp_username set, smtp_password set, smtp_from_email set, smtp_to_email set, notify_site_down on, notify_site_recovered off, notify_cert_expiring off"
+    ));
+    assert!(!logs_contain("secret"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -607,6 +622,7 @@ async fn test_test_slack_requires_configuration(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_test_slack_posts_to_configured_webhook(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     let team_id = insert_team(&pool, "Team Rocket").await;
@@ -641,9 +657,12 @@ async fn test_test_slack_posts_to_configured_webhook(pool: SqlitePool) {
     assert!(request.contains("Testing Site Oxidation notification configuration"));
     assert!(request.contains("https://github.com/johnwaghorn/site-oxidation"));
     assert!(request.contains("Triggered by: maddie"));
+    assert!(logs_contain("Test Slack notification sent"));
+    assert!(logs_contain("username=maddie"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_test_teams_posts_adaptive_card(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
     let team_id = insert_team(&pool, "Team Rocket").await;
@@ -679,6 +698,8 @@ async fn test_test_teams_posts_adaptive_card(pool: SqlitePool) {
     assert!(request.contains("Testing Site Oxidation notification configuration"));
     assert!(request.contains("Triggered by"));
     assert!(request.contains("maddie"));
+    assert!(logs_contain("Test Microsoft Teams notification sent"));
+    assert!(logs_contain("username=maddie"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

@@ -22,10 +22,10 @@ pub async fn ensure_team_has_no_sites(
 pub async fn ensure_team_deleted(
     pool: &SqlitePool,
     team_id: i64,
-    deleted_team_id: Option<i64>,
-) -> Result<(), ApiErrorResponse> {
-    if deleted_team_id.is_some() {
-        return Ok(());
+    deleted_team_name: Option<String>,
+) -> Result<String, ApiErrorResponse> {
+    if let Some(deleted_team_name) = deleted_team_name {
+        return Ok(deleted_team_name);
     }
     let team_exists: i64 = sqlx::query_scalar(queries::TEAM_EXISTS)
         .bind(team_id)

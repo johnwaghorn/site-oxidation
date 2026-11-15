@@ -8,8 +8,10 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_create_and_list_teams(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);
@@ -48,6 +50,8 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
     assert_eq!(body["page"], 1);
     assert_eq!(body["per_page"], 20);
     assert_eq!(body["total"], 1);
+    assert!(logs_contain("Team created"));
+    assert!(logs_contain("username=admin"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -400,6 +404,7 @@ async fn test_create_team_validation_error_uses_api_error_envelope(pool: SqliteP
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_rename_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     insert_team(&pool, "Old Name").await;
@@ -419,6 +424,9 @@ async fn test_rename_team(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
+    assert!(logs_contain("Team renamed"));
+    assert!(logs_contain("username=admin"));
+    assert!(logs_contain("team_name=New Name"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -443,6 +451,7 @@ async fn test_rename_nonexistent_team_returns_404(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_delete_empty_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     insert_team(&pool, "Team Alpha").await;
@@ -461,6 +470,9 @@ async fn test_delete_empty_team(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(logs_contain("Team deleted"));
+    assert!(logs_contain("username=admin"));
+    assert!(logs_contain("team_name=Team Alpha"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -538,6 +550,7 @@ async fn test_can_delete_team_when_non_admin_user_has_another_team(pool: SqliteP
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_add_and_remove_team_member(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
@@ -572,6 +585,9 @@ async fn test_add_and_remove_team_member(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(logs_contain("Team member added"));
+    assert!(logs_contain("Team member removed"));
+    assert!(logs_contain(&format!("member_user_id={user_id}")));
 }
 
 #[sqlx::test(migrations = "./migrations")]
