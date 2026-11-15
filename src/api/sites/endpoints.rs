@@ -3,8 +3,9 @@ use super::canary_warning::set_canary_warnings;
 use super::fields::ExpectedText;
 use super::params::{ListSitesParams, ListSitesQuery, SiteUptimeParams, UPTIME_WINDOW_DAY_OPTIONS};
 use super::queries::{
-    COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES, DELETE_SITE,
-    INSERT_SITE, LIST_OUTAGES, LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW,
+    COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES,
+    DELETE_SITE_RETURNING_NAME_AND_URL, INSERT_SITE, LIST_OUTAGES,
+    LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW,
     LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW, LIST_SITES_ADMIN, LIST_SITES_USER,
     SELECT_SITE_ADMIN, SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT, SELECT_SITE_USER,
     UPDATE_SITE,
@@ -356,6 +357,7 @@ pub async fn create_site(
                 e,
             )
         })?;
+    tracing::info!(user_id = user.id, username = %user.username, site_id = id, site_name = %payload.name.as_str(), site_url = %payload.url.as_str(), team_id = ?team_id, "Site added");
     let site = reload_site(&state.pool, id).await?;
     Ok((StatusCode::CREATED, Json(site)))
 }
@@ -407,6 +409,7 @@ pub async fn update_site(
     if updated.is_none() {
         return Err(ApiErrorResponse::not_found("Site"));
     }
+    tracing::info!(user_id = user.id, username = %user.username, site_id = id, site_name = %payload.name.as_str(), site_url = %payload.url.as_str(), team_id = ?team_id, "Site updated");
     let site = reload_site(&state.pool, id).await?;
     Ok(Json(site))
 }
@@ -435,13 +438,14 @@ pub async fn delete_site(
     ensure_site_access(&state.pool, id, &user).await?;
     // Note: `ON DELETE CASCADE` is set in the migration of the outages table,
     // therefore the related outages will be deleted too.
-    let result = sqlx::query(DELETE_SITE)
+    let deleted: Option<(String, String)> = sqlx::query_as(DELETE_SITE_RETURNING_NAME_AND_URL)
         .bind(id)
-        .execute(&state.pool)
+        .fetch_optional(&state.pool)
         .await
         .map_err(|e| internal_err(&format!("Failed to delete site {id}"), e))?;
-    if result.rows_affected() == 0 {
+    let Some((site_name, site_url)) = deleted else {
         return Err(ApiErrorResponse::not_found("Site"));
-    }
+    };
+    tracing::info!(user_id = user.id, username = %user.username, site_id = id, site_name = %site_name, site_url = %site_url, "Site deleted");
     Ok(StatusCode::NO_CONTENT)
 }

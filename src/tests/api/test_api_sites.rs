@@ -10,6 +10,7 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 async fn insert_site_in_each_status(pool: &SqlitePool) {
     sqlx::query(
@@ -367,6 +368,7 @@ async fn test_list_sites_rejects_unknown_status_filter(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_create_site(pool: SqlitePool) {
     let (app, cookie) = authenticated_admin_app(pool, true).await;
     let payload = format!(
@@ -387,6 +389,9 @@ async fn test_create_site(pool: SqlitePool) {
     assert_eq!(response.status(), StatusCode::CREATED);
     let body = parse_json_body(response).await;
     assert!(!body["created_at"].as_str().unwrap().is_empty());
+    assert!(logs_contain("Site added"));
+    assert!(logs_contain("username=admin"));
+    assert!(logs_contain(&format!("site_url={TEST_SITE_URL}")));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -499,6 +504,7 @@ async fn test_update_site_private_ip_rejected_when_disabled(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_update_site_private_ip_allowed_when_enabled(pool: SqlitePool) {
     insert_test_site(&pool, SiteStatus::Up).await;
     let (app, cookie) = authenticated_admin_app(pool, true).await;
@@ -518,9 +524,12 @@ async fn test_update_site_private_ip_allowed_when_enabled(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
+    assert!(logs_contain("Site updated"));
+    assert!(logs_contain("site_url=http://127.0.0.1:8080"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_delete_site_cascades_outages(pool: SqlitePool) {
     insert_test_site(&pool, SiteStatus::Up).await;
     sqlx::query("INSERT INTO outages (site_id, http_status) VALUES (?, ?)")
@@ -543,6 +552,8 @@ async fn test_delete_site_cascades_outages(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert_eq!(count_outages(&pool).await, 0);
+    assert!(logs_contain("Site deleted"));
+    assert!(logs_contain(&format!("site_url={TEST_SITE_URL}")));
 }
 
 #[sqlx::test(migrations = "./migrations")]

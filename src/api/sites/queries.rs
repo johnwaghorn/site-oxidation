@@ -118,4 +118,5 @@ pub const UPDATE_SITE: &str = concat!(
     "RETURNING id"
 );
 
-pub const DELETE_SITE: &str = "DELETE FROM sites WHERE id = ?";
+pub const DELETE_SITE_RETURNING_NAME_AND_URL: &str =
+    "DELETE FROM sites WHERE id = ? RETURNING name, url";
