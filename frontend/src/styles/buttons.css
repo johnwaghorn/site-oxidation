@@ -15,13 +15,13 @@
 }
 
 .button-secondary-action {
-  border-color: var(--color-border);
+  border-color: var(--color-border-strong);
   background-color: var(--color-surface-elevated);
-  color: var(--color-muted);
+  color: var(--color-text);
 }
 
 .button-secondary-action:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--color-primary);
   background-color: var(--color-surface-muted);
   color: var(--color-text);
 }
