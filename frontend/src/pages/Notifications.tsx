@@ -99,13 +99,8 @@ export function Notifications() {
           &larr; Back to Notifications
         </Link>
       )}
-      <h1 className="page-title" style={{ marginBottom: "8px" }}>
-        Notifications
-      </h1>
-      <p
-        className="muted-text"
-        style={{ maxWidth: "680px", margin: "0 0 24px" }}
-      >
+      <h1 className="page-title">Notifications</h1>
+      <p className="page-subtitle">
         Each team chooses where its alerts go. Every site in a team uses that
         team&apos;s settings.
       </p>

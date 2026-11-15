@@ -80,7 +80,7 @@ function CanaryStatusPage({ settings }: { settings: CanarySettings }) {
   return (
     <div className="page-wrapper">
       <h1 className="page-title">Canary</h1>
-      <p className="page-subtitle canary-lede">
+      <p className="page-subtitle">
         A lightweight check against a URL you control. When it can't connect,
         probe failures are treated as a problem with your own connectivity
         rather than a real site outage.
