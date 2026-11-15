@@ -8,6 +8,7 @@ use super::queries;
 use super::requests::{AddMemberRequest, CreateTeamRequest, UpdateTeamRequest};
 use super::responses::{TeamOption, TeamResponse};
 use super::rules;
+use crate::api::action_log::log_action_by_user;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::{JsonPayload, RequireAdmin};
@@ -165,19 +166,21 @@ pub async fn list_team_sites(
     security(("session_cookie" = [])),
 )]
 pub async fn unassign_team_site(
-    RequireAdmin(_admin): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(pool): State<SqlitePool>,
     Path((team_id, site_id)): Path<(i64, i64)>,
 ) -> Result<StatusCode, ApiErrorResponse> {
-    let updated: Option<i64> = sqlx::query_scalar(queries::UNASSIGN_TEAM_SITE)
-        .bind(team_id)
-        .bind(site_id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|e| internal_err("Failed to remove site from team", e))?;
-    if updated.is_none() {
+    let unassigned_site_name: Option<String> =
+        sqlx::query_scalar(queries::UNASSIGN_TEAM_SITE_RETURNING_SITE_NAME)
+            .bind(team_id)
+            .bind(site_id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to remove site from team", e))?;
+    let Some(site_name) = unassigned_site_name else {
         return Err(ApiErrorResponse::not_found("Site assignment"));
-    }
+    };
+    log_action_by_user!(admin, "Site unassigned from team", team_id, site_id, site_name = %site_name);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -234,7 +237,7 @@ pub async fn create_team(
         .fetch_one(&pool)
         .await
         .map_err(|e| unique_conflict_err("Team name already exists", "Failed to create team", e))?;
-    tracing::info!(user_id = admin.id, username = %admin.username, team_id = id, team_name = %payload.name.as_str(), "Team created");
+    log_action_by_user!(admin, "Team created", team_id = id, team_name = %payload.name.as_str());
     Ok((
         StatusCode::CREATED,
         Json(TeamResponse {
@@ -279,7 +282,7 @@ pub async fn update_team(
     if updated.is_none() {
         return Err(ApiErrorResponse::not_found("Team"));
     }
-    tracing::info!(user_id = admin.id, username = %admin.username, team_id = id, team_name = %payload.name.as_str(), "Team renamed");
+    log_action_by_user!(admin, "Team renamed", team_id = id, team_name = %payload.name.as_str());
     Ok(Json(SuccessResponse { success: true }))
 }
 
@@ -310,7 +313,7 @@ pub async fn delete_team(
         .await
         .map_err(|e| internal_err("Failed to delete team", e))?;
     let team_name = rules::ensure_team_deleted(&pool, id, deleted_team_name).await?;
-    tracing::info!(user_id = admin.id, username = %admin.username, team_id = id, team_name = %team_name, "Team deleted");
+    log_action_by_user!(admin, "Team deleted", team_id = id, team_name = %team_name);
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -366,7 +369,12 @@ pub async fn add_team_member(
                 e,
             )
         })?;
-    tracing::info!(user_id = admin.id, username = %admin.username, team_id, member_user_id = payload.user_id, "Team member added");
+    log_action_by_user!(
+        admin,
+        "Team member added",
+        team_id,
+        member_user_id = payload.user_id
+    );
     Ok((StatusCode::CREATED, Json(SuccessResponse { success: true })))
 }
 
@@ -401,6 +409,11 @@ pub async fn remove_team_member(
         .map_err(|e| internal_err("Failed to remove team member", e))?;
 
     rules::ensure_membership_removed(&pool, team_id, user_id, deleted).await?;
-    tracing::info!(user_id = admin.id, username = %admin.username, team_id, member_user_id = user_id, "Team member removed");
+    log_action_by_user!(
+        admin,
+        "Team member removed",
+        team_id,
+        member_user_id = user_id
+    );
     Ok(StatusCode::NO_CONTENT)
 }

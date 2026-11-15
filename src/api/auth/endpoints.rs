@@ -11,6 +11,7 @@ use super::requests::{ChangePasswordRequest, UpdateThemePreferenceRequest};
 use super::responses::{
     ChangePasswordSuccess, LoginSuccess, MeSuccess, UpdateThemePreferenceSuccess, UserTeam,
 };
+use crate::api::action_log::{log_action_by_user, log_refused_action_by_user};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::{JsonPayload, RequireAuth};
 use crate::auth::{AuthError, AuthSession, Credentials};
@@ -83,7 +84,7 @@ pub async fn login(
         .login(&user)
         .await
         .map_err(|e| internal_err("Session login failed", e))?;
-    tracing::info!("User '{}' logged in from {}", user.username, addr.ip());
+    log_action_by_user!(user, "Logged in", client_ip = %addr.ip());
     Ok((
         jar,
         Json(LoginSuccess {
@@ -219,7 +220,10 @@ pub async fn change_password(
     .await
     .map_err(|e| internal_err("Failed to verify current password", e))?;
     if !is_valid {
-        tracing::warn!(user_id = user.id, username = %user.username, "Failed password change attempt: wrong current password");
+        log_refused_action_by_user!(
+            user,
+            "Failed password change attempt: wrong current password"
+        );
         return Err(ApiErrorResponse::unauthorized());
     }
     let new_password = payload.new_password;

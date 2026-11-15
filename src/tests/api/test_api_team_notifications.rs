@@ -59,7 +59,7 @@ async fn test_team_member_saves_slack_webhook_trimmed(pool: SqlitePool) {
         "https://hooks.slack.test/services/team-rocket"
     );
     assert!(logs_contain("Team notifications updated"));
-    assert!(logs_contain("username=maddie"));
+    assert!(logs_contain("action_by=maddie"));
     assert!(logs_contain("settings_in_request=slack_webhook_url set"));
     assert!(!logs_contain("hooks.slack.test"));
 }
@@ -658,7 +658,7 @@ async fn test_test_slack_posts_to_configured_webhook(pool: SqlitePool) {
     assert!(request.contains("https://github.com/johnwaghorn/site-oxidation"));
     assert!(request.contains("Triggered by: maddie"));
     assert!(logs_contain("Test Slack notification sent"));
-    assert!(logs_contain("username=maddie"));
+    assert!(logs_contain("action_by=maddie"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -699,7 +699,7 @@ async fn test_test_teams_posts_adaptive_card(pool: SqlitePool) {
     assert!(request.contains("Triggered by"));
     assert!(request.contains("maddie"));
     assert!(logs_contain("Test Microsoft Teams notification sent"));
-    assert!(logs_contain("username=maddie"));
+    assert!(logs_contain("action_by=maddie"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

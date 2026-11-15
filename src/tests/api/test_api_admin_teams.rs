@@ -51,7 +51,7 @@ async fn test_create_and_list_teams(pool: SqlitePool) {
     assert_eq!(body["per_page"], 20);
     assert_eq!(body["total"], 1);
     assert!(logs_contain("Team created"));
-    assert!(logs_contain("username=admin"));
+    assert!(logs_contain("action_by=admin"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -237,6 +237,7 @@ async fn test_team_sites_search_matches_name_or_url_within_team(pool: SqlitePool
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_unassign_site_from_team(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     insert_team(&pool, "Team Alpha").await;
@@ -268,6 +269,9 @@ async fn test_unassign_site_from_team(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(team_id, None);
+    assert!(logs_contain("Site unassigned from team"));
+    assert!(logs_contain("action_by=admin"));
+    assert!(logs_contain(&format!("site_name={TEST_SITE_NAME}")));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -425,7 +429,7 @@ async fn test_rename_team(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     assert!(logs_contain("Team renamed"));
-    assert!(logs_contain("username=admin"));
+    assert!(logs_contain("action_by=admin"));
     assert!(logs_contain("team_name=New Name"));
 }
 
@@ -471,7 +475,7 @@ async fn test_delete_empty_team(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(logs_contain("Team deleted"));
-    assert!(logs_contain("username=admin"));
+    assert!(logs_contain("action_by=admin"));
     assert!(logs_contain("team_name=Team Alpha"));
 }
 

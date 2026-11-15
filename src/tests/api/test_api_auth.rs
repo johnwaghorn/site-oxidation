@@ -324,7 +324,7 @@ async fn test_password_change_with_wrong_current_password_fails(pool: SqlitePool
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert!(logs_contain("Failed password change attempt"));
-    assert!(logs_contain("username=admin"));
+    assert!(logs_contain("action_by=admin"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

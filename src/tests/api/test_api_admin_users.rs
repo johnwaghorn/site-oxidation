@@ -20,6 +20,7 @@ async fn insert_user_in_two_teams(pool: &SqlitePool) -> i64 {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_create_and_list_users(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     insert_team(&pool, "Team A").await;
@@ -60,6 +61,11 @@ async fn test_create_and_list_users(pool: SqlitePool) {
     assert_eq!(body["page"], 1);
     assert_eq!(body["per_page"], 20);
     assert_eq!(body["total"], 2);
+    assert!(logs_contain("User created"));
+    assert!(logs_contain("action_by=admin"));
+    assert!(logs_contain("target_username=newuser"));
+    assert!(logs_contain("role=user team_id=1"));
+    assert!(!logs_contain("temp-pass-123"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -173,7 +179,7 @@ async fn test_create_user_rate_limit_is_logged(pool: SqlitePool) {
     let response = app.oneshot(request()).await.unwrap();
     assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
     assert!(logs_contain("Rate limited admin action"));
-    assert!(logs_contain("admin_username=admin"));
+    assert!(logs_contain("action_by=admin"));
     assert!(logs_contain("action=\"create_user\""));
 }
 
@@ -304,6 +310,7 @@ async fn test_create_duplicate_user_rolls_back(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_admin_can_change_user_role(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
@@ -328,6 +335,9 @@ async fn test_admin_can_change_user_role(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(role, "admin");
+    assert!(logs_contain("User updated"));
+    assert!(logs_contain("target_username=user1"));
+    assert!(logs_contain("role=admin active=true"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -351,6 +361,7 @@ async fn test_update_unknown_user_returns_not_found(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_delete_user_cascades_memberships_and_nonexistent_returns_404(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
@@ -390,6 +401,8 @@ async fn test_delete_user_cascades_memberships_and_nonexistent_returns_404(pool:
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert!(logs_contain("User deleted"));
+    assert!(logs_contain("target_username=user1"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
@@ -476,6 +489,7 @@ async fn test_can_demote_admin_with_team(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_reset_password_sets_must_change(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
@@ -501,6 +515,9 @@ async fn test_reset_password_sets_must_change(pool: SqlitePool) {
             .await
             .unwrap();
     assert!(must_change);
+    assert!(logs_contain("User password reset"));
+    assert!(logs_contain("target_username=user1"));
+    assert!(!logs_contain("new-temp-pass-123"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

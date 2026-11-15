@@ -10,6 +10,7 @@ use super::queries;
 use super::requests::{CreateUserRequest, ResetPasswordRequest, UpdateUserRequest};
 use super::responses::{CreateUserResponse, UserResponse};
 use super::rules;
+use crate::api::action_log::{id_or_none, log_action_by_user, log_refused_action_by_user};
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{
     ApiError, ApiErrorResponse, foreign_key_err, internal_err, unique_conflict_err,
@@ -92,7 +93,7 @@ pub async fn create_user(
 ) -> Result<(StatusCode, Json<CreateUserResponse>), ApiErrorResponse> {
     let limiter_key = format!("create_user:{}", admin.id);
     if limiter.try_acquire(&limiter_key).is_none() {
-        tracing::warn!(admin_id = admin.id, admin_username = %admin.username, action = "create_user", "Rate limited admin action");
+        log_refused_action_by_user!(admin, "Rate limited admin action", action = "create_user");
         return Err(ApiErrorResponse::too_many_requests(
             "Too many admin actions, try again later",
         ));
@@ -132,6 +133,7 @@ pub async fn create_user(
     tx.commit()
         .await
         .map_err(|e| internal_err("Failed to commit user creation", e))?;
+    log_action_by_user!(admin, "User created", target_user_id = id, target_username = %payload.username.as_str(), role = %role_str, team_id = %id_or_none(team_id));
 
     Ok((
         StatusCode::CREATED,
@@ -202,21 +204,23 @@ pub async fn update_user(
         UserRole::Admin => "admin",
         UserRole::User => "user",
     };
-    let updated: Option<i64> = sqlx::query_scalar(queries::UPDATE_USER)
-        .bind(role_str)
-        .bind(payload.active)
-        .bind(id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|e| internal_err("Failed to update user", e))?;
+    let updated_username: Option<String> =
+        sqlx::query_scalar(queries::UPDATE_USER_RETURNING_USERNAME)
+            .bind(role_str)
+            .bind(payload.active)
+            .bind(id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to update user", e))?;
 
-    rules::ensure_user_mutation_applied(
+    let target_username = rules::ensure_user_mutation_applied(
         &pool,
         id,
-        updated,
+        updated_username,
         "Cannot demote an admin without assigning at least one team",
     )
     .await?;
+    log_action_by_user!(admin, "User updated", target_user_id = id, target_username = %target_username, role = %role_str, active = payload.active);
     Ok(Json(SuccessResponse { success: true }))
 }
 
@@ -243,13 +247,20 @@ pub async fn delete_user(
     if let Some(message) = rules::self_delete_error(&admin, id) {
         return Err(ApiErrorResponse::conflict(message));
     }
-    let deleted: Option<i64> = sqlx::query_scalar(queries::DELETE_USER)
-        .bind(id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|e| internal_err("Failed to delete user", e))?;
-    rules::ensure_user_mutation_applied(&pool, id, deleted, "Cannot delete the last active admin")
-        .await?;
+    let deleted_username: Option<String> =
+        sqlx::query_scalar(queries::DELETE_USER_RETURNING_USERNAME)
+            .bind(id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to delete user", e))?;
+    let target_username = rules::ensure_user_mutation_applied(
+        &pool,
+        id,
+        deleted_username,
+        "Cannot delete the last active admin",
+    )
+    .await?;
+    log_action_by_user!(admin, "User deleted", target_user_id = id, target_username = %target_username);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -279,7 +290,11 @@ pub async fn reset_password(
 ) -> Result<Json<SuccessResponse>, ApiErrorResponse> {
     let limiter_key = format!("reset_password:{}", admin.id);
     if limiter.try_acquire(&limiter_key).is_none() {
-        tracing::warn!(admin_id = admin.id, admin_username = %admin.username, action = "reset_password", "Rate limited admin action");
+        log_refused_action_by_user!(
+            admin,
+            "Rate limited admin action",
+            action = "reset_password"
+        );
         return Err(ApiErrorResponse::too_many_requests(
             "Too many admin actions, try again later",
         ));
@@ -290,14 +305,16 @@ pub async fn reset_password(
     let hash = task::spawn_blocking(move || generate_hash(&password))
         .await
         .map_err(|e| internal_err("Failed to hash password", e))?;
-    let updated: Option<i64> = sqlx::query_scalar(queries::RESET_PASSWORD)
-        .bind(&hash)
-        .bind(id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(|e| internal_err("Failed to reset password", e))?;
-    if updated.is_none() {
+    let target_username: Option<String> =
+        sqlx::query_scalar(queries::RESET_PASSWORD_RETURNING_USERNAME)
+            .bind(&hash)
+            .bind(id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| internal_err("Failed to reset password", e))?;
+    let Some(target_username) = target_username else {
         return Err(ApiErrorResponse::not_found("User"));
-    }
+    };
+    log_action_by_user!(admin, "User password reset", target_user_id = id, target_username = %target_username);
     Ok(Json(SuccessResponse { success: true }))
 }

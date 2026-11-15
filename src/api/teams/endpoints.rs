@@ -6,6 +6,7 @@ use super::queries;
 use super::requests::UpdateTeamNotificationsRequest;
 use super::responses::{TeamNotificationSummary, TeamNotificationsResponse};
 use super::rules;
+use crate::api::action_log::log_action_by_user;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::{JsonPayload, RequireAppAccess};
@@ -162,7 +163,7 @@ pub async fn update_notifications(
         .commit()
         .await
         .map_err(|e| internal_err("Failed to update team notifications", e))?;
-    tracing::info!(user_id = user.id, username = %user.username, team_id = id, settings_in_request = %update.describe_settings_in_request_without_secrets().join(", "), "Team notifications updated");
+    log_action_by_user!(user, "Team notifications updated", team_id = id, settings_in_request = %update.describe_settings_in_request_without_secrets().join(", "));
     Ok(Json(response))
 }
 
@@ -204,7 +205,7 @@ pub async fn test_email_notification(
         .test_email(&smtp, &user.username)
         .await
         .map_err(|error| ApiErrorResponse::bad_gateway(&format!("Test email failed: {error}")))?;
-    tracing::info!(user_id = user.id, username = %user.username, team_id = id, "Test email sent");
+    log_action_by_user!(user, "Test email sent", team_id = id);
     Ok(Json(SuccessResponse { success: true }))
 }
 
@@ -248,7 +249,7 @@ pub async fn test_slack_notification(
         .map_err(|error| {
             ApiErrorResponse::bad_gateway(&format!("Slack test message failed: {error}"))
         })?;
-    tracing::info!(user_id = user.id, username = %user.username, team_id = id, "Test Slack notification sent");
+    log_action_by_user!(user, "Test Slack notification sent", team_id = id);
     Ok(Json(SuccessResponse { success: true }))
 }
 
@@ -292,6 +293,6 @@ pub async fn test_teams_notification(
         .map_err(|error| {
             ApiErrorResponse::bad_gateway(&format!("Microsoft Teams test message failed: {error}"))
         })?;
-    tracing::info!(user_id = user.id, username = %user.username, team_id = id, "Test Microsoft Teams notification sent");
+    log_action_by_user!(user, "Test Microsoft Teams notification sent", team_id = id);
     Ok(Json(SuccessResponse { success: true }))
 }

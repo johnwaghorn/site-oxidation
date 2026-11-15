@@ -390,8 +390,12 @@ async fn test_create_site(pool: SqlitePool) {
     let body = parse_json_body(response).await;
     assert!(!body["created_at"].as_str().unwrap().is_empty());
     assert!(logs_contain("Site added"));
-    assert!(logs_contain("username=admin"));
-    assert!(logs_contain(&format!("site_url={TEST_SITE_URL}")));
+    assert!(logs_contain("action_by=admin action_by_user_id=1"));
+    assert!(logs_contain(&format!(
+        "site_url={TEST_SITE_URL} team_id=none"
+    )));
+    assert!(logs_contain("Logged in action_by=admin"));
+    assert!(logs_contain("client_ip=127.0.0.1"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

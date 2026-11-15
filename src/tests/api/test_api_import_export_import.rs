@@ -8,6 +8,7 @@ use axum::{
 };
 use sqlx::{Row, SqlitePool};
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 #[sqlx::test(migrations = "./migrations")]
 async fn test_import_requires_authentication(pool: SqlitePool) {
@@ -28,6 +29,7 @@ async fn test_import_requires_authentication(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_import_adds_new_site_with_its_settings(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
     insert_team_sites(&pool, user_id).await;
@@ -75,9 +77,13 @@ async fn test_import_adds_new_site_with_its_settings(pool: SqlitePool) {
     assert!(site.get::<bool, _>("tls_allow_untrusted"));
     assert_eq!(site.get::<Option<i64>, _>("team_id"), Some(1));
     assert_eq!(site.get::<String, _>("status"), "pending", "not probed yet");
+    assert!(logs_contain("Sites imported"));
+    assert!(logs_contain("action_by=user1"));
+    assert!(logs_contain("sites_added=1 sites_skipped=0"));
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_import_skips_site_already_in_team(pool: SqlitePool) {
     let user_id = insert_test_user(&pool, "user1", TEST_PASSWORD, "user", false).await;
     insert_team_sites(&pool, user_id).await;
@@ -102,6 +108,7 @@ async fn test_import_skips_site_already_in_team(pool: SqlitePool) {
     let body = parse_json_body(response).await;
     assert_eq!(body["sites"][0]["outcome"], "skipped");
     assert_eq!(count_sites(&pool).await, 3);
+    assert!(logs_contain("sites_added=0 sites_skipped=1"));
 }
 
 #[sqlx::test(migrations = "./migrations")]

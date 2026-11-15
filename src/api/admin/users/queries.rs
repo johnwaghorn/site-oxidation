@@ -41,25 +41,25 @@ pub const TEAM_EXISTS: &str = "SELECT COUNT(*) FROM teams WHERE id = ?";
 
 pub const ADD_TEAM_MEMBER: &str = "INSERT INTO team_members (team_id, user_id) VALUES (?, ?)";
 
-pub const UPDATE_USER: &str = concat!(
+pub const UPDATE_USER_RETURNING_USERNAME: &str = concat!(
     "UPDATE users SET role = ?1, active = ?2, ",
     "  auth_revision = auth_revision + (role != ?1 OR active != ?2) ",
     "WHERE id = ?3 AND (",
     "  ?1 != 'user' ",
     "  OR EXISTS(SELECT 1 FROM team_members WHERE user_id = ?3)",
-    ") RETURNING id"
+    ") RETURNING username"
 );
 
 pub const USER_EXISTS: &str = "SELECT EXISTS(SELECT 1 FROM users WHERE id = ?)";
 
-pub const DELETE_USER: &str = concat!(
+pub const DELETE_USER_RETURNING_USERNAME: &str = concat!(
     "DELETE FROM users WHERE id = ?1 AND (",
     "  role != 'admin' OR active = 0 ",
     "  OR (SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1) > 1",
-    ") RETURNING id"
+    ") RETURNING username"
 );
 
-pub const RESET_PASSWORD: &str = "UPDATE users SET password = ?, must_change_password = 1, auth_revision = auth_revision + 1 WHERE id = ? RETURNING id";
+pub const RESET_PASSWORD_RETURNING_USERNAME: &str = "UPDATE users SET password = ?, must_change_password = 1, auth_revision = auth_revision + 1 WHERE id = ? RETURNING username";
 
 pub const COUNT_ACTIVE_ADMINS: &str =
     "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1";

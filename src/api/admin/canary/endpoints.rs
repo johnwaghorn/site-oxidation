@@ -1,5 +1,6 @@
 use super::requests::UpdateCanarySettingsRequest;
 use super::responses::CanarySettingsResponse;
+use crate::api::action_log::log_action_by_user;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::{JsonPayload, RequireAdmin};
 use crate::canary;
@@ -50,7 +51,7 @@ pub async fn get_settings(
     security(("session_cookie" = [])),
 )]
 pub async fn update_settings(
-    RequireAdmin(_user): RequireAdmin,
+    RequireAdmin(admin): RequireAdmin,
     State(state): State<AppState>,
     JsonPayload(payload): JsonPayload<UpdateCanarySettingsRequest>,
 ) -> Result<Json<CanarySettingsResponse>, ApiErrorResponse> {
@@ -58,6 +59,7 @@ pub async fn update_settings(
     canary::update_settings(&state.pool, &config)
         .await
         .map_err(|error| internal_err("Failed to update canary settings", error))?;
+    log_action_by_user!(admin, "Canary settings updated", canary_enabled = config.enabled, canary_url = %config.url.as_deref().unwrap_or("none"), canary_timeout_secs = config.timeout_secs);
     current_settings_response(&state).await
 }
 

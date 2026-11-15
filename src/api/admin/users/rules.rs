@@ -78,11 +78,11 @@ pub async fn ensure_not_last_active_admin(
 pub async fn ensure_user_mutation_applied(
     pool: &SqlitePool,
     target_user_id: i64,
-    mutated_user_id: Option<i64>,
+    mutated_username: Option<String>,
     conflict_message: &'static str,
-) -> Result<(), ApiErrorResponse> {
-    if mutated_user_id.is_some() {
-        return Ok(());
+) -> Result<String, ApiErrorResponse> {
+    if let Some(mutated_username) = mutated_username {
+        return Ok(mutated_username);
     }
     let user_exists: bool = sqlx::query_scalar(queries::USER_EXISTS)
         .bind(target_user_id)

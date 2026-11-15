@@ -4,6 +4,7 @@ use axum::extract::{Query, State};
 use super::queries::IMPORT_SITE;
 use super::requests::{ImportSitesParams, SiteImportRequest};
 use super::responses::{ImportOutcome, ImportedSiteResult, SiteImportResponse};
+use crate::api::action_log::{id_or_none, log_action_by_user};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::{JsonPayload, RequireAppAccess};
 use crate::api::import_export::SITE_EXPORT_VERSION;
@@ -86,5 +87,11 @@ pub async fn import_sites(
         .commit()
         .await
         .map_err(|e| internal_err("Failed to commit site import", e))?;
+    let sites_added = results
+        .iter()
+        .filter(|result| matches!(result.outcome, ImportOutcome::Added))
+        .count();
+    let sites_skipped = results.len().saturating_sub(sites_added);
+    log_action_by_user!(user, "Sites imported", team_id = %id_or_none(team_id), sites_added, sites_skipped);
     Ok(Json(SiteImportResponse { sites: results }))
 }

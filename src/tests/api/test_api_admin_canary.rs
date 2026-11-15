@@ -8,6 +8,7 @@ use axum::http::{Request, StatusCode};
 use sqlx::SqlitePool;
 use std::time::Duration;
 use tower::ServiceExt;
+use tracing_test::traced_test;
 
 fn settings_request(method: &str, cookie: &str, body: Body) -> Request<Body> {
     Request::builder()
@@ -20,6 +21,7 @@ fn settings_request(method: &str, cookie: &str, body: Body) -> Request<Body> {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+#[traced_test]
 async fn test_admin_can_update_canary_settings(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let app = test_app(pool);
@@ -66,6 +68,11 @@ async fn test_admin_can_update_canary_settings(pool: SqlitePool) {
     assert_eq!(body["enabled"], true);
     assert_eq!(body["url"], "https://status.waghorn.tech/health");
     assert_eq!(body["state"], "unknown");
+    assert!(logs_contain("Canary settings updated"));
+    assert!(logs_contain("action_by=admin"));
+    assert!(logs_contain(
+        "canary_enabled=true canary_url=https://status.waghorn.tech/health canary_timeout_secs=9"
+    ));
 }
 
 #[sqlx::test(migrations = "./migrations")]

@@ -17,6 +17,7 @@ use super::uptime::{
     uptime_window_start, window_summary,
 };
 use super::{OutageResponse, SitePayload, SiteResponse};
+use crate::api::action_log::{id_or_none, log_action_by_user};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
 use crate::api::extractors::{JsonPayload, RequireAdmin, RequireAppAccess};
 use crate::api::pagination::{PaginatedResponse, PaginationParams};
@@ -357,7 +358,7 @@ pub async fn create_site(
                 e,
             )
         })?;
-    tracing::info!(user_id = user.id, username = %user.username, site_id = id, site_name = %payload.name.as_str(), site_url = %payload.url.as_str(), team_id = ?team_id, "Site added");
+    log_action_by_user!(user, "Site added", site_id = id, site_name = %payload.name.as_str(), site_url = %payload.url.as_str(), team_id = %id_or_none(team_id));
     let site = reload_site(&state.pool, id).await?;
     Ok((StatusCode::CREATED, Json(site)))
 }
@@ -409,7 +410,7 @@ pub async fn update_site(
     if updated.is_none() {
         return Err(ApiErrorResponse::not_found("Site"));
     }
-    tracing::info!(user_id = user.id, username = %user.username, site_id = id, site_name = %payload.name.as_str(), site_url = %payload.url.as_str(), team_id = ?team_id, "Site updated");
+    log_action_by_user!(user, "Site updated", site_id = id, site_name = %payload.name.as_str(), site_url = %payload.url.as_str(), team_id = %id_or_none(team_id));
     let site = reload_site(&state.pool, id).await?;
     Ok(Json(site))
 }
@@ -446,6 +447,6 @@ pub async fn delete_site(
     let Some((site_name, site_url)) = deleted else {
         return Err(ApiErrorResponse::not_found("Site"));
     };
-    tracing::info!(user_id = user.id, username = %user.username, site_id = id, site_name = %site_name, site_url = %site_url, "Site deleted");
+    log_action_by_user!(user, "Site deleted", site_id = id, site_name = %site_name, site_url = %site_url);
     Ok(StatusCode::NO_CONTENT)
 }

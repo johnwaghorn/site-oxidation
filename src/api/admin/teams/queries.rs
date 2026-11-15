@@ -79,8 +79,8 @@ pub const LIST_TEAM_SITES: &str = concat!(
     "ORDER BY s.id DESC LIMIT ?3 OFFSET ?4"
 );
 
-pub const UNASSIGN_TEAM_SITE: &str =
-    "UPDATE sites SET team_id = NULL WHERE team_id = ? AND id = ? RETURNING id";
+pub const UNASSIGN_TEAM_SITE_RETURNING_SITE_NAME: &str =
+    "UPDATE sites SET team_id = NULL WHERE team_id = ? AND id = ? RETURNING name";
 
 pub const ADD_TEAM_MEMBER: &str = "INSERT INTO team_members (team_id, user_id) VALUES (?, ?)";
 
