@@ -19,7 +19,7 @@
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.105.0",
+    "@tanstack/react-query": "^5.107.1",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -27,8 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.64.1",
-    "@tanstack/eslint-plugin-query": "^5.105.0",
+    "@playwright/test": "^1.65.0",
+    "@tanstack/eslint-plugin-query": "^5.107.1",
     "@types/node": "^26.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -38,11 +38,11 @@
     "eslint-plugin-promise": "^7.2.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "globals": "^17.13.0",
+    "globals": "^17.14.0",
     "openapi-typescript": "^7.10.1",
     "prettier": "^3.9.10",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",
-    "vite": "^8.3.5"
+    "vite": "^8.3.6"
   }
 }
