@@ -79,7 +79,7 @@ fn outage_as_csv_row(outage: &OutageResponse) -> String {
     });
     let fields = [
         timestamp_in_utc(outage.started_at),
-        outage.ended_at.map(timestamp_in_utc).unwrap_or_default(),
+        outage.ended_at.map_or_default(timestamp_in_utc),
         number_or_empty(duration_seconds),
         number_or_empty(outage.http_status),
         number_or_empty(outage.expected_status),
@@ -95,7 +95,7 @@ fn timestamp_in_utc(timestamp: DateTime<Utc>) -> String {
 }
 
 fn number_or_empty(number: Option<i64>) -> String {
-    number.map(|number| number.to_string()).unwrap_or_default()
+    number.map_or_default(|number| number.to_string())
 }
 
 fn csv_text_field(text: &str) -> String {
