@@ -89,7 +89,10 @@ pub const LIST_OUTAGES_OLDEST_FIRST_AFTER_OUTAGE_ID: &str = concat!(
 // Uptime
 pub const LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS: &str = concat!(
     "SELECT site_id, started_at, ended_at FROM outages ",
-    "WHERE site_id IN (SELECT value FROM json_each(?)) AND (ended_at IS NULL OR ended_at > ?)"
+    "WHERE site_id IN (SELECT value FROM json_each(?1)) AND ended_at > ?2 ",
+    "UNION ALL ",
+    "SELECT site_id, started_at, ended_at FROM outages ",
+    "WHERE site_id IN (SELECT value FROM json_each(?1)) AND ended_at IS NULL"
 );
 
 pub const LIST_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS: &str = concat!(
@@ -109,8 +112,10 @@ pub const SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT: &str =
 
 pub const LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW: &str = concat!(
     "SELECT started_at, ended_at FROM outages ",
-    "WHERE site_id = ? AND (ended_at IS NULL OR ended_at > ?) ",
-    "ORDER BY started_at"
+    "WHERE site_id = ?1 AND ended_at > ?2 ",
+    "UNION ALL ",
+    "SELECT started_at, ended_at FROM outages ",
+    "WHERE site_id = ?1 AND ended_at IS NULL"
 );
 
 // Mutations

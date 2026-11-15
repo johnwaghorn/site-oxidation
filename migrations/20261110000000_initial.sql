@@ -131,6 +131,7 @@ CREATE INDEX idx_sessions_user_id ON sessions (user_id);
 CREATE INDEX idx_sessions_expiry_date ON sessions (expiry_date);
 CREATE UNIQUE INDEX idx_one_open_outage ON outages(site_id) WHERE ended_at IS NULL;
 CREATE INDEX idx_outages_site_started ON outages(site_id, started_at);
+CREATE INDEX idx_outages_site_ended ON outages(site_id, ended_at);
 CREATE UNIQUE INDEX idx_one_open_blocked_period ON site_blocked_periods(site_id) WHERE ended_at IS NULL;
 CREATE INDEX idx_site_blocked_periods_site_started ON site_blocked_periods(site_id, started_at);
 CREATE UNIQUE INDEX idx_one_open_canary_period ON canary_history((ended_at IS NULL)) WHERE ended_at IS NULL;

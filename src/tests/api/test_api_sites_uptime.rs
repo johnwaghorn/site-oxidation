@@ -441,6 +441,188 @@ async fn test_site_uptime_figure_only_covers_the_last_90_days(pool: SqlitePool) 
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_site_uptime_figure_counts_an_outage_already_under_way_90_days_ago(pool: SqlitePool) {
+    let site_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
+         VALUES ('Year Old', 'https://year-old.waghorn.tech', 'up', \
+                 datetime('now', '-365 days'), datetime('now')) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
+         (?1, datetime('now', '-300 days'), datetime('now', '-299 days')), \
+         (?1, datetime('now', '-100 days'), datetime('now', '-89 days'))",
+    )
+    .bind(site_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO monitoring_periods (started_at, last_seen_at) \
+         VALUES (datetime('now', '-365 days'), datetime('now'))",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{site_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["uptime_basis_points"], 9888,
+        "the outage ran for the first day of the 90, so 1 day down in 90 is 98.88%"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_uptime_days_include_an_outage_that_began_before_the_first_day(pool: SqlitePool) {
+    let site_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
+         VALUES ('Month Old', 'https://month-old.waghorn.tech', 'up', \
+                 datetime('now', '-30 days'), datetime('now')) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
+         (?1, datetime('now', '-20 days'), datetime('now', '-19 days')), \
+         (?1, datetime('now', '-10 days'), datetime('now', '-3 days'))",
+    )
+    .bind(site_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO monitoring_periods (started_at, last_seen_at) \
+         VALUES (datetime('now', '-30 days'), datetime('now'))",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{site_id}/uptime?days=7&time_zone=UTC"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["days"][0]["down_seconds"], 86_400);
+    assert_eq!(body["days"][0]["outage_count"], 1);
+    assert_eq!(body["days"][0]["uptime_basis_points"], 0);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_uptime_figure_counts_an_older_outage_overlapping_a_newer_finished_one(
+    pool: SqlitePool,
+) {
+    let site_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
+         VALUES ('Year Old', 'https://year-old.waghorn.tech', 'up', \
+                 datetime('now', '-365 days'), datetime('now')) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
+         (?1, datetime('now', '-200 days'), datetime('now', '-89 days')), \
+         (?1, datetime('now', '-150 days'), datetime('now', '-140 days'))",
+    )
+    .bind(site_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO monitoring_periods (started_at, last_seen_at) \
+         VALUES (datetime('now', '-365 days'), datetime('now'))",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{site_id}"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["uptime_basis_points"], 9888,
+        "the older outage ran for the first day of the 90, so 1 day down in 90 is 98.88%"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_uptime_days_include_an_older_outage_overlapping_a_newer_finished_one(
+    pool: SqlitePool,
+) {
+    let site_id: i64 = sqlx::query_scalar(
+        "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
+         VALUES ('Month Old', 'https://month-old.waghorn.tech', 'up', \
+                 datetime('now', '-30 days'), datetime('now')) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
+         (?1, datetime('now', '-20 days'), datetime('now', '-3 days')), \
+         (?1, datetime('now', '-15 days'), datetime('now', '-12 days'))",
+    )
+    .bind(site_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO monitoring_periods (started_at, last_seen_at) \
+         VALUES (datetime('now', '-30 days'), datetime('now'))",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{site_id}/uptime?days=7&time_zone=UTC"))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["days"][0]["down_seconds"], 86_400);
+    assert_eq!(body["days"][0]["outage_count"], 1);
+    assert_eq!(body["days"][0]["uptime_basis_points"], 0);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_site_uptime_leaves_out_time_the_monitor_was_not_running(pool: SqlitePool) {
     let site_id = insert_site_added_a_day_ago_with_outage(&pool, 864).await;
     sqlx::query(
