@@ -1,3 +1,32 @@
+macro_rules! team_notification_summaries_cte {
+    () => {
+        concat!(
+            "WITH channels_and_events AS ( ",
+            "  SELECT t.id AS team_id, t.name AS team_name, ",
+            "  n.slack_webhook_url IS NOT NULL AS slack_enabled, ",
+            "  n.microsoft_teams_webhook_url IS NOT NULL AS microsoft_teams_enabled, ",
+            "  (n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
+            "    AND n.smtp_to_email IS NOT NULL) AS email_enabled, ",
+            "  COALESCE(n.notify_site_down, 1) AS notify_site_down, ",
+            "  COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered, ",
+            "  COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring ",
+            "  FROM teams t ",
+            "  LEFT JOIN team_notification_settings n ON n.team_id = t.id ",
+            "  WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
+            "  AND (?2 IS NULL OR EXISTS ( ",
+            "    SELECT 1 FROM team_members tm WHERE tm.team_id = t.id AND tm.user_id = ?2 ",
+            "  )) ",
+            "), team_notification_summaries AS ( ",
+            "  SELECT *, ",
+            "  (slack_enabled OR microsoft_teams_enabled OR email_enabled) ",
+            "    AND (notify_site_down OR notify_site_recovered OR notify_cert_expiring) ",
+            "    AS sends_alerts ",
+            "  FROM channels_and_events ",
+            ") "
+        )
+    };
+}
+
 pub const TEAM_EXISTS: &str = "SELECT EXISTS(SELECT 1 FROM teams WHERE id = ?)";
 
 pub const CHECK_TEAM_MEMBERSHIP: &str =
@@ -18,40 +47,16 @@ pub const SELECT_TEAMS_WEBHOOK_URL: &str =
     "SELECT microsoft_teams_webhook_url FROM team_notification_settings WHERE team_id = ?";
 
 pub const LIST_TEAM_NOTIFICATION_SUMMARIES: &str = concat!(
-    "SELECT t.id AS team_id, t.name AS team_name, ",
-    "n.slack_webhook_url IS NOT NULL AS slack_enabled, ",
-    "n.microsoft_teams_webhook_url IS NOT NULL AS microsoft_teams_enabled, ",
-    "(n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
-    "  AND n.smtp_to_email IS NOT NULL) AS email_enabled, ",
-    "COALESCE(n.notify_site_down, 1) AS notify_site_down, ",
-    "COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered, ",
-    "COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring ",
-    "FROM teams t ",
-    "LEFT JOIN team_notification_settings n ON n.team_id = t.id ",
-    "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
-    "AND (?2 IS NULL OR EXISTS ( ",
-    "  SELECT 1 FROM team_members tm WHERE tm.team_id = t.id AND tm.user_id = ?2 ",
-    ")) ",
-    "AND (?3 IS NULL OR ?3 = ( ",
-    "  n.slack_webhook_url IS NOT NULL OR n.microsoft_teams_webhook_url IS NOT NULL ",
-    "  OR (n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
-    "    AND n.smtp_to_email IS NOT NULL) ",
-    ")) ",
-    "ORDER BY t.name, t.id LIMIT ?4 OFFSET ?5"
+    team_notification_summaries_cte!(),
+    "SELECT * FROM team_notification_summaries ",
+    "WHERE (?3 IS NULL OR sends_alerts = ?3) ",
+    "ORDER BY team_name, team_id LIMIT ?4 OFFSET ?5"
 );
 
 pub const COUNT_TEAM_NOTIFICATION_SUMMARIES: &str = concat!(
-    "SELECT COUNT(*) FROM teams t ",
-    "LEFT JOIN team_notification_settings n ON n.team_id = t.id ",
-    "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
-    "AND (?2 IS NULL OR EXISTS ( ",
-    "  SELECT 1 FROM team_members tm WHERE tm.team_id = t.id AND tm.user_id = ?2 ",
-    ")) ",
-    "AND (?3 IS NULL OR ?3 = ( ",
-    "  n.slack_webhook_url IS NOT NULL OR n.microsoft_teams_webhook_url IS NOT NULL ",
-    "  OR (n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
-    "    AND n.smtp_to_email IS NOT NULL) ",
-    "))"
+    team_notification_summaries_cte!(),
+    "SELECT COUNT(*) FROM team_notification_summaries ",
+    "WHERE (?3 IS NULL OR sends_alerts = ?3)"
 );
 
 pub const SELECT_NOTIFICATIONS: &str = concat!(

@@ -18,7 +18,7 @@ export interface TeamNotificationSummariesFilters {
   page: NonNullable<ListTeamNotificationSummariesQuery["page"]>;
   perPage: NonNullable<ListTeamNotificationSummariesQuery["per_page"]>;
   search?: ListTeamNotificationSummariesQuery["search"];
-  hasAlertChannel?: ListTeamNotificationSummariesQuery["has_alert_channel"];
+  sendsAlerts?: ListTeamNotificationSummariesQuery["sends_alerts"];
 }
 
 export function useTeamNotificationSummaries(
@@ -33,7 +33,7 @@ export function useTeamNotificationSummaries(
             page: filters.page,
             per_page: filters.perPage,
             search: filters.search || undefined,
-            has_alert_channel: filters.hasAlertChannel,
+            sends_alerts: filters.sendsAlerts,
           },
         },
       });

@@ -39,18 +39,26 @@ type TestNotificationMutation = UseMutationResult<
 >;
 type Channel = "slack" | "teams" | "email";
 
-const ALERT_CHANNEL_FILTERS: {
+const SENDS_ALERTS_FILTERS: {
   label: string;
-  hasAlertChannel: boolean | null;
+  sendsAlerts: boolean | null;
 }[] = [
-  { label: "All", hasAlertChannel: null },
-  { label: "Alerts on", hasAlertChannel: true },
-  { label: "No alerts", hasAlertChannel: false },
+  { label: "All", sendsAlerts: null },
+  { label: "Alerts on", sendsAlerts: true },
+  { label: "No alerts", sendsAlerts: false },
 ];
 
 function isEmailConfigured(settings: TeamNotifications | undefined) {
   return Boolean(
     settings?.smtp_host && settings.smtp_from_email && settings.smtp_to_email,
+  );
+}
+
+function isEveryAlertSwitchedOff(settings: TeamNotifications) {
+  return (
+    !settings.notify_site_down &&
+    !settings.notify_site_recovered &&
+    !settings.notify_cert_expiring
   );
 }
 
@@ -113,17 +121,17 @@ export function Notifications() {
 function TeamNotificationsList() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
-  const [hasAlertChannelFilter, setHasAlertChannelFilter] = useState<
-    boolean | null
-  >(null);
+  const [sendsAlertsFilter, setSendsAlertsFilter] = useState<boolean | null>(
+    null,
+  );
   const { page, perPage, goToPage, correctPage } = usePagination(
-    `${debouncedSearch}|${hasAlertChannelFilter ?? ""}`,
+    `${debouncedSearch}|${sendsAlertsFilter ?? ""}`,
   );
   const { data, isLoading, error } = useTeamNotificationSummaries({
     page,
     perPage,
     search: debouncedSearch || undefined,
-    hasAlertChannel: hasAlertChannelFilter ?? undefined,
+    sendsAlerts: sendsAlertsFilter ?? undefined,
   });
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
 
@@ -148,17 +156,13 @@ function TeamNotificationsList() {
               role="group"
               aria-label="Filter by alerts"
             >
-              {ALERT_CHANNEL_FILTERS.map((filter) => (
+              {SENDS_ALERTS_FILTERS.map((filter) => (
                 <button
                   key={filter.label}
                   type="button"
                   className="segmented-button"
-                  aria-pressed={
-                    hasAlertChannelFilter === filter.hasAlertChannel
-                  }
-                  onClick={() =>
-                    setHasAlertChannelFilter(filter.hasAlertChannel)
-                  }
+                  aria-pressed={sendsAlertsFilter === filter.sendsAlerts}
+                  onClick={() => setSendsAlertsFilter(filter.sendsAlerts)}
                 >
                   {filter.label}
                 </button>
@@ -207,12 +211,17 @@ function TeamSettings({ team }: { team: UserTeam }) {
         <ErrorMessage error={error} />
       ) : data ? (
         <>
-          {countChannelsOn(data) === 0 && (
+          {countChannelsOn(data) === 0 ? (
             <p className="warning-box">
               Nobody will be alerted when this team&apos;s sites go down. Set up
               at least one channel.
             </p>
-          )}
+          ) : isEveryAlertSwitchedOff(data) ? (
+            <p className="warning-box">
+              Nobody will be alerted because every alert below is switched off.
+              Turn on at least one.
+            </p>
+          ) : null}
           <h3 className="notification-section-title">Channels</h3>
           <ul className="channel-list">
             <ChannelRow

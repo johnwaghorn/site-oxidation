@@ -863,6 +863,7 @@ export interface components {
             notify_cert_expiring: boolean;
             notify_site_down: boolean;
             notify_site_recovered: boolean;
+            sends_alerts: boolean;
             slack_enabled: boolean;
             /** Format: int64 */
             team_id: number;
@@ -3367,7 +3368,7 @@ export interface operations {
                 per_page?: number;
                 /** @description Case-insensitive substring match. */
                 search?: string;
-                has_alert_channel?: boolean;
+                sends_alerts?: boolean;
             };
             header?: never;
             path?: never;
@@ -3388,6 +3389,7 @@ export interface operations {
                             notify_cert_expiring: boolean;
                             notify_site_down: boolean;
                             notify_site_recovered: boolean;
+                            sends_alerts: boolean;
                             slack_enabled: boolean;
                             /** Format: int64 */
                             team_id: number;

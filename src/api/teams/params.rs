@@ -6,7 +6,7 @@ use utoipa::IntoParams;
 #[into_params(parameter_in = Query)]
 #[allow(dead_code)]
 pub struct ListTeamNotificationSummariesParams {
-    pub has_alert_channel: Option<bool>,
+    pub sends_alerts: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -16,5 +16,5 @@ pub struct ListTeamNotificationSummariesQuery {
     #[serde(default, deserialize_with = "deserialize_u32_params")]
     pub per_page: Option<u32>,
     pub search: Option<String>,
-    pub has_alert_channel: Option<bool>,
+    pub sends_alerts: Option<bool>,
 }

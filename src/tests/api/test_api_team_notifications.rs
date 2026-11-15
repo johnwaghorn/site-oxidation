@@ -774,6 +774,7 @@ async fn test_notification_summaries_list_only_the_users_teams(pool: SqlitePool)
     assert_eq!(summary["slack_enabled"], true);
     assert_eq!(summary["microsoft_teams_enabled"], false);
     assert_eq!(summary["email_enabled"], false);
+    assert_eq!(summary["sends_alerts"], true);
     assert_eq!(summary["notify_site_down"], true);
     assert_eq!(summary["notify_site_recovered"], false);
     assert_eq!(summary["notify_cert_expiring"], true);
@@ -823,9 +824,10 @@ async fn test_admin_sees_every_team_in_notification_summaries_and_can_search(poo
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_notification_summaries_filter_by_whether_team_has_an_alert_channel(pool: SqlitePool) {
+async fn test_notification_summaries_filter_by_whether_team_sends_alerts(pool: SqlitePool) {
     insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
     let email_team_id = insert_team(&pool, "Email Team").await;
+    let every_alert_off_team_id = insert_team(&pool, "Every Alert Off").await;
     let half_set_up_team_id = insert_team(&pool, "Half Set Up").await;
     insert_team(&pool, "Nothing Saved").await;
     sqlx::query(
@@ -835,11 +837,20 @@ async fn test_notification_summaries_filter_by_whether_team_has_an_alert_channel
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query("INSERT INTO team_notification_settings (team_id, smtp_host) VALUES (?, 'smtp.waghorn.tech')")
-        .bind(half_set_up_team_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO team_notification_settings (team_id, slack_webhook_url, notify_site_down, notify_site_recovered, notify_cert_expiring) VALUES (?, 'https://hooks.slack.test/services/every-alert-off', 0, 0, 0)",
+    )
+    .bind(every_alert_off_team_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO team_notification_settings (team_id, smtp_host) VALUES (?, 'smtp.waghorn.tech')",
+    )
+    .bind(half_set_up_team_id)
+    .execute(&pool)
+    .await
+    .unwrap();
 
     let app = test_app(pool);
     let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
@@ -847,7 +858,7 @@ async fn test_notification_summaries_filter_by_whether_team_has_an_alert_channel
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/teams/notifications?has_alert_channel=true")
+                .uri("/teams/notifications?sends_alerts=true")
                 .header("cookie", &cookie)
                 .body(Body::empty())
                 .unwrap(),
@@ -859,11 +870,12 @@ async fn test_notification_summaries_filter_by_whether_team_has_an_alert_channel
     assert_eq!(body["total"], 1);
     assert_eq!(body["data"][0]["team_name"], "Email Team");
     assert_eq!(body["data"][0]["email_enabled"], true);
+    assert_eq!(body["data"][0]["sends_alerts"], true);
 
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/teams/notifications?has_alert_channel=false")
+                .uri("/teams/notifications?sends_alerts=false")
                 .header("cookie", &cookie)
                 .body(Body::empty())
                 .unwrap(),
@@ -872,8 +884,13 @@ async fn test_notification_summaries_filter_by_whether_team_has_an_alert_channel
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    assert_eq!(body["total"], 2);
-    assert_eq!(body["data"][0]["team_name"], "Half Set Up");
-    assert_eq!(body["data"][0]["email_enabled"], false);
-    assert_eq!(body["data"][1]["team_name"], "Nothing Saved");
+    assert_eq!(body["total"], 3);
+    assert_eq!(body["data"][0]["team_name"], "Every Alert Off");
+    assert_eq!(body["data"][0]["slack_enabled"], true);
+    assert_eq!(body["data"][0]["sends_alerts"], false);
+    assert_eq!(body["data"][1]["team_name"], "Half Set Up");
+    assert_eq!(body["data"][1]["email_enabled"], false);
+    assert_eq!(body["data"][1]["sends_alerts"], false);
+    assert_eq!(body["data"][2]["team_name"], "Nothing Saved");
+    assert_eq!(body["data"][2]["sends_alerts"], false);
 }

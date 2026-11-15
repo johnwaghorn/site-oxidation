@@ -49,11 +49,6 @@ function TeamNotificationsRow({
 }: {
   summary: TeamNotificationSummary;
 }) {
-  const hasNoAlertChannel =
-    !summary.slack_enabled &&
-    !summary.microsoft_teams_enabled &&
-    !summary.email_enabled;
-
   return (
     <tr className="table-row">
       <td className="table-cell" style={{ fontWeight: 500 }}>
@@ -68,10 +63,10 @@ function TeamNotificationsRow({
           <Link to={`/notifications/${summary.team_id}`}>
             <Truncate text={summary.team_name} maxWidth={280} />
           </Link>
-          {hasNoAlertChannel && (
+          {!summary.sends_alerts && (
             <span
               className="badge"
-              title="Nobody will be alerted when this team's sites go down"
+              title="Nobody will be alerted: no channel is set up, or every alert is switched off"
               style={{
                 backgroundColor: "var(--color-warning-bg)",
                 color: "var(--color-warning-text)",

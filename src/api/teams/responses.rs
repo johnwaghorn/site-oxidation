@@ -11,6 +11,7 @@ pub struct TeamNotificationSummary {
     pub slack_enabled: bool,
     pub microsoft_teams_enabled: bool,
     pub email_enabled: bool,
+    pub sends_alerts: bool,
     pub notify_site_down: bool,
     pub notify_site_recovered: bool,
     pub notify_cert_expiring: bool,

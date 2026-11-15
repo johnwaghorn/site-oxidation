@@ -41,7 +41,7 @@ pub async fn list_team_notification_summaries(
         sqlx::query_as::<_, TeamNotificationSummary>(queries::LIST_TEAM_NOTIFICATION_SUMMARIES)
             .bind(search)
             .bind(only_teams_with_this_member_user_id)
-            .bind(params.has_alert_channel)
+            .bind(params.sends_alerts)
             .bind(pagination.per_page())
             .bind(pagination.offset())
             .fetch_all(&state.pool)
@@ -50,7 +50,7 @@ pub async fn list_team_notification_summaries(
     let total: i64 = sqlx::query_scalar(queries::COUNT_TEAM_NOTIFICATION_SUMMARIES)
         .bind(search)
         .bind(only_teams_with_this_member_user_id)
-        .bind(params.has_alert_channel)
+        .bind(params.sends_alerts)
         .fetch_one(&state.pool)
         .await
         .map_err(|e| internal_err("Failed to count team notification summaries", e))?;
