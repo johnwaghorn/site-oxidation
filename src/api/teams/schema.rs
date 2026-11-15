@@ -4,13 +4,14 @@ use utoipa::OpenApi;
 
 use super::endpoints;
 use super::requests::UpdateTeamNotificationsRequest;
-use super::responses::TeamNotificationsResponse;
+use super::responses::{TeamNotificationSummary, TeamNotificationsResponse};
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::ApiError;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        endpoints::list_team_notification_summaries,
         endpoints::get_notifications,
         endpoints::update_notifications,
         endpoints::test_email_notification,
@@ -18,6 +19,7 @@ use crate::api::errors::ApiError;
         endpoints::test_teams_notification,
     ),
     components(schemas(
+        TeamNotificationSummary,
         TeamNotificationsResponse,
         UpdateTeamNotificationsRequest,
         SuccessResponse,

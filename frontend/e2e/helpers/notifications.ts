@@ -2,17 +2,15 @@ import { expect, type Page } from "@playwright/test";
 
 export async function openTeamNotifications(page: Page, teamName: string) {
   await page.goto("/notifications");
-  await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
-  const teamList = page.getByRole("navigation", { name: "Teams" });
-  if (await teamList.isVisible()) {
-    await teamList
-      .getByRole("link")
-      .filter({ has: page.getByText(teamName, { exact: true }) })
-      .click();
+  const teamHeading = page.getByRole("heading", { name: teamName, level: 2 });
+  const teamLink = page
+    .getByRole("table")
+    .getByRole("link", { name: teamName, exact: true });
+  await expect(teamHeading.or(teamLink)).toBeVisible();
+  if (await teamLink.isVisible()) {
+    await teamLink.click();
   }
-  await expect(
-    page.getByRole("heading", { name: teamName, level: 2 }),
-  ).toBeVisible();
+  await expect(teamHeading).toBeVisible();
 }
 
 export function channelRow(page: Page, channel: string) {

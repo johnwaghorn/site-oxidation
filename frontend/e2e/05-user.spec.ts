@@ -107,11 +107,13 @@ test("maddie configures notifications for her team", async ({ page }) => {
   });
 
   await test.step("Then she sees both of her teams", async () => {
-    const teamList = page.getByRole("navigation", { name: "Teams" });
+    const teamsTable = page.getByRole("table");
     await expect(
-      teamList.getByText("Team Rocket", { exact: true }),
+      teamsTable.getByRole("link", { name: "Team Rocket", exact: true }),
     ).toBeVisible();
-    await expect(teamList.getByText("Support", { exact: true })).toBeVisible();
+    await expect(
+      teamsTable.getByRole("link", { name: "Support", exact: true }),
+    ).toBeVisible();
   });
 
   await test.step("When she saves a Slack webhook for Support", async () => {

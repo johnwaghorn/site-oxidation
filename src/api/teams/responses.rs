@@ -5,6 +5,19 @@ use utoipa::ToSchema;
 
 #[derive(Serialize, FromRow, ToSchema)]
 #[allow(clippy::struct_excessive_bools)]
+pub struct TeamNotificationSummary {
+    pub team_id: i64,
+    pub team_name: String,
+    pub slack_enabled: bool,
+    pub microsoft_teams_enabled: bool,
+    pub email_enabled: bool,
+    pub notify_site_down: bool,
+    pub notify_site_recovered: bool,
+    pub notify_cert_expiring: bool,
+}
+
+#[derive(Serialize, FromRow, ToSchema)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct TeamNotificationsResponse {
     pub team_id: i64,
     pub slack_webhook_url: Option<String>,

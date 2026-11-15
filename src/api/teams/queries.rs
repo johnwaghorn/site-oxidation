@@ -17,6 +17,43 @@ pub const SELECT_SLACK_WEBHOOK_URL: &str =
 pub const SELECT_TEAMS_WEBHOOK_URL: &str =
     "SELECT microsoft_teams_webhook_url FROM team_notification_settings WHERE team_id = ?";
 
+pub const LIST_TEAM_NOTIFICATION_SUMMARIES: &str = concat!(
+    "SELECT t.id AS team_id, t.name AS team_name, ",
+    "n.slack_webhook_url IS NOT NULL AS slack_enabled, ",
+    "n.microsoft_teams_webhook_url IS NOT NULL AS microsoft_teams_enabled, ",
+    "(n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
+    "  AND n.smtp_to_email IS NOT NULL) AS email_enabled, ",
+    "COALESCE(n.notify_site_down, 1) AS notify_site_down, ",
+    "COALESCE(n.notify_site_recovered, 1) AS notify_site_recovered, ",
+    "COALESCE(n.notify_cert_expiring, 1) AS notify_cert_expiring ",
+    "FROM teams t ",
+    "LEFT JOIN team_notification_settings n ON n.team_id = t.id ",
+    "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
+    "AND (?2 IS NULL OR EXISTS ( ",
+    "  SELECT 1 FROM team_members tm WHERE tm.team_id = t.id AND tm.user_id = ?2 ",
+    ")) ",
+    "AND (?3 IS NULL OR ?3 = ( ",
+    "  n.slack_webhook_url IS NOT NULL OR n.microsoft_teams_webhook_url IS NOT NULL ",
+    "  OR (n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
+    "    AND n.smtp_to_email IS NOT NULL) ",
+    ")) ",
+    "ORDER BY t.name, t.id LIMIT ?4 OFFSET ?5"
+);
+
+pub const COUNT_TEAM_NOTIFICATION_SUMMARIES: &str = concat!(
+    "SELECT COUNT(*) FROM teams t ",
+    "LEFT JOIN team_notification_settings n ON n.team_id = t.id ",
+    "WHERE (?1 IS NULL OR t.name LIKE '%' || ?1 || '%') ",
+    "AND (?2 IS NULL OR EXISTS ( ",
+    "  SELECT 1 FROM team_members tm WHERE tm.team_id = t.id AND tm.user_id = ?2 ",
+    ")) ",
+    "AND (?3 IS NULL OR ?3 = ( ",
+    "  n.slack_webhook_url IS NOT NULL OR n.microsoft_teams_webhook_url IS NOT NULL ",
+    "  OR (n.smtp_host IS NOT NULL AND n.smtp_from_email IS NOT NULL ",
+    "    AND n.smtp_to_email IS NOT NULL) ",
+    "))"
+);
+
 pub const SELECT_NOTIFICATIONS: &str = concat!(
     "SELECT t.id AS team_id, n.slack_webhook_url, n.microsoft_teams_webhook_url, ",
     "n.smtp_host, n.smtp_port, COALESCE(n.smtp_tls_mode, 'starttls') AS smtp_tls_mode, ",

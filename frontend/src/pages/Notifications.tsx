@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useParams } from "react-router-dom";
 import type { UseMutationResult } from "@tanstack/react-query";
+import { TeamNotificationsTable } from "../components/notifications/TeamNotificationsTable";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import {
   FormInput,
@@ -9,9 +10,15 @@ import {
 } from "../components/ui/FormControls";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Modal } from "../components/ui/Modal";
+import { Pagination } from "../components/ui/Pagination";
+import { SearchInput } from "../components/ui/SearchInput";
+import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { useAuth } from "../hooks/useAuth";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { usePagination } from "../hooks/usePagination";
 import {
   useTeamNotifications,
+  useTeamNotificationSummaries,
   useTestEmailNotification,
   useTestSlackNotification,
   useTestTeamsNotification,
@@ -32,6 +39,15 @@ type TestNotificationMutation = UseMutationResult<
 >;
 type Channel = "slack" | "teams" | "email";
 
+const ALERT_CHANNEL_FILTERS: {
+  label: string;
+  hasAlertChannel: boolean | null;
+}[] = [
+  { label: "All", hasAlertChannel: null },
+  { label: "Alerts on", hasAlertChannel: true },
+  { label: "No alerts", hasAlertChannel: false },
+];
+
 function isEmailConfigured(settings: TeamNotifications | undefined) {
   return Boolean(
     settings?.smtp_host && settings.smtp_from_email && settings.smtp_to_email,
@@ -49,11 +65,22 @@ function countChannelsOn(settings: TeamNotifications | undefined) {
 export function Notifications() {
   const { teams, isLoading } = useAuth();
   const { teamId } = useParams<{ teamId: string }>();
+  const hasSeveralTeams = teams.length > 1;
   const selected =
-    teams.find((team) => team.id === Number(teamId)) ?? teams[0] ?? null;
+    teams.find((team) => team.id === Number(teamId)) ??
+    (teams.length === 1 ? teams[0] : null);
+
+  if (!isLoading && teamId && !selected) {
+    return <Navigate to="/notifications" replace />;
+  }
 
   return (
     <div className="page-wrapper">
+      {selected && hasSeveralTeams && (
+        <Link to="/notifications" className="back-link">
+          &larr; Back to Notifications
+        </Link>
+      )}
       <h1 className="page-title" style={{ marginBottom: "8px" }}>
         Notifications
       </h1>
@@ -67,57 +94,97 @@ export function Notifications() {
 
       {isLoading ? (
         <LoadingSpinner />
-      ) : !selected ? (
+      ) : teams.length === 0 ? (
         <section className="card-hero">
           <h2>No teams available</h2>
           <p className="muted-text" style={{ maxWidth: "520px", margin: 0 }}>
             Join or create a team before configuring notifications.
           </p>
         </section>
-      ) : teams.length === 1 ? (
+      ) : selected ? (
         <TeamSettings key={selected.id} team={selected} />
       ) : (
-        <div className="notifications-layout">
-          <nav aria-label="Teams" className="notification-team-list">
-            {teams.map((team) => (
-              <TeamListLink
-                key={team.id}
-                team={team}
-                isSelected={team.id === selected.id}
-              />
-            ))}
-          </nav>
-          <TeamSettings key={selected.id} team={selected} />
-        </div>
+        <TeamNotificationsList />
       )}
     </div>
   );
 }
 
-function TeamListLink({
-  team,
-  isSelected,
-}: {
-  team: UserTeam;
-  isSelected: boolean;
-}) {
-  const { data } = useTeamNotifications(team.id);
-  const channelsOn = countChannelsOn(data);
+function TeamNotificationsList() {
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput.trim());
+  const [hasAlertChannelFilter, setHasAlertChannelFilter] = useState<
+    boolean | null
+  >(null);
+  const { page, perPage, goToPage, correctPage } = usePagination(
+    `${debouncedSearch}|${hasAlertChannelFilter ?? ""}`,
+  );
+  const { data, isLoading, error } = useTeamNotificationSummaries({
+    page,
+    perPage,
+    search: debouncedSearch || undefined,
+    hasAlertChannel: hasAlertChannelFilter ?? undefined,
+  });
+  const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
+
+  useEffect(() => {
+    if (data && data.data.length === 0 && data.total > 0 && page > 1) {
+      correctPage(1);
+    }
+  }, [data, page, correctPage]);
 
   return (
-    <Link
-      to={`/notifications/${team.id}`}
-      aria-current={isSelected ? "page" : undefined}
-    >
-      <span className="notification-team-name">{team.name}</span>
+    <>
+      <TableCard
+        toolbar={
+          <>
+            <SearchInput
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search teams..."
+            />
+            <div
+              className="segmented"
+              role="group"
+              aria-label="Filter by alerts"
+            >
+              {ALERT_CHANNEL_FILTERS.map((filter) => (
+                <button
+                  key={filter.label}
+                  type="button"
+                  className="segmented-button"
+                  aria-pressed={
+                    hasAlertChannelFilter === filter.hasAlertChannel
+                  }
+                  onClick={() =>
+                    setHasAlertChannelFilter(filter.hasAlertChannel)
+                  }
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </>
+        }
+      >
+        {isLoading ? (
+          <LoadingSpinner />
+        ) : error ? (
+          <ErrorMessage error={error} />
+        ) : data && data.total === 0 ? (
+          <TableCardEmpty>No teams match these filters.</TableCardEmpty>
+        ) : data ? (
+          <TeamNotificationsTable summaries={data.data} />
+        ) : null}
+      </TableCard>
       {data && (
-        <span
-          className={channelsOn > 0 ? "pill pill-success" : "pill pill-warning"}
-        >
-          {channelsOn > 0 ? `${channelsOn} on` : "No alerts"}
-        </span>
+        <Pagination
+          page={data.page}
+          totalPages={totalPages}
+          onPageChange={goToPage}
+        />
       )}
-    </Link>
+    </>
   );
 }
 
@@ -130,10 +197,7 @@ function TeamSettings({ team }: { team: UserTeam }) {
   const closeDialog = () => setEditing(null);
 
   return (
-    <section
-      className="card notification-settings"
-      aria-labelledby={`team-${team.id}`}
-    >
+    <section className="card" aria-labelledby={`team-${team.id}`}>
       <h2 id={`team-${team.id}`} style={{ margin: "0 0 16px" }}>
         {team.name}
       </h2>

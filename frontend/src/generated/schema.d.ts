@@ -436,6 +436,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_team_notification_summaries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/notifications": {
         parameters: {
             query?: never;
@@ -841,6 +857,17 @@ export interface components {
         };
         /** @example Platform Team */
         TeamName: string;
+        TeamNotificationSummary: {
+            email_enabled: boolean;
+            microsoft_teams_enabled: boolean;
+            notify_cert_expiring: boolean;
+            notify_site_down: boolean;
+            notify_site_recovered: boolean;
+            slack_enabled: boolean;
+            /** Format: int64 */
+            team_id: number;
+            team_name: string;
+        };
         TeamNotificationsResponse: {
             microsoft_teams_webhook_url?: string | null;
             notify_cert_expiring: boolean;
@@ -3313,6 +3340,70 @@ export interface operations {
             };
             /** @description Unsupported number of days or unknown time zone */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    list_team_notification_summaries: {
+        parameters: {
+            query?: {
+                /** @example 1 */
+                page?: number;
+                /** @example 20 */
+                per_page?: number;
+                /** @description Case-insensitive substring match. */
+                search?: string;
+                has_alert_channel?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Which channels and alerts each team has on. Admins see every team, other users see their own teams */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            email_enabled: boolean;
+                            microsoft_teams_enabled: boolean;
+                            notify_cert_expiring: boolean;
+                            notify_site_down: boolean;
+                            notify_site_recovered: boolean;
+                            slack_enabled: boolean;
+                            /** Format: int64 */
+                            team_id: number;
+                            team_name: string;
+                        }[];
+                        /** Format: int32 */
+                        page: number;
+                        /** Format: int32 */
+                        per_page: number;
+                        /** Format: int64 */
+                        total: number;
+                    };
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

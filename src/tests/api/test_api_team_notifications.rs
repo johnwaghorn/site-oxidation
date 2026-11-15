@@ -717,3 +717,142 @@ async fn test_test_email_blocks_private_hosts_by_default(pool: SqlitePool) {
             .contains("private address")
     );
 }
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_notification_summaries_list_only_the_users_teams(pool: SqlitePool) {
+    let user_id = insert_test_user(&pool, "maddie", TEST_PASSWORD, "user", false).await;
+    let team_id = insert_team(&pool, "Team Rocket").await;
+    insert_team(&pool, "Platform").await;
+    add_team_member(&pool, team_id, user_id).await;
+    sqlx::query(
+        "INSERT INTO team_notification_settings (team_id, slack_webhook_url, notify_site_recovered) VALUES (?, 'https://hooks.slack.test/services/team-rocket', 0)",
+    )
+    .bind(team_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "maddie", TEST_PASSWORD).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/teams/notifications")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 1);
+    let summary = &body["data"][0];
+    assert_eq!(summary["team_id"], team_id);
+    assert_eq!(summary["team_name"], "Team Rocket");
+    assert_eq!(summary["slack_enabled"], true);
+    assert_eq!(summary["microsoft_teams_enabled"], false);
+    assert_eq!(summary["email_enabled"], false);
+    assert_eq!(summary["notify_site_down"], true);
+    assert_eq!(summary["notify_site_recovered"], false);
+    assert_eq!(summary["notify_cert_expiring"], true);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_admin_sees_every_team_in_notification_summaries_and_can_search(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    insert_team(&pool, "Team Rocket").await;
+    insert_team(&pool, "Platform").await;
+
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/teams/notifications")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 2);
+    assert_eq!(body["data"][0]["team_name"], "Platform");
+    assert_eq!(body["data"][1]["team_name"], "Team Rocket");
+    assert_eq!(body["data"][1]["slack_enabled"], false);
+    assert_eq!(body["data"][1]["notify_site_down"], true);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/teams/notifications?search=rock")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 1);
+    assert_eq!(body["data"][0]["team_name"], "Team Rocket");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_notification_summaries_filter_by_whether_team_has_an_alert_channel(pool: SqlitePool) {
+    insert_test_user(&pool, "admin", TEST_PASSWORD, "admin", false).await;
+    let email_team_id = insert_team(&pool, "Email Team").await;
+    let half_set_up_team_id = insert_team(&pool, "Half Set Up").await;
+    insert_team(&pool, "Nothing Saved").await;
+    sqlx::query(
+        "INSERT INTO team_notification_settings (team_id, smtp_host, smtp_from_email, smtp_to_email) VALUES (?, 'smtp.waghorn.tech', 'alerts@waghorn.tech', 'on-call@waghorn.tech')",
+    )
+    .bind(email_team_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO team_notification_settings (team_id, smtp_host) VALUES (?, 'smtp.waghorn.tech')")
+        .bind(half_set_up_team_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let app = test_app(pool);
+    let cookie = login_and_get_cookie(&app, "admin", TEST_PASSWORD).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/teams/notifications?has_alert_channel=true")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 1);
+    assert_eq!(body["data"][0]["team_name"], "Email Team");
+    assert_eq!(body["data"][0]["email_enabled"], true);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/teams/notifications?has_alert_channel=false")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(body["total"], 2);
+    assert_eq!(body["data"][0]["team_name"], "Half Set Up");
+    assert_eq!(body["data"][0]["email_enabled"], false);
+    assert_eq!(body["data"][1]["team_name"], "Nothing Saved");
+}

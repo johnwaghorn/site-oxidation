@@ -1,10 +1,48 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { queryKeys } from "../lib/queryKeys";
-import type { components } from "../generated/schema";
+import type { components, operations } from "../generated/schema";
 
 type UpdateTeamNotificationsRequest =
   components["schemas"]["UpdateTeamNotificationsRequest"];
+type ListTeamNotificationSummariesQuery = NonNullable<
+  operations["list_team_notification_summaries"]["parameters"]["query"]
+>;
+
+export interface TeamNotificationSummariesFilters {
+  page: NonNullable<ListTeamNotificationSummariesQuery["page"]>;
+  perPage: NonNullable<ListTeamNotificationSummariesQuery["per_page"]>;
+  search?: ListTeamNotificationSummariesQuery["search"];
+  hasAlertChannel?: ListTeamNotificationSummariesQuery["has_alert_channel"];
+}
+
+export function useTeamNotificationSummaries(
+  filters: TeamNotificationSummariesFilters,
+) {
+  return useQuery({
+    queryKey: queryKeys.teamNotificationSummaries(filters),
+    queryFn: async () => {
+      const { data, error } = await api.GET("/api/teams/notifications", {
+        params: {
+          query: {
+            page: filters.page,
+            per_page: filters.perPage,
+            search: filters.search || undefined,
+            has_alert_channel: filters.hasAlertChannel,
+          },
+        },
+      });
+      if (error) throw new Error(error.message);
+      return data!;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
 
 export function useTeamNotifications(teamId: number) {
   return useQuery({
@@ -79,6 +117,9 @@ export function useUpdateTeamNotifications() {
     onSuccess: async (_, { teamId }) => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.teamNotifications(teamId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.teamNotificationSummariesAll,
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.adminTeamsAll,

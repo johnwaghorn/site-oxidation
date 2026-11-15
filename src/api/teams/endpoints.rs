@@ -1,16 +1,65 @@
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 
+use super::params::{ListTeamNotificationSummariesParams, ListTeamNotificationSummariesQuery};
 use super::queries;
 use super::requests::UpdateTeamNotificationsRequest;
-use super::responses::TeamNotificationsResponse;
+use super::responses::{TeamNotificationSummary, TeamNotificationsResponse};
 use super::rules;
 use crate::api::admin::responses::SuccessResponse;
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err};
 use crate::api::extractors::{JsonPayload, RequireAppAccess};
+use crate::api::pagination::{PaginatedResponse, PaginationParams};
+use crate::api::search::{SearchParams, normalise_search};
 use crate::api::teams::access::{ensure_team_access, ensure_team_exists};
 use crate::models::smtp::SmtpSettings;
+use crate::models::user::UserRole;
 use crate::state::AppState;
+
+#[utoipa::path(
+    get,
+    path = "/teams/notifications",
+    params(PaginationParams, SearchParams, ListTeamNotificationSummariesParams),
+    responses(
+        (status = 200, description = "Which channels and alerts each team has on. Admins see every team, other users see their own teams", body = inline(PaginatedResponse<TeamNotificationSummary>)),
+        (status = 401, description = "Unauthorized", body = ApiError),
+        (status = 500, description = "Internal server error", body = ApiError),
+    ),
+    tag = "teams",
+    security(("session_cookie" = [])),
+)]
+pub async fn list_team_notification_summaries(
+    RequireAppAccess(user): RequireAppAccess,
+    State(state): State<AppState>,
+    Query(params): Query<ListTeamNotificationSummariesQuery>,
+) -> Result<Json<PaginatedResponse<TeamNotificationSummary>>, ApiErrorResponse> {
+    let pagination = PaginationParams::new(params.page, params.per_page);
+    let search = normalise_search(params.search.as_deref());
+    let only_teams_with_this_member_user_id = (user.role != UserRole::Admin).then_some(user.id);
+    let summaries =
+        sqlx::query_as::<_, TeamNotificationSummary>(queries::LIST_TEAM_NOTIFICATION_SUMMARIES)
+            .bind(search)
+            .bind(only_teams_with_this_member_user_id)
+            .bind(params.has_alert_channel)
+            .bind(pagination.per_page())
+            .bind(pagination.offset())
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| internal_err("Failed to list team notification summaries", e))?;
+    let total: i64 = sqlx::query_scalar(queries::COUNT_TEAM_NOTIFICATION_SUMMARIES)
+        .bind(search)
+        .bind(only_teams_with_this_member_user_id)
+        .bind(params.has_alert_channel)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| internal_err("Failed to count team notification summaries", e))?;
+    Ok(Json(PaginatedResponse {
+        data: summaries,
+        page: pagination.page(),
+        per_page: pagination.per_page(),
+        total,
+    }))
+}
 
 #[utoipa::path(
     get,

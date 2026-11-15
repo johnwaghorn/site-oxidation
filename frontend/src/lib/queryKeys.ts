@@ -3,6 +3,7 @@ import type {
   AdminUsersFilters,
 } from "../hooks/useAdmin";
 import type { SitesFilters } from "../hooks/useSites";
+import type { TeamNotificationSummariesFilters } from "../hooks/useTeamNotifications";
 
 export const queryKeys = {
   authMe: ["auth", "me"] as const,
@@ -16,6 +17,9 @@ export const queryKeys = {
     ["sites", siteId, "uptime", { days, timeZone }] as const,
   teamNotifications: (teamId: number) =>
     ["teams", teamId, "notifications"] as const,
+  teamNotificationSummariesAll: ["teams", "notification-summaries"] as const,
+  teamNotificationSummaries: (filters: TeamNotificationSummariesFilters) =>
+    ["teams", "notification-summaries", filters] as const,
   setupStatus: ["setup", "status"] as const,
   adminTeamsAll: ["admin", "teams"] as const,
   adminTeams: (
