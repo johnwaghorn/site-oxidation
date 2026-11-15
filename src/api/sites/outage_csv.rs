@@ -1,6 +1,6 @@
 use super::queries::LIST_OUTAGES_OLDEST_FIRST_AFTER_OUTAGE_ID;
 use super::responses::OutageResponse;
-use chrono::{DateTime, SecondsFormat, Utc};
+use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use futures::stream::{self, Stream, StreamExt};
 use sqlx::SqlitePool;
 
@@ -18,6 +18,25 @@ pub(super) fn site_outages_as_csv_read_in_chunks(
 ) -> impl Stream<Item = Result<String, sqlx::Error>> {
     let csv_header = stream::once(async { Ok(OUTAGE_CSV_HEADER.to_owned()) });
     csv_header.chain(outage_csv_rows_read_in_chunks(pool, site_id))
+}
+
+pub(super) fn outage_csv_filename(site_name: &str, date_exported: NaiveDate) -> String {
+    format!(
+        "site-oxidation-outages-{}-{date_exported}.csv",
+        site_name_safe_for_a_filename(site_name)
+    )
+}
+
+fn site_name_safe_for_a_filename(site_name: &str) -> String {
+    let words: Vec<&str> = site_name
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .collect();
+    if words.is_empty() {
+        "site".to_owned()
+    } else {
+        words.join("-")
+    }
 }
 
 fn outage_csv_rows_read_in_chunks(
@@ -102,6 +121,23 @@ fn csv_text_field(text: &str) -> String {
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn test_filename_keeps_only_letters_and_digits_of_the_site_name() {
+        let date_exported = NaiveDate::from_ymd_opt(2026, 11, 15).unwrap();
+        assert_eq!(
+            outage_csv_filename("Waghorn Technology Ltd", date_exported),
+            "site-oxidation-outages-Waghorn-Technology-Ltd-2026-11-15.csv"
+        );
+        assert_eq!(
+            outage_csv_filename("../shop \"live\"; rm", date_exported),
+            "site-oxidation-outages-shop-live-rm-2026-11-15.csv"
+        );
+        assert_eq!(
+            outage_csv_filename("???", date_exported),
+            "site-oxidation-outages-site-2026-11-15.csv"
+        );
+    }
 
     #[test]
     fn test_plain_text_is_left_as_it_is() {

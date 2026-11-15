@@ -1,15 +1,15 @@
 use super::access::{ensure_site_access, resolve_team_id};
 use super::canary_warning::set_canary_warnings;
 use super::fields::ExpectedText;
-use super::outage_csv::site_outages_as_csv_read_in_chunks;
+use super::outage_csv::{outage_csv_filename, site_outages_as_csv_read_in_chunks};
 use super::params::{ListSitesParams, ListSitesQuery, SiteUptimeParams, UPTIME_WINDOW_DAY_OPTIONS};
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES,
     DELETE_SITE_RETURNING_NAME_AND_URL, INSERT_SITE, LIST_OUTAGES,
     LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW,
     LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW, LIST_SITES_ADMIN, LIST_SITES_USER,
-    SELECT_SITE_ADMIN, SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT, SELECT_SITE_USER,
-    UPDATE_SITE,
+    SELECT_SITE_ADMIN, SELECT_SITE_NAME, SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT,
+    SELECT_SITE_USER, UPDATE_SITE,
 };
 use super::responses::{SiteUptimeResponse, UnassignedCountResponse};
 use super::rules;
@@ -342,12 +342,19 @@ pub async fn export_site_outages_as_csv(
     Path(id): Path<i64>,
 ) -> Result<Response, ApiErrorResponse> {
     ensure_site_access(&state.pool, id, &user).await?;
+    let site_name: String = sqlx::query_scalar(SELECT_SITE_NAME)
+        .bind(id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|e| internal_err(&format!("Failed to load the name of site {id}"), e))?
+        .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
+    let filename = outage_csv_filename(&site_name, Utc::now().date_naive());
     Ok((
         [
             (header::CONTENT_TYPE, "text/csv; charset=utf-8".to_owned()),
             (
                 header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"site-{id}-outages.csv\""),
+                format!("attachment; filename=\"{filename}\""),
             ),
         ],
         Body::from_stream(site_outages_as_csv_read_in_chunks(state.pool.clone(), id)),

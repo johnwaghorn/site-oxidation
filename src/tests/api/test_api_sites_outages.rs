@@ -8,6 +8,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use chrono::Utc;
 use http_body_util::BodyExt;
 use sqlx::SqlitePool;
 use tower::ServiceExt;
@@ -141,7 +142,11 @@ async fn test_outage_export_returns_every_outage_oldest_first_as_csv(pool: Sqlit
     );
     assert_eq!(
         response.headers()["content-disposition"],
-        "attachment; filename=\"site-1-outages.csv\""
+        format!(
+            "attachment; filename=\"site-oxidation-outages-Waghorn-Technology-Ltd-{}.csv\"",
+            Utc::now().date_naive()
+        )
+        .as_str()
     );
     let csv = response.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(

@@ -77,6 +77,8 @@ pub const LIST_OUTAGES: &str = concat!(
 
 pub const COUNT_OUTAGES: &str = "SELECT COUNT(*) FROM outages WHERE site_id = ?";
 
+pub const SELECT_SITE_NAME: &str = "SELECT name FROM sites WHERE id = ?";
+
 pub const LIST_OUTAGES_OLDEST_FIRST_AFTER_OUTAGE_ID: &str = concat!(
     "SELECT id, site_id, http_status, expected_status, started_at, ended_at, error_message ",
     "FROM outages WHERE site_id = ?1 ",

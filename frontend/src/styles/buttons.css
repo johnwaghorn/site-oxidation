@@ -26,6 +26,17 @@
   color: var(--color-text);
 }
 
+a.button-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6em 1.2em;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
 .button-user-menu {
   border-color: var(--color-primary-soft);
   background-color: var(--color-primary-soft);

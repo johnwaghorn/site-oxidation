@@ -126,19 +126,6 @@ export function useOutages(siteId: number, page = 1, perPage = 20) {
   });
 }
 
-export function useExportSiteOutages() {
-  return useMutation({
-    mutationFn: async (siteId: number) => {
-      const { data, error } = await api.GET("/api/sites/{id}/outages/export", {
-        params: { path: { id: siteId } },
-        parseAs: "blob",
-      });
-      if (error) throw new Error(error.message);
-      return data;
-    },
-  });
-}
-
 export function useSiteUptime(siteId: number, days: UptimeWindowDays) {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return useQuery({
