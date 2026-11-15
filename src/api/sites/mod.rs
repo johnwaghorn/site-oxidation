@@ -2,8 +2,8 @@ use crate::state::AppState;
 use axum::{Router, routing::get};
 
 use endpoints::{
-    count_unassigned_sites, create_site, delete_site, get_site, get_site_outages, get_site_uptime,
-    list_sites, update_site,
+    count_unassigned_sites, create_site, delete_site, export_site_outages_as_csv, get_site,
+    get_site_outages, get_site_uptime, list_sites, update_site,
 };
 use requests::SitePayload;
 use responses::{OutageResponse, SiteResponse};
@@ -12,6 +12,7 @@ pub(crate) mod access;
 pub(crate) mod canary_warning;
 mod endpoints;
 pub(crate) mod fields;
+mod outage_csv;
 pub mod params;
 mod queries;
 pub mod requests;
@@ -29,5 +30,9 @@ pub fn site_routes() -> Router<AppState> {
             get(get_site).put(update_site).delete(delete_site),
         )
         .route("/sites/{id}/outages", get(get_site_outages))
+        .route(
+            "/sites/{id}/outages/export",
+            get(export_site_outages_as_csv),
+        )
         .route("/sites/{id}/uptime", get(get_site_uptime))
 }

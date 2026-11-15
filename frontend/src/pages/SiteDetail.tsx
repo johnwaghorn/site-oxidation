@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useSite, useUpdateSite, useOutages } from "../hooks/useSites";
+import {
+  useExportSiteOutages,
+  useOutages,
+  useSite,
+  useUpdateSite,
+} from "../hooks/useSites";
+import { saveBlobAsFile } from "../lib/download";
 import { usePagination } from "../hooks/usePagination";
 import { useAuth } from "../hooks/useAuth";
 import { SiteForm } from "../components/sites/SiteForm";
@@ -86,6 +92,7 @@ export function SiteDetail() {
     error: siteError,
   } = useSite(siteId);
   const updateSite = useUpdateSite();
+  const exportOutages = useExportSiteOutages();
   const [isEditing, setIsEditing] = useState(false);
   const { data: outagesData, isLoading: outagesLoading } = useOutages(
     siteId,
@@ -187,7 +194,38 @@ export function SiteDetail() {
       <UptimeHistory siteId={siteId} />
 
       <section>
-        <h2>Outage History</h2>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "8px 16px",
+          }}
+        >
+          <h2>Outage History</h2>
+          {outagesData && outagesData.total > 0 && (
+            <button
+              type="button"
+              className="button-secondary-action"
+              disabled={exportOutages.isPending}
+              onClick={() =>
+                exportOutages.mutate(siteId, {
+                  onSuccess: (csv) =>
+                    saveBlobAsFile(
+                      `site-oxidation-outages-${site.name}-${new Date().toISOString().slice(0, 10)}.csv`,
+                      csv,
+                    ),
+                })
+              }
+            >
+              {exportOutages.isPending
+                ? "Preparing..."
+                : "Download all outages (CSV)"}
+            </button>
+          )}
+        </div>
+        <ErrorMessage error={exportOutages.error} />
         {outagesLoading ? (
           <LoadingSpinner />
         ) : outagesData && outagesData.data.length > 0 ? (

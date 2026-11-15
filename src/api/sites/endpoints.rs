@@ -1,6 +1,7 @@
 use super::access::{ensure_site_access, resolve_team_id};
 use super::canary_warning::set_canary_warnings;
 use super::fields::ExpectedText;
+use super::outage_csv::site_outages_as_csv_read_in_chunks;
 use super::params::{ListSitesParams, ListSitesQuery, SiteUptimeParams, UPTIME_WINDOW_DAY_OPTIONS};
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES,
@@ -31,8 +32,10 @@ use jiff::tz::TimeZone;
 
 use axum::{
     Json,
+    body::Body,
     extract::{Path, Query, State},
-    http::status::StatusCode,
+    http::{header, status::StatusCode},
+    response::{IntoResponse, Response},
 };
 
 async fn reload_site(pool: &sqlx::SqlitePool, id: i64) -> Result<SiteResponse, ApiErrorResponse> {
@@ -318,6 +321,38 @@ pub async fn get_site_outages(
         per_page: params.per_page(),
         total,
     }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/sites/{id}/outages/export",
+    params(("id" = i64, Path, description = "Site ID")),
+    responses(
+          (status = 200, description = "Every outage the site has had, oldest first, as a CSV file", body = String, content_type = "text/csv"),
+          (status = 401, description = "Unauthorized", body = ApiError),
+          (status = 404, description = "Site not found", body = ApiError),
+          (status = 500, description = "Internal server error", body = ApiError)
+    ),
+    tag = "sites",
+    security(("session_cookie" = []))
+)]
+pub async fn export_site_outages_as_csv(
+    RequireAppAccess(user): RequireAppAccess,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Response, ApiErrorResponse> {
+    ensure_site_access(&state.pool, id, &user).await?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "text/csv; charset=utf-8".to_owned()),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"site-{id}-outages.csv\""),
+            ),
+        ],
+        Body::from_stream(site_outages_as_csv_read_in_chunks(state.pool.clone(), id)),
+    )
+        .into_response())
 }
 
 #[utoipa::path(

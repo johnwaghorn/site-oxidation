@@ -77,6 +77,15 @@ pub const LIST_OUTAGES: &str = concat!(
 
 pub const COUNT_OUTAGES: &str = "SELECT COUNT(*) FROM outages WHERE site_id = ?";
 
+pub const LIST_OUTAGES_OLDEST_FIRST_AFTER_OUTAGE_ID: &str = concat!(
+    "SELECT id, site_id, http_status, expected_status, started_at, ended_at, error_message ",
+    "FROM outages WHERE site_id = ?1 ",
+    "AND (started_at, id) > ( ",
+    "  COALESCE((SELECT started_at FROM outages WHERE id = ?2), ''), COALESCE(?2, 0) ",
+    ") ",
+    "ORDER BY started_at, id LIMIT ?3"
+);
+
 // Uptime
 pub const LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS: &str = concat!(
     "SELECT site_id, started_at, ended_at FROM outages ",

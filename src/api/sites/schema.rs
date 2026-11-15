@@ -23,6 +23,7 @@ use super::responses::{
         endpoints::update_site,
         endpoints::delete_site,
         endpoints::get_site_outages,
+        endpoints::export_site_outages_as_csv,
         endpoints::get_site_uptime
     ),
     components(schemas(

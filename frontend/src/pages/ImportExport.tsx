@@ -10,6 +10,7 @@ import {
 } from "../components/icons";
 import { useAuth } from "../hooks/useAuth";
 import { useExportSites, useImportSites } from "../hooks/useImportExport";
+import { saveBlobAsFile } from "../lib/download";
 import type { components } from "../generated/schema";
 
 type SiteImportRequest = components["schemas"]["SiteImportRequest"];
@@ -37,15 +38,10 @@ const SERVER_JSON_ERROR_POSITION_SUFFIX = / at line \d+ column \d+$/;
 const SITE_FIELD_ERROR = /^sites\[(\d+)\][^:]*: (.*)$/;
 
 function downloadJson(filename: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  saveBlobAsFile(
+    filename,
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+  );
 }
 
 function isSiteExportFile(value: unknown): value is SiteImportRequest {
