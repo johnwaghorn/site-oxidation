@@ -28,6 +28,7 @@ const STATUS_FILTERS: { label: string; value: SiteStatusFilter | null }[] = [
   { label: "All", value: null },
   { label: "Up", value: "up" },
   { label: "Down", value: "down" },
+  { label: "Blocked", value: "blocked" },
 ];
 
 interface DashboardProps {

@@ -19,20 +19,19 @@ impl PartialSchema for UptimeWindowDays {
 
 impl ToSchema for UptimeWindowDays {}
 
-/// Status buckets. `down` also matches blocked sites, since both mean the site needs attention.
 #[derive(Debug, Clone, Copy, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum SiteStatusFilter {
     Up,
     Down,
+    Blocked,
 }
 
 #[derive(Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
 #[allow(dead_code)]
 pub struct ListSitesParams {
-    /// Restrict results by status. `down` includes blocked sites.
     pub status: Option<SiteStatusFilter>,
 }
 

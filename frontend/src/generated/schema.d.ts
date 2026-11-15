@@ -836,11 +836,8 @@ export interface components {
         };
         /** @enum {string} */
         SiteStatus: "pending" | "up" | "down" | "blocked";
-        /**
-         * @description Status buckets. `down` also matches blocked sites, since both mean the site needs attention.
-         * @enum {string}
-         */
-        SiteStatusFilter: "up" | "down";
+        /** @enum {string} */
+        SiteStatusFilter: "up" | "down" | "blocked";
         SiteUptimeResponse: {
             days: components["schemas"]["UptimeDay"][];
             /** Format: date-time */
@@ -2725,7 +2722,7 @@ export interface operations {
                 per_page?: number;
                 /** @description Case-insensitive substring match. */
                 search?: string;
-                /** @description Restrict results by status. `down` includes blocked sites. */
+                /** @description Restrict results to sites with this status. */
                 status?: components["schemas"]["SiteStatusFilter"];
             };
             header?: never;

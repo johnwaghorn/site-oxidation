@@ -314,7 +314,7 @@ async fn test_status_up_filter_returns_only_up_sites(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
-async fn test_status_down_filter_includes_blocked_sites(pool: SqlitePool) {
+async fn test_status_down_filter_returns_only_down_sites(pool: SqlitePool) {
     insert_site_in_each_status(&pool).await;
     let (app, cookie) = authenticated_admin_app(pool, true).await;
     let response = app
@@ -329,7 +329,27 @@ async fn test_status_down_filter_includes_blocked_sites(pool: SqlitePool) {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let body = parse_json_body(response).await;
-    assert_eq!(site_names(&body), ["Blocked Site", "Down Site"]);
+    assert_eq!(site_names(&body), ["Down Site"]);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_status_blocked_filter_returns_only_blocked_sites(pool: SqlitePool) {
+    insert_site_in_each_status(&pool).await;
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/sites?status=blocked")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(site_names(&body), ["Blocked Site"]);
+    assert_eq!(body["total"], 1);
 }
 
 #[sqlx::test(migrations = "./migrations")]
