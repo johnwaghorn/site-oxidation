@@ -1,9 +1,9 @@
 use super::timeline::{
-    OutageTimes, TimeRange, build_watch_timeline, measure_watched_time, monitor_running_ranges,
-    seconds_in_state,
+    BlockedTimes, MeasuredUptime, OutageTimes, TimeRange, UptimeRecords, measure_uptime_in_range,
+    monitor_running_ranges, seconds_in_state, site_blocked_ranges, total_seconds,
 };
 use crate::api::sites::canary_warning::normalised_url_host;
-use crate::api::sites::responses::{UptimeDay, WatchStatus};
+use crate::api::sites::responses::{BlockedSegment, UptimeDay, WatchStatus};
 use crate::canary::CanaryPeriod;
 use crate::monitoring::periods::MonitoringPeriod;
 use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveTime, Utc};
@@ -18,6 +18,7 @@ pub(in crate::api::sites) struct UptimeWindow<'a> {
     pub time_zone: TimeZone,
     pub days: u64,
     pub outages: &'a [OutageTimes],
+    pub blocked_periods: &'a [BlockedTimes],
     pub canary_periods: &'a [CanaryPeriod],
     pub monitoring_periods: &'a [MonitoringPeriod],
 }
@@ -42,6 +43,14 @@ pub(in crate::api::sites) fn uptime_window_start(
 pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<UptimeDay> {
     let today = local_date(window.now, &window.time_zone);
     let running_ranges = monitor_running_ranges(window.monitoring_periods, window.now);
+    let blocked_ranges = site_blocked_ranges(window.blocked_periods, window.now);
+    let records = UptimeRecords {
+        running_ranges: &running_ranges,
+        blocked_ranges: &blocked_ranges,
+        canary_periods: window.canary_periods,
+        outages: window.outages,
+        now: window.now,
+    };
     let canary_shares_site_host = |canary_url: &str| {
         normalised_url_host(canary_url).is_some_and(|canary_host| {
             normalised_url_host(window.site_url).is_some_and(|site_host| site_host == canary_host)
@@ -71,14 +80,11 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
                         > 0
                 })
                 .count();
-            let timeline = build_watch_timeline(
-                &day_range,
-                &running_ranges,
-                window.canary_periods,
-                window.now,
-                canary_shares_site_host,
-            );
-            let watched = measure_watched_time(&timeline, window.outages, window.now);
+            let MeasuredUptime {
+                timeline,
+                blocked,
+                watched,
+            } = measure_uptime_in_range(&day_range, &records, canary_shares_site_host);
             UptimeDay {
                 date,
                 monitoring_started: true,
@@ -94,7 +100,15 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
                 canary_failing_seconds: seconds_in_state(&timeline, WatchStatus::CanaryFailing),
                 no_canary_seconds: seconds_in_state(&timeline, WatchStatus::NoCanary),
                 not_running_seconds: seconds_in_state(&timeline, WatchStatus::NotRunning),
+                blocked_seconds: total_seconds(&blocked),
                 watch_segments: timeline,
+                blocked_segments: blocked
+                    .iter()
+                    .map(|range| BlockedSegment {
+                        started_at: range.start,
+                        ended_at: range.end,
+                    })
+                    .collect(),
             }
         })
         .collect()
@@ -107,14 +121,15 @@ pub(in crate::api::sites) fn window_summary(window: &UptimeWindow<'_>) -> Window
         end: window.now,
     };
     let running_ranges = monitor_running_ranges(window.monitoring_periods, window.now);
-    let timeline = build_watch_timeline(
-        &window_range,
-        &running_ranges,
-        window.canary_periods,
-        window.now,
-        |_| false,
-    );
-    let watched = measure_watched_time(&timeline, window.outages, window.now);
+    let blocked_ranges = site_blocked_ranges(window.blocked_periods, window.now);
+    let records = UptimeRecords {
+        running_ranges: &running_ranges,
+        blocked_ranges: &blocked_ranges,
+        canary_periods: window.canary_periods,
+        outages: window.outages,
+        now: window.now,
+    };
+    let watched = measure_uptime_in_range(&window_range, &records, |_| false).watched;
     WindowSummary {
         uptime_basis_points: watched.uptime_basis_points(),
         unwatched_seconds: window_range
@@ -138,7 +153,6 @@ fn local_date(instant: DateTime<Utc>, time_zone: &TimeZone) -> NaiveDate {
         .unwrap_or_else(|| instant.date_naive())
 }
 
-/// Where the clocks skip midnight, the day starts at the first local time that exists.
 fn start_of_local_day(date: NaiveDate, time_zone: &TimeZone) -> DateTime<Utc> {
     let first_instant = || {
         let year = i16::try_from(date.year()).ok()?;
@@ -168,6 +182,8 @@ fn day_before_monitoring_started(date: NaiveDate) -> UptimeDay {
         canary_failing_seconds: 0,
         no_canary_seconds: 0,
         not_running_seconds: 0,
+        blocked_seconds: 0,
+        blocked_segments: Vec::new(),
         watch_segments: Vec::new(),
     }
 }

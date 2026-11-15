@@ -84,6 +84,109 @@ async fn test_blocked_transition_is_logged_with_reason(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_blocked_period_is_recorded_while_the_site_is_blocked(pool: SqlitePool) {
+    let mut site = insert_test_site(&pool, SiteStatus::Up).await;
+    let notifier = Notifier::new(Client::new(), test_config(true).smtp_allow_private_hosts);
+    let blocked_periods = || async {
+        sqlx::query_as::<_, (i64, bool)>(
+            "SELECT COUNT(*), COALESCE(SUM(ended_at IS NULL), 0) > 0 FROM site_blocked_periods \
+             WHERE site_id = ?",
+        )
+        .bind(site.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+    };
+
+    persist_site_statuses(
+        &pool,
+        std::slice::from_ref(&site),
+        &mock_site_blocked_result(),
+        &notifier,
+    )
+    .await
+    .unwrap();
+    assert_eq!(blocked_periods().await, (1, true), "one open period");
+
+    site.status = SiteStatus::Blocked;
+    persist_site_statuses(
+        &pool,
+        std::slice::from_ref(&site),
+        &mock_site_blocked_result(),
+        &notifier,
+    )
+    .await
+    .unwrap();
+    assert_eq!(blocked_periods().await, (1, true), "still the same period");
+
+    persist_site_statuses(
+        &pool,
+        std::slice::from_ref(&site),
+        &mock_site_up_result(),
+        &notifier,
+    )
+    .await
+    .unwrap();
+    assert_eq!(blocked_periods().await, (1, false), "closed once unblocked");
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_blocked_on_its_first_check_is_blocked_from_when_it_was_added(pool: SqlitePool) {
+    let never_checked = insert_test_site(&pool, SiteStatus::Pending).await;
+    sqlx::query("UPDATE sites SET created_at = datetime('now', '-1 hour') WHERE id = ?")
+        .bind(never_checked.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let notifier = Notifier::new(Client::new(), test_config(true).smtp_allow_private_hosts);
+    persist_site_statuses(
+        &pool,
+        std::slice::from_ref(&never_checked),
+        &mock_site_blocked_result(),
+        &notifier,
+    )
+    .await
+    .unwrap();
+    let starts_when_added: bool = sqlx::query_scalar(
+        "SELECT datetime(p.started_at) = datetime(s.created_at) FROM site_blocked_periods p \
+         JOIN sites s ON s.id = p.site_id WHERE s.id = ?",
+    )
+    .bind(never_checked.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(starts_when_added);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_blocked_after_working_is_blocked_from_now(pool: SqlitePool) {
+    let working = insert_test_site(&pool, SiteStatus::Up).await;
+    sqlx::query("UPDATE sites SET created_at = datetime('now', '-1 hour') WHERE id = ?")
+        .bind(working.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let notifier = Notifier::new(Client::new(), test_config(true).smtp_allow_private_hosts);
+    persist_site_statuses(
+        &pool,
+        std::slice::from_ref(&working),
+        &mock_site_blocked_result(),
+        &notifier,
+    )
+    .await
+    .unwrap();
+    let started_just_now: bool = sqlx::query_scalar(
+        "SELECT started_at >= datetime('now', '-1 minute') FROM site_blocked_periods \
+         WHERE site_id = ?",
+    )
+    .bind(working.id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(started_just_now);
+}
+
+#[sqlx::test(migrations = "./migrations")]
 #[traced_test]
 async fn test_blocked_transition_closes_open_outage(pool: SqlitePool) {
     let site = insert_test_site(&pool, SiteStatus::Down).await;

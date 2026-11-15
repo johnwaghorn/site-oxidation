@@ -4,15 +4,16 @@ use super::fields::ExpectedText;
 use super::params::{ListSitesParams, ListSitesQuery, SiteUptimeParams, UPTIME_WINDOW_DAY_OPTIONS};
 use super::queries::{
     COUNT_OUTAGES, COUNT_SITES_ADMIN, COUNT_SITES_USER, COUNT_UNASSIGNED_SITES, DELETE_SITE,
-    INSERT_SITE, LIST_OUTAGES, LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW, LIST_SITES_ADMIN,
-    LIST_SITES_USER, SELECT_SITE_ADMIN, SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT,
-    SELECT_SITE_USER, UPDATE_SITE,
+    INSERT_SITE, LIST_OUTAGES, LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW,
+    LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW, LIST_SITES_ADMIN, LIST_SITES_USER,
+    SELECT_SITE_ADMIN, SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT, SELECT_SITE_USER,
+    UPDATE_SITE,
 };
 use super::responses::{SiteUptimeResponse, UnassignedCountResponse};
 use super::rules;
 use super::uptime::{
-    OutageTimes, UptimeWindow, daily_uptime, set_site_uptime_figures, uptime_window_start,
-    window_summary,
+    BlockedTimes, OutageTimes, UptimeWindow, daily_uptime, set_site_uptime_figures,
+    uptime_window_start, window_summary,
 };
 use super::{OutageResponse, SitePayload, SiteResponse};
 use crate::api::errors::{ApiError, ApiErrorResponse, internal_err, unique_conflict_err};
@@ -233,6 +234,15 @@ pub async fn get_site_uptime(
         .fetch_all(&state.pool)
         .await
         .map_err(|e| internal_err(&format!("Failed to load outages for site {id}"), e))?;
+    let blocked_periods =
+        sqlx::query_as::<_, BlockedTimes>(LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW)
+            .bind(id)
+            .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| {
+                internal_err(&format!("Failed to load blocked periods for site {id}"), e)
+            })?;
     let canary_periods =
         canary::load_periods_in_uptime_calculation_window(&state.pool, window_start)
             .await
@@ -248,6 +258,7 @@ pub async fn get_site_uptime(
         time_zone,
         days,
         outages: &outages,
+        blocked_periods: &blocked_periods,
         canary_periods: &canary_periods,
         monitoring_periods: &monitoring_periods,
     };

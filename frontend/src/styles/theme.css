@@ -32,6 +32,9 @@
   --color-switch-thumb: #7c5a3a;
   --color-neutral-bg: #f5e6d3;
   --color-neutral-text: #7c5a3a;
+  --color-blocked: #64748b;
+  --color-blocked-bg: #e2e8f0;
+  --color-blocked-text: #334155;
   --shadow-card: 0 18px 45px rgba(124, 58, 12, 0.13);
   --shadow-popover: 0 18px 38px rgba(43, 23, 11, 0.18);
   --shadow-primary-action: 0 8px 18px rgba(249, 115, 22, 0.22);
@@ -75,6 +78,9 @@
   --color-switch-thumb: #fff7ed;
   --color-neutral-bg: #2f2115;
   --color-neutral-text: #c9b8a6;
+  --color-blocked: #94a3b8;
+  --color-blocked-bg: #334155;
+  --color-blocked-text: #e2e8f0;
   --shadow-card: 0 18px 45px rgba(0, 0, 0, 0.32);
   --shadow-popover: 0 18px 38px rgba(0, 0, 0, 0.36);
   --shadow-primary-action: 0 8px 18px rgba(251, 146, 60, 0.16);

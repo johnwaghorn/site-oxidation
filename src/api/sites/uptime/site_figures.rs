@@ -1,8 +1,12 @@
 use super::timeline::{
-    OutageTimes, TimeRange, build_watch_timeline, measure_watched_time, monitor_running_ranges,
+    BlockedTimes, OutageTimes, TimeRange, UptimeRecords, measure_uptime_in_range,
+    monitor_running_ranges, site_blocked_ranges,
 };
 use crate::api::errors::{ApiErrorResponse, internal_err};
-use crate::api::sites::queries::LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS;
+use crate::api::sites::queries::{
+    LIST_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS,
+    LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS,
+};
 use crate::api::sites::responses::SiteResponse;
 use crate::canary;
 use crate::monitoring::periods;
@@ -17,6 +21,13 @@ struct SiteOutageTimes {
     site_id: i64,
     #[sqlx(flatten)]
     times: OutageTimes,
+}
+
+#[derive(FromRow)]
+struct SiteBlockedTimes {
+    site_id: i64,
+    #[sqlx(flatten)]
+    times: BlockedTimes,
 }
 
 pub(crate) async fn set_site_uptime_figures(
@@ -45,7 +56,7 @@ pub(crate) async fn set_site_uptime_figures(
     let mut outages_by_site: HashMap<i64, Vec<OutageTimes>> = HashMap::new();
     for outage in
         sqlx::query_as::<_, SiteOutageTimes>(LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS)
-            .bind(site_ids_json)
+            .bind(&site_ids_json)
             .bind(earliest_needed.format("%Y-%m-%d %H:%M:%S").to_string())
             .fetch_all(pool)
             .await
@@ -55,6 +66,21 @@ pub(crate) async fn set_site_uptime_figures(
             .entry(outage.site_id)
             .or_default()
             .push(outage.times);
+    }
+    let mut blocked_periods_by_site: HashMap<i64, Vec<BlockedTimes>> = HashMap::new();
+    for blocked in sqlx::query_as::<_, SiteBlockedTimes>(
+        LIST_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS,
+    )
+    .bind(&site_ids_json)
+    .bind(earliest_needed.format("%Y-%m-%d %H:%M:%S").to_string())
+    .fetch_all(pool)
+    .await
+    .map_err(|error| internal_err("Failed to load site blocked periods", error))?
+    {
+        blocked_periods_by_site
+            .entry(blocked.site_id)
+            .or_default()
+            .push(blocked.times);
     }
     let monitoring_periods =
         periods::load_periods_in_uptime_calculation_window(pool, earliest_needed)
@@ -72,13 +98,19 @@ pub(crate) async fn set_site_uptime_figures(
             start: site.created_at.max(window_start),
             end: now,
         };
-        let timeline =
-            build_watch_timeline(&window_range, &running_ranges, &canary_periods, now, |_| {
-                false
-            });
-        let outages = outages_by_site.get(&site.id).map_or(&[][..], Vec::as_slice);
-        site.uptime_basis_points =
-            measure_watched_time(&timeline, outages, now).uptime_basis_points();
+        let blocked_periods = blocked_periods_by_site
+            .get(&site.id)
+            .map_or(&[][..], Vec::as_slice);
+        let records = UptimeRecords {
+            running_ranges: &running_ranges,
+            blocked_ranges: &site_blocked_ranges(blocked_periods, now),
+            canary_periods: &canary_periods,
+            outages: outages_by_site.get(&site.id).map_or(&[][..], Vec::as_slice),
+            now,
+        };
+        site.uptime_basis_points = measure_uptime_in_range(&window_range, &records, |_| false)
+            .watched
+            .uptime_basis_points();
     }
     Ok(())
 }

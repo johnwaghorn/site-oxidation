@@ -83,6 +83,18 @@ pub const LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS: &str = concat!
     "WHERE site_id IN (SELECT value FROM json_each(?)) AND (ended_at IS NULL OR ended_at > ?)"
 );
 
+pub const LIST_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS: &str = concat!(
+    "SELECT site_id, started_at, ended_at FROM site_blocked_periods ",
+    "WHERE site_id IN (SELECT value FROM json_each(?)) AND (ended_at IS NULL OR ended_at > ?) ",
+    "ORDER BY started_at"
+);
+
+pub const LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW: &str = concat!(
+    "SELECT started_at, ended_at FROM site_blocked_periods ",
+    "WHERE site_id = ? AND (ended_at IS NULL OR ended_at > ?) ",
+    "ORDER BY started_at"
+);
+
 pub const SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT: &str =
     "SELECT url, created_at, last_checked_at FROM sites WHERE id = ?";
 

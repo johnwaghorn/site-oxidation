@@ -8,6 +8,7 @@ import type { components } from "../../generated/schema";
 type UptimeDay = components["schemas"]["UptimeDay"];
 type WatchStatus = components["schemas"]["WatchStatus"];
 type WatchSegment = components["schemas"]["WatchSegment"];
+type BlockedSegment = components["schemas"]["BlockedSegment"];
 
 interface TimeShare {
   className: string;
@@ -95,7 +96,10 @@ function localDayBounds(date: string) {
   };
 }
 
-function segmentPositionInDay(segment: WatchSegment, date: string) {
+function segmentPositionInDay(
+  segment: WatchSegment | BlockedSegment,
+  date: string,
+) {
   const day = localDayBounds(date);
   const length = day.end - day.start;
   const start = new Date(segment.started_at).getTime() - day.start;
@@ -127,7 +131,9 @@ function describeDayUptime(day: UptimeDay) {
   if (day.uptime_basis_points == null) return "Not watched, so no uptime";
   const uptime = `${formatUptime(day.uptime_basis_points)} uptime`;
   const partlyUnwatched =
-    day.not_running_seconds > 0 || day.canary_failing_seconds > 0;
+    day.not_running_seconds > 0 ||
+    day.canary_failing_seconds > 0 ||
+    day.blocked_seconds > 0;
   return partlyUnwatched
     ? `${uptime} over ${formatDuration(day.watched_seconds)} watched`
     : uptime;
@@ -147,6 +153,9 @@ function describeDay(day: UptimeDay, downSince: string | null) {
   return [
     describeDayUptime(day),
     describeOutages(day, downSince),
+    day.blocked_seconds > 0
+      ? `Blocked ${formatDuration(day.blocked_seconds)}`
+      : null,
     describeWatchStates(day),
   ]
     .filter((line) => line !== null)
@@ -166,6 +175,11 @@ function siteTimeShares(day: UptimeDay): TimeShare[] {
       className: outageClassName(day) ?? "is-short",
       label: `Down, ${outages}`,
       seconds: day.down_seconds,
+    },
+    {
+      className: "is-blocked",
+      label: "Blocked",
+      seconds: day.blocked_seconds,
     },
   ].filter((share) => share.seconds > 0);
 }
@@ -342,6 +356,13 @@ export function UptimeHistory({ siteId }: { siteId: number }) {
                         style={segmentPositionInDay(segment, day.date)}
                       />
                     ))}
+                    {day.blocked_segments.map((segment) => (
+                      <span
+                        key={segment.started_at}
+                        className="uptime-bar-part is-blocked"
+                        style={segmentPositionInDay(segment, day.date)}
+                      />
+                    ))}
                   </span>
                 );
               })}
@@ -388,6 +409,10 @@ export function UptimeHistory({ siteId }: { siteId: number }) {
                 <li>
                   <span className="uptime-swatch is-long" />
                   Down {LONG_OUTAGE_MINUTES} min or more
+                </li>
+                <li>
+                  <span className="uptime-swatch is-blocked" />
+                  Blocked
                 </li>
                 <li>
                   <span className="uptime-swatch is-unmonitored" />

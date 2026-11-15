@@ -1,4 +1,4 @@
-use crate::models::site::{CertStatus, SiteRow};
+use crate::models::site::{CertStatus, SiteRow, SiteStatus};
 use crate::notifications::{Notifier, planning};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeResult, UNKNOWN_PROBE_ERROR_MESSAGE};
@@ -108,6 +108,7 @@ pub(super) async fn update_site_status(
     .bind(site.id)
     .execute(&mut **transaction)
     .await?;
+    record_blocked_period_change(transaction, site, result).await?;
     if !site.status.is_down() && result.status.is_down() {
         sqlx::query(
             "INSERT INTO outages (site_id, http_status, error_message, expected_status) VALUES (?, ?, ?, ?)",
@@ -134,6 +135,36 @@ pub(super) async fn update_site_status(
         return Ok(SiteTransition::BecameBlocked);
     }
     Ok(SiteTransition::NoChange)
+}
+
+async fn record_blocked_period_change(
+    transaction: &mut Transaction<'_, Sqlite>,
+    site: &SiteRow,
+    result: &ProbeResult,
+) -> sqlx::Result<()> {
+    let became_blocked = result.status.is_blocked() && !site.status.is_blocked();
+    let stopped_being_blocked = site.status.is_blocked() && !result.status.is_blocked();
+    if became_blocked {
+        let never_checked_before = site.status == SiteStatus::Pending;
+        sqlx::query(
+            "INSERT OR IGNORE INTO site_blocked_periods (site_id, started_at) \
+             SELECT id, CASE WHEN ? THEN created_at ELSE CURRENT_TIMESTAMP END \
+             FROM sites WHERE id = ?",
+        )
+        .bind(never_checked_before)
+        .bind(site.id)
+        .execute(&mut **transaction)
+        .await?;
+    } else if stopped_being_blocked {
+        sqlx::query(
+            "UPDATE site_blocked_periods SET ended_at = ? WHERE site_id = ? AND ended_at IS NULL",
+        )
+        .bind(Utc::now())
+        .bind(site.id)
+        .execute(&mut **transaction)
+        .await?;
+    }
+    Ok(())
 }
 
 async fn update_site_cert_status(

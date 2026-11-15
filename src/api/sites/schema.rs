@@ -9,8 +9,8 @@ use super::endpoints;
 use super::params::{SiteStatusFilter, UptimeWindowDays};
 use super::requests::SitePayload;
 use super::responses::{
-    CanaryWarning, OutageResponse, SiteResponse, SiteUptimeResponse, UnassignedCountResponse,
-    UptimeDay, WatchSegment, WatchStatus,
+    BlockedSegment, CanaryWarning, OutageResponse, SiteResponse, SiteUptimeResponse,
+    UnassignedCountResponse, UptimeDay, WatchSegment, WatchStatus,
 };
 
 #[derive(OpenApi)]
@@ -41,6 +41,7 @@ use super::responses::{
         UptimeWindowDays,
         WatchStatus,
         WatchSegment,
+        BlockedSegment,
         ApiError,
     )),
     tags(

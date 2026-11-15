@@ -99,6 +99,156 @@ async fn test_site_uptime_is_empty_until_the_site_has_been_checked(pool: SqliteP
 }
 
 #[sqlx::test(migrations = "./migrations")]
+async fn test_site_blocked_since_it_was_added_has_no_uptime(pool: SqlitePool) {
+    let site = insert_test_site(&pool, SiteStatus::Blocked).await;
+    sqlx::query(
+        "UPDATE sites SET created_at = datetime('now', '-1 hour'), last_checked_at = datetime('now') \
+         WHERE id = ?",
+    )
+    .bind(site.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO site_blocked_periods (site_id, started_at) VALUES (?, datetime('now', '-1 hour'))",
+    )
+    .bind(site.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO monitoring_periods (started_at, last_seen_at) \
+         VALUES (datetime('now', '-2 hours'), datetime('now'))",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert!(
+        body["data"][0]["uptime_basis_points"].is_null(),
+        "a blocked site is not being checked, got {}",
+        body["data"][0]["uptime_basis_points"]
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{}/uptime?days=7&time_zone=UTC", site.id))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert!(
+        body["uptime_basis_points"].is_null(),
+        "a blocked site is not being checked, got {}",
+        body["uptime_basis_points"]
+    );
+    assert!(body["days"][6]["uptime_basis_points"].is_null());
+    assert_eq!(body["days"][6]["monitoring_started"], true);
+    assert!(body["days"][6]["blocked_seconds"].as_i64().unwrap() > 0);
+}
+
+#[sqlx::test(migrations = "./migrations")]
+async fn test_site_blocked_after_being_monitored_keeps_its_earlier_uptime(pool: SqlitePool) {
+    let site = insert_test_site(&pool, SiteStatus::Blocked).await;
+    sqlx::query(
+        "UPDATE sites SET created_at = datetime('now', '-3 days'), last_checked_at = datetime('now') \
+         WHERE id = ?",
+    )
+    .bind(site.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO outages (site_id, started_at, ended_at) \
+         VALUES (?, datetime('now', '-2 days'), datetime('now', '-2 days', '+1 hour'))",
+    )
+    .bind(site.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO site_blocked_periods (site_id, started_at) VALUES (?, datetime('now', '-1 day'))",
+    )
+    .bind(site.id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO monitoring_periods (started_at, last_seen_at) \
+         VALUES (datetime('now', '-4 days'), datetime('now'))",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (app, cookie) = authenticated_admin_app(pool, true).await;
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/sites")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    assert_eq!(
+        body["data"][0]["uptime_basis_points"], 9791,
+        "two watched days with one hour down; the blocked day is left out"
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/sites/{}/uptime?days=7&time_zone=UTC", site.id))
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = parse_json_body(response).await;
+    let days = body["days"].as_array().unwrap();
+    let total_down: i64 = days
+        .iter()
+        .map(|day| day["down_seconds"].as_i64().unwrap())
+        .sum();
+    let total_blocked: i64 = days
+        .iter()
+        .map(|day| day["blocked_seconds"].as_i64().unwrap())
+        .sum();
+    assert_eq!(
+        total_down, 3600,
+        "the outage from before the block is still shown"
+    );
+    assert!(
+        (86_400..86_410).contains(&total_blocked),
+        "blocked for the last day, got {total_blocked}s"
+    );
+}
+
+#[sqlx::test(migrations = "./migrations")]
 async fn test_site_uptime_reports_an_ongoing_outage(pool: SqlitePool) {
     let site = insert_test_site(&pool, SiteStatus::Down).await;
     sqlx::query(

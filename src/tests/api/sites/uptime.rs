@@ -1,4 +1,4 @@
-use super::{OutageTimes, UptimeWindow, daily_uptime, window_summary};
+use super::{BlockedTimes, OutageTimes, UptimeWindow, daily_uptime, window_summary};
 use crate::api::sites::responses::{UptimeDay, WatchStatus};
 use crate::canary::{CanaryHealth, CanaryPeriod};
 use crate::monitoring::periods::MonitoringPeriod;
@@ -19,6 +19,13 @@ fn utc(timestamp: &str) -> DateTime<Utc> {
 
 fn outage(started_at: &str, ended_at: Option<&str>) -> OutageTimes {
     OutageTimes {
+        started_at: utc(started_at),
+        ended_at: ended_at.map(utc),
+    }
+}
+
+fn blocked(started_at: &str, ended_at: Option<&str>) -> BlockedTimes {
+    BlockedTimes {
         started_at: utc(started_at),
         ended_at: ended_at.map(utc),
     }
@@ -58,6 +65,7 @@ fn window<'a>(
         time_zone: TimeZone::get(time_zone).unwrap(),
         days: 7,
         outages,
+        blocked_periods: &[],
         canary_periods,
         monitoring_periods: &*ALWAYS_RUNNING,
     }
@@ -292,4 +300,100 @@ fn test_day_with_nothing_watched_has_no_uptime() {
     assert!(today.monitoring_started);
     assert_eq!(today.uptime_basis_points, None);
     assert_eq!(today.not_running_seconds, 12 * 3600);
+}
+
+#[test]
+fn test_time_the_site_was_blocked_is_left_out_of_uptime() {
+    let outages = [
+        outage("2026-10-20 02:00:00", Some("2026-10-20 03:00:00")),
+        outage("2026-10-20 07:00:00", Some("2026-10-20 08:00:00")),
+    ];
+    let blocked_periods = [blocked("2026-10-20 06:00:00", Some("2026-10-20 10:00:00"))];
+    let mut window = window("2026-10-20 12:00:00", "UTC", &outages, &[]);
+    window.blocked_periods = &blocked_periods;
+    let days = daily_uptime(&window);
+    let today = day(&days, "2026-10-20");
+    assert_eq!(today.blocked_seconds, 4 * 3600);
+    assert_eq!(today.watched_seconds, 8 * 3600);
+    assert_eq!(today.down_seconds, 3600);
+    assert_eq!(today.uptime_basis_points, Some(8750));
+    let blocked_times: Vec<(String, String)> = today
+        .blocked_segments
+        .iter()
+        .map(|segment| {
+            (
+                segment.started_at.format("%H:%M").to_string(),
+                segment.ended_at.format("%H:%M").to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(blocked_times, [("06:00".to_owned(), "10:00".to_owned())]);
+}
+
+#[test]
+fn test_canary_is_reported_for_the_whole_day_even_while_the_site_is_blocked() {
+    let other_host = "https://canary.waghorn.tech";
+    let periods = [canary(
+        CanaryHealth::Healthy,
+        other_host,
+        "2026-10-20 00:00:00",
+        None,
+    )];
+    let blocked_periods = [blocked("2026-10-20 06:00:00", None)];
+    let mut window = window("2026-10-20 12:00:00", "UTC", &[], &periods);
+    window.blocked_periods = &blocked_periods;
+    let days = daily_uptime(&window);
+    let today = day(&days, "2026-10-20");
+    assert_eq!(today.canary_healthy_seconds, 12 * 3600);
+    assert_eq!(
+        segment_times(today),
+        expected_segments(&[(WatchStatus::CanaryHealthy, "00:00", "12:00")]),
+        "the site being blocked says nothing about the canary"
+    );
+    assert_eq!(today.blocked_seconds, 6 * 3600);
+    assert_eq!(today.watched_seconds, 6 * 3600);
+}
+
+#[test]
+fn test_site_is_not_counted_as_blocked_while_the_monitor_was_not_running() {
+    let monitoring_periods = [
+        period("2026-10-20 00:00:00", "2026-10-20 04:00:00"),
+        period("2026-10-20 08:00:00", "2026-10-20 11:59:30"),
+    ];
+    let blocked_periods = [blocked("2026-10-20 02:00:00", None)];
+    let mut window = window("2026-10-20 12:00:00", "UTC", &[], &[]);
+    window.monitoring_periods = &monitoring_periods;
+    window.blocked_periods = &blocked_periods;
+    let days = daily_uptime(&window);
+    let today = day(&days, "2026-10-20");
+    assert_eq!(today.not_running_seconds, 4 * 3600);
+    assert_eq!(today.blocked_seconds, 6 * 3600);
+    assert_eq!(today.watched_seconds, 2 * 3600);
+}
+
+#[test]
+fn test_site_still_blocked_keeps_the_history_from_before_it_was_blocked() {
+    let outages = [outage("2026-10-18 10:00:00", Some("2026-10-18 11:00:00"))];
+    let blocked_periods = [blocked("2026-10-19 12:00:00", None)];
+    let mut window = window("2026-10-20 12:00:00", "UTC", &outages, &[]);
+    window.blocked_periods = &blocked_periods;
+    let days = daily_uptime(&window);
+    let before = day(&days, "2026-10-18");
+    assert!(before.monitoring_started);
+    assert_eq!(before.down_seconds, 3600);
+    assert_eq!(before.blocked_seconds, 0);
+    let today = day(&days, "2026-10-20");
+    assert!(today.monitoring_started);
+    assert_eq!(today.blocked_seconds, 12 * 3600);
+    assert_eq!(today.watched_seconds, 0);
+    assert_eq!(today.uptime_basis_points, None);
+
+    let summary = window_summary(&window);
+    assert!(
+        summary
+            .uptime_basis_points
+            .is_some_and(|uptime| uptime < 10_000),
+        "the outage before the site was blocked still counts, got {:?}",
+        summary.uptime_basis_points
+    );
 }

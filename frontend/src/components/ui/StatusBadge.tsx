@@ -30,8 +30,8 @@ const statusConfig = {
     label: "BLOCKED",
     title:
       "Probe skipped by policy, usually because the host resolves to a private/internal IP",
-    backgroundColor: "var(--color-neutral-bg)",
-    color: "var(--color-neutral-text)",
+    backgroundColor: "var(--color-blocked-bg)",
+    color: "var(--color-blocked-text)",
   },
 };
 

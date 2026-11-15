@@ -70,7 +70,15 @@ pub struct UptimeDay {
     pub canary_failing_seconds: i64,
     pub no_canary_seconds: i64,
     pub not_running_seconds: i64,
+    pub blocked_seconds: i64,
     pub watch_segments: Vec<WatchSegment>,
+    pub blocked_segments: Vec<BlockedSegment>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, ToSchema)]
+pub struct BlockedSegment {
+    pub started_at: DateTime<Utc>,
+    pub ended_at: DateTime<Utc>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, ToSchema)]

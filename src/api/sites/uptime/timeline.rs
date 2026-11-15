@@ -12,6 +12,12 @@ pub(in crate::api::sites) struct OutageTimes {
     pub ended_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, FromRow)]
+pub(in crate::api::sites) struct BlockedTimes {
+    pub started_at: DateTime<Utc>,
+    pub ended_at: Option<DateTime<Utc>>,
+}
+
 #[derive(Clone, Copy)]
 pub(super) struct TimeRange {
     pub(super) start: DateTime<Utc>,
@@ -33,6 +39,20 @@ impl TimeRange {
         };
         overlap.duration_seconds()
     }
+}
+
+pub(super) struct UptimeRecords<'a> {
+    pub(super) running_ranges: &'a [TimeRange],
+    pub(super) blocked_ranges: &'a [TimeRange],
+    pub(super) canary_periods: &'a [CanaryPeriod],
+    pub(super) outages: &'a [OutageTimes],
+    pub(super) now: DateTime<Utc>,
+}
+
+pub(super) struct MeasuredUptime {
+    pub(super) timeline: Vec<WatchSegment>,
+    pub(super) blocked: Vec<TimeRange>,
+    pub(super) watched: WatchedTime,
 }
 
 pub(super) struct WatchedTime {
@@ -70,7 +90,42 @@ pub(super) fn monitor_running_ranges(
         .collect()
 }
 
-pub(super) fn build_watch_timeline(
+pub(super) fn site_blocked_ranges(
+    blocked_periods: &[BlockedTimes],
+    now: DateTime<Utc>,
+) -> Vec<TimeRange> {
+    blocked_periods
+        .iter()
+        .map(|period| TimeRange {
+            start: period.started_at,
+            end: period.ended_at.unwrap_or(now),
+        })
+        .collect()
+}
+
+// The one place that decides what counts as watched, so every figure follows the same rules.
+pub(super) fn measure_uptime_in_range(
+    range: &TimeRange,
+    records: &UptimeRecords<'_>,
+    canary_shares_site_host: impl Fn(&str) -> bool,
+) -> MeasuredUptime {
+    let timeline = build_watch_timeline(
+        range,
+        records.running_ranges,
+        records.canary_periods,
+        records.now,
+        canary_shares_site_host,
+    );
+    let blocked = blocked_time_while_monitor_ran(&timeline, records.blocked_ranges);
+    let watched = measure_watched_time(&timeline, &blocked, records.outages, records.now);
+    MeasuredUptime {
+        timeline,
+        blocked,
+        watched,
+    }
+}
+
+fn build_watch_timeline(
     range: &TimeRange,
     running_ranges: &[TimeRange],
     canary_periods: &[CanaryPeriod],
@@ -82,8 +137,42 @@ pub(super) fn build_watch_timeline(
     mark_time_monitor_was_not_running(&canary_only, running_ranges)
 }
 
-pub(super) fn measure_watched_time(
+fn blocked_time_while_monitor_ran(
     timeline: &[WatchSegment],
+    blocked_ranges: &[TimeRange],
+) -> Vec<TimeRange> {
+    let mut blocked: Vec<TimeRange> = Vec::new();
+    for segment in timeline {
+        if segment.state == WatchStatus::NotRunning {
+            continue;
+        }
+        for blocked_range in blocked_ranges {
+            let start = blocked_range.start.max(segment.started_at);
+            let end = blocked_range.end.min(segment.ended_at);
+            if end <= start {
+                continue;
+            }
+            if let Some(previous) = blocked.last_mut()
+                && previous.end == start
+            {
+                previous.end = end;
+            } else {
+                blocked.push(TimeRange { start, end });
+            }
+        }
+    }
+    blocked
+}
+
+pub(super) fn total_seconds(ranges: &[TimeRange]) -> i64 {
+    ranges.iter().fold(0_i64, |total, range| {
+        total.saturating_add(range.duration_seconds())
+    })
+}
+
+fn measure_watched_time(
+    timeline: &[WatchSegment],
+    blocked: &[TimeRange],
     outages: &[OutageTimes],
     now: DateTime<Utc>,
 ) -> WatchedTime {
@@ -95,9 +184,14 @@ pub(super) fn measure_watched_time(
                 WatchStatus::CanaryFailing | WatchStatus::NotRunning
             )
         })
-        .map(|segment| TimeRange {
-            start: segment.started_at,
-            end: segment.ended_at,
+        .flat_map(|segment| {
+            time_outside(
+                TimeRange {
+                    start: segment.started_at,
+                    end: segment.ended_at,
+                },
+                blocked,
+            )
         })
         .collect();
     let down_seconds = outages.iter().fold(0_i64, |total, outage| {
@@ -107,9 +201,7 @@ pub(super) fn measure_watched_time(
         })
     });
     WatchedTime {
-        watched_seconds: watched.iter().fold(0_i64, |total, range| {
-            total.saturating_add(range.duration_seconds())
-        }),
+        watched_seconds: total_seconds(&watched),
         down_seconds,
     }
 }
@@ -215,6 +307,32 @@ fn mark_time_monitor_was_not_running(
         }
     }
     segments
+}
+
+fn time_outside(range: TimeRange, excluded: &[TimeRange]) -> Vec<TimeRange> {
+    let mut remaining: Vec<TimeRange> = Vec::new();
+    let mut covered_until = range.start;
+    for excluded_range in excluded {
+        let start = excluded_range.start.max(covered_until);
+        let end = excluded_range.end.min(range.end);
+        if end <= start {
+            continue;
+        }
+        if start > covered_until {
+            remaining.push(TimeRange {
+                start: covered_until,
+                end: start,
+            });
+        }
+        covered_until = end;
+    }
+    if range.end > covered_until {
+        remaining.push(TimeRange {
+            start: covered_until,
+            end: range.end,
+        });
+    }
+    remaining
 }
 
 fn push_segment_or_extend_previous(

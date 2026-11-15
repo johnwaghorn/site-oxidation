@@ -113,6 +113,13 @@
   );
 }
 
+.uptime-bar .uptime-bar-part.is-blocked,
+.uptime-swatch.is-blocked,
+.uptime-tooltip .is-blocked {
+  background-color: var(--color-blocked);
+  background-image: none;
+}
+
 .uptime-canary-line {
   height: 4px;
   margin-top: 6px;
@@ -251,7 +258,7 @@
 /* One row for the bars and one for the canary line underneath */
 .uptime-legend {
   display: grid;
-  grid-template-columns: repeat(5, auto);
+  grid-template-columns: repeat(6, auto);
   justify-content: start;
   gap: 8px 24px;
   font-size: 13px;

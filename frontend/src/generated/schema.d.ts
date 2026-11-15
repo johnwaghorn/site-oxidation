@@ -528,6 +528,12 @@ export interface components {
             error: string;
             message: string;
         };
+        BlockedSegment: {
+            /** Format: date-time */
+            ended_at: string;
+            /** Format: date-time */
+            started_at: string;
+        };
         BootstrapResponse: {
             password: string;
             username: string;
@@ -908,6 +914,9 @@ export interface components {
             role: components["schemas"]["UserRole"];
         };
         UptimeDay: {
+            /** Format: int64 */
+            blocked_seconds: number;
+            blocked_segments: components["schemas"]["BlockedSegment"][];
             /** Format: int64 */
             canary_failing_seconds: number;
             /** Format: int64 */
