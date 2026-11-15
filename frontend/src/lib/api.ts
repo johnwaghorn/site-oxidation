@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import createClient from "openapi-fetch";
 import type { paths } from "../generated/schema";
 import { queryKeys } from "./queryKeys";
+import { forgetEverythingLoadedForTheSignedInUser } from "./sessionCache";
 
 const AUTH_PATH_PREFIX = "/api/auth/";
 
@@ -27,6 +28,7 @@ const fetchWithCredentials: typeof fetch = async (input, init) => {
     const pathname = getPathname(input);
     if (!pathname.startsWith(AUTH_PATH_PREFIX)) {
       queryClient.setQueryData(queryKeys.authMe, null);
+      forgetEverythingLoadedForTheSignedInUser(queryClient);
     }
   }
   return response;

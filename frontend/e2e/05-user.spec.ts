@@ -7,6 +7,7 @@ import {
   channelRow,
   openTeamNotifications,
   signIn,
+  signInAsAdmin,
   signInAsMaddie,
 } from "./helpers";
 
@@ -260,5 +261,37 @@ test("maddie re-imports her own export", async ({ page }) => {
     await page.getByText(/^Show all \d+ sites?$/).click();
     const row = page.locator("li", { hasText: "Maddie Blog" });
     await expect(row.getByText("Already here", { exact: true })).toBeVisible();
+  });
+});
+
+test("maddie does not see the previous user's teams after signing in on the same tab", async ({
+  page,
+}) => {
+  await test.step("Given the admin has viewed every team's notifications and logged out", async () => {
+    await signInAsAdmin(page);
+    await page.goto("/notifications");
+    await expect(
+      page.getByRole("table").getByRole("link", { name: "Ops", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /admin/ }).click();
+    await page.getByRole("button", { name: "Logout" }).click();
+  });
+
+  await test.step("When maddie signs in without reloading the page", async () => {
+    await page.getByPlaceholder("Username").fill("maddie");
+    await page
+      .getByPlaceholder("Password", { exact: true })
+      .fill(MADDIE_PASSWORD);
+    await page.getByRole("button", { name: "Login" }).click();
+  });
+
+  await test.step("Then she sees only her own teams", async () => {
+    const teamsTable = page.getByRole("table");
+    await expect(
+      teamsTable.getByRole("link", { name: "Support", exact: true }),
+    ).toBeVisible();
+    await expect(
+      teamsTable.getByRole("link", { name: "Ops", exact: true }),
+    ).toBeHidden();
   });
 });

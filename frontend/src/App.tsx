@@ -34,6 +34,7 @@ function App() {
     mustChangePassword,
     themePreference: savedThemePreference,
     refresh,
+    startSessionAfterSignIn,
     updateThemePreference,
   } = useAuth();
   const {
@@ -67,7 +68,7 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={refresh} />;
+    return <Login onLoginSuccess={startSessionAfterSignIn} />;
   }
 
   if (mustChangePassword) {

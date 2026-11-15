@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { queryKeys } from "../lib/queryKeys";
+import { forgetEverythingLoadedForTheSignedInUser } from "../lib/sessionCache";
 import type { components } from "../generated/schema";
 
 type AuthUser = components["schemas"]["MeSuccess"];
@@ -27,9 +28,15 @@ export function useAuth() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
   }, [queryClient]);
 
+  const startSessionAfterSignIn = useCallback(async () => {
+    forgetEverythingLoadedForTheSignedInUser(queryClient);
+    await refresh();
+  }, [queryClient, refresh]);
+
   const logout = useCallback(async () => {
     await api.POST("/api/auth/logout");
     queryClient.setQueryData(queryKeys.authMe, null);
+    forgetEverythingLoadedForTheSignedInUser(queryClient);
   }, [queryClient]);
 
   const updateThemePreference = useCallback(
@@ -62,6 +69,7 @@ export function useAuth() {
     isLoading,
     logout,
     refresh,
+    startSessionAfterSignIn,
     updateThemePreference,
   };
 }
