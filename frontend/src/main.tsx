@@ -11,6 +11,7 @@ import "./styles/tables.css";
 import "./styles/buttons.css";
 import "./styles/cards.css";
 import "./styles/feedback.css";
+import "./styles/loading-spinner.css";
 import "./styles/canary.css";
 import "./styles/notifications.css";
 import "./styles/notification-outbox.css";
