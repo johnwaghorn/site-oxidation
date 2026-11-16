@@ -425,7 +425,11 @@ function CreateUserForm({
         </FormSelect>
       </label>
       {needsTeam && <TeamCombobox teamId={teamId} onChange={onTeamChange} />}
-      {error && <p className="error-box">{error}</p>}
+      {error && (
+        <p className="error-box" role="alert">
+          {error}
+        </p>
+      )}
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           type="submit"
@@ -559,7 +563,11 @@ function TeamCombobox({
           Team selected
         </span>
       )}
-      {error && <p className="error-box">Couldn't load teams - try again.</p>}
+      {error && (
+        <p className="error-box" role="alert">
+          Couldn't load teams - try again.
+        </p>
+      )}
       {noTeams && (
         <p className="muted-text">
           No teams yet - <Link to="/admin/teams">create a team</Link> first.

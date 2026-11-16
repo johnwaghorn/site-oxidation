@@ -115,7 +115,11 @@ export function ChangePasswordForm({
           autoComplete="new-password"
         />
       </label>
-      {error && <p className="error-box">{error}</p>}
+      {error && (
+        <p className="error-box" role="alert">
+          {error}
+        </p>
+      )}
       <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
         {onCancel && (
           <button

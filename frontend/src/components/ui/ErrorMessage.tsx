@@ -6,6 +6,7 @@ export function ErrorMessage({ error }: ErrorMessageProps) {
   if (!error) return null;
   return (
     <div
+      role="alert"
       style={{
         marginTop: "16px",
         padding: "16px",

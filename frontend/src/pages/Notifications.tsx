@@ -331,7 +331,9 @@ function ChannelRow({
         <span className="muted-text">{isOn ? detail : offDetail}</span>
         {sendTest.isError && <ErrorMessage error={sendTest.error} />}
         {sendTest.isSuccess && (
-          <span className="form-success-text">Test message sent.</span>
+          <span className="form-success-text" role="status">
+            Test message sent.
+          </span>
         )}
       </div>
       <div className="channel-actions">
@@ -681,7 +683,7 @@ function SmtpForm({
       </div>
 
       {missingFields.length > 0 && (
-        <p className="error-box">
+        <p className="error-box" role="alert">
           Fill in the {listMissingFields(missingFields)} to enable email
           notifications.
         </p>

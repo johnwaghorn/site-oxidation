@@ -64,7 +64,11 @@ export function Login({ onLoginSuccess }: LoginProps) {
               autoComplete="current-password"
             />
           </label>
-          {error && <p className="error-box">{error}</p>}
+          {error && (
+            <p className="error-box" role="alert">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={isLoading}
