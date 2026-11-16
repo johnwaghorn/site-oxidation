@@ -4,6 +4,7 @@ import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Tabs } from "../components/ui/Tabs";
 import { Truncate } from "../components/ui/Truncate";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export function AdminTeamDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +14,7 @@ export function AdminTeamDetail() {
     isLoading: teamLoading,
     error: teamError,
   } = useAdminTeam(teamId);
+  usePageTitle(team?.name);
 
   if (!Number.isInteger(teamId) || teamId <= 0) {
     return <ErrorMessage error={new Error("Team not found")} />;

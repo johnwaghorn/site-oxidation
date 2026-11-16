@@ -18,6 +18,7 @@ import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type SiteResponse = components["schemas"]["SiteResponse"];
 type SiteStatusFilter = components["schemas"]["SiteStatusFilter"];
@@ -37,6 +38,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ role, teams }: DashboardProps) {
+  usePageTitle("Sites");
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
   const [statusFilter, setStatusFilter] = useState<SiteStatusFilter | null>(

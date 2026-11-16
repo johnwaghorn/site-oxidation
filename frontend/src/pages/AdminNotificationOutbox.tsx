@@ -11,6 +11,7 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Pagination } from "../components/ui/Pagination";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type OutboxEntry = components["schemas"]["NotificationOutboxEntryResponse"];
 
@@ -162,6 +163,7 @@ function OutboxRow({ entry, isOpen, onToggle, onCancel }: OutboxRowProps) {
 }
 
 export function AdminNotificationOutbox() {
+  usePageTitle("Notification outbox");
   const { page, perPage, goToPage, correctPage } = usePagination();
   const {
     data: outbox,

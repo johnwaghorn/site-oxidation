@@ -25,6 +25,7 @@ import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput, FormSelect } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type UserResponse = components["schemas"]["UserResponse"];
 type UserRole = components["schemas"]["UserRole"];
@@ -36,6 +37,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export function AdminUsers() {
+  usePageTitle("Users");
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
   const { page, perPage, goToPage, correctPage } =

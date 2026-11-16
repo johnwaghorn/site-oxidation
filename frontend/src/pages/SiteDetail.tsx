@@ -13,6 +13,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { CanaryBadge } from "../components/ui/CanaryBadge";
 import { CertBadge } from "../components/ui/CertBadge";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type OutageResponse = components["schemas"]["OutageResponse"];
 
@@ -85,6 +86,7 @@ export function SiteDetail() {
     isLoading: siteLoading,
     error: siteError,
   } = useSite(siteId);
+  usePageTitle(site?.name);
   const updateSite = useUpdateSite();
   const [isEditing, setIsEditing] = useState(false);
   const { data: outagesData, isLoading: outagesLoading } = useOutages(

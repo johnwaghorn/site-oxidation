@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 import { SecretInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type ChangePasswordRequest = components["schemas"]["ChangePasswordRequest"];
 
@@ -18,6 +19,7 @@ export function ChangePassword({
 }: {
   onPasswordChanged: () => void;
 }) {
+  usePageTitle("Change password");
   return (
     <div className="form-page-wrapper">
       <div className="form-card">

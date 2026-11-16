@@ -18,6 +18,7 @@ import { SearchInput } from "../components/ui/SearchInput";
 import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { Truncate } from "../components/ui/Truncate";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type TeamResponse = components["schemas"]["TeamResponse"];
 
@@ -29,6 +30,7 @@ export function AdminUserDetail() {
     isLoading: userLoading,
     error: userError,
   } = useAdminUser(userId);
+  usePageTitle(user?.username);
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());
   const { page, perPage, goToPage, correctPage } =

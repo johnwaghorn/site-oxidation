@@ -1,7 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export function NotFound() {
+  usePageTitle("Page not found");
   const location = useLocation();
   const navigate = useNavigate();
 

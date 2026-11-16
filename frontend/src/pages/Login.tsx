@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { FormInput, SecretInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type Credentials = components["schemas"]["Credentials"];
 
@@ -10,6 +11,7 @@ interface LoginProps {
 }
 
 export function Login({ onLoginSuccess }: LoginProps) {
+  usePageTitle("Log in");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

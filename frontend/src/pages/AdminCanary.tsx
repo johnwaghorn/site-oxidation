@@ -11,6 +11,7 @@ import { ExternalLink } from "../components/ui/ExternalLink";
 import { FormInput } from "../components/ui/FormControls";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Modal } from "../components/ui/Modal";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type CanaryState = components["schemas"]["CanaryState"];
 type CanarySettings = components["schemas"]["CanarySettingsResponse"];
@@ -43,6 +44,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 export function AdminCanary() {
+  usePageTitle("Canary");
   const { data: settings, isLoading, error } = useAdminCanary();
   if (isLoading) {
     return (

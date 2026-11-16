@@ -205,6 +205,20 @@
   min-width: 0;
 }
 
+.app-shell-main:focus {
+  outline: none;
+}
+
+.app-shell-main h1:focus {
+  outline: none;
+}
+
+.app-shell-main h1:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     display: block;

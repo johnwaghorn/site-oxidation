@@ -12,6 +12,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useExportSites, useImportSites } from "../hooks/useImportExport";
 import { saveBlobAsFile } from "../lib/download";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type SiteImportRequest = components["schemas"]["SiteImportRequest"];
 type SiteImportResponse = components["schemas"]["SiteImportResponse"];
@@ -81,6 +82,7 @@ function isDraggingFiles(event: DragEvent) {
 }
 
 export function ImportExport() {
+  usePageTitle("Import & Export");
   const navigate = useNavigate();
   const { role, teams } = useAuth();
   const exportSites = useExportSites();

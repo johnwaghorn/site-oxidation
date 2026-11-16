@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import type { ReactNode } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useRef, type ReactNode } from "react";
 import { UserMenu } from "./UserMenu";
 import type { ThemePreference } from "../../hooks/useThemePreference";
 import type { components } from "../../generated/schema";
@@ -26,6 +26,42 @@ export function AppShell({
   onThemePreferenceChange,
 }: AppShellProps) {
   const isAdmin = role === "admin";
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const isFirstPageSinceTheAppLoaded = useRef(true);
+
+  useEffect(() => {
+    if (isFirstPageSinceTheAppLoaded.current) {
+      isFirstPageSinceTheAppLoaded.current = false;
+      return;
+    }
+    const main = mainRef.current;
+    if (!main) return;
+    const focusIsStillOnSomethingInThePage = main.contains(
+      document.activeElement,
+    );
+    if (focusIsStillOnSomethingInThePage) return;
+    const focusPageHeadingIfItHasRendered = () => {
+      const pageHeading = main.querySelector<HTMLElement>("h1");
+      if (!pageHeading) return false;
+      pageHeading.tabIndex = -1;
+      pageHeading.focus();
+      return true;
+    };
+    if (focusPageHeadingIfItHasRendered()) return;
+    main.focus();
+    const waitForHeadingWhileThePageLoads = new MutationObserver(() => {
+      const userHasMovedFocusElsewhere = document.activeElement !== main;
+      if (userHasMovedFocusElsewhere || focusPageHeadingIfItHasRendered()) {
+        waitForHeadingWhileThePageLoads.disconnect();
+      }
+    });
+    waitForHeadingWhileThePageLoads.observe(main, {
+      childList: true,
+      subtree: true,
+    });
+    return () => waitForHeadingWhileThePageLoads.disconnect();
+  }, [pathname]);
 
   return (
     <div className="app-shell">
@@ -127,7 +163,9 @@ export function AppShell({
         />
       </aside>
 
-      <main className="app-shell-main">{children}</main>
+      <main ref={mainRef} className="app-shell-main" tabIndex={-1}>
+        {children}
+      </main>
     </div>
   );
 }

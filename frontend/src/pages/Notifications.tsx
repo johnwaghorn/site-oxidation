@@ -25,6 +25,7 @@ import {
   useUpdateTeamNotifications,
 } from "../hooks/useTeamNotifications";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type UserTeam = components["schemas"]["UserTeam"];
 type TeamNotifications = components["schemas"]["TeamNotificationsResponse"];
@@ -87,6 +88,11 @@ export function Notifications() {
   const selected =
     teams.find((team) => team.id === Number(teamId)) ??
     (teams.length === 1 ? teams[0] : null);
+  usePageTitle(
+    selected && hasSeveralTeams
+      ? `${selected.name} notifications`
+      : "Notifications",
+  );
 
   if (!isLoading && teamId && !selected) {
     return <Navigate to="/notifications" replace />;

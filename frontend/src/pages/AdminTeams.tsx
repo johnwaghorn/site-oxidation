@@ -18,10 +18,12 @@ import { TableCard, TableCardEmpty } from "../components/ui/TableCard";
 import { FormInput } from "../components/ui/FormControls";
 import { Truncate } from "../components/ui/Truncate";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type TeamResponse = components["schemas"]["TeamResponse"];
 
 export function AdminTeams() {
+  usePageTitle("Teams");
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebouncedValue(searchInput.trim());

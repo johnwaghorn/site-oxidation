@@ -3,6 +3,7 @@ import { useBootstrap } from "../hooks/useSetup";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { CopyButton } from "../components/ui/CopyButton";
 import type { components } from "../generated/schema";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 type BootstrapResponse = components["schemas"]["BootstrapResponse"];
 
@@ -11,6 +12,7 @@ interface SetupProps {
 }
 
 export function Setup({ onSetupComplete }: SetupProps) {
+  usePageTitle("Set up");
   const [newAdmin, setNewAdmin] = useState<BootstrapResponse | null>(null);
   const bootstrap = useBootstrap();
 
