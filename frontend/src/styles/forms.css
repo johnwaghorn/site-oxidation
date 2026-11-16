@@ -40,7 +40,7 @@
 .form-field:focus,
 .form-field:focus-within {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
   outline: none;
 }
 
@@ -226,7 +226,7 @@
 }
 
 .switch input:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 

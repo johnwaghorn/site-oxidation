@@ -15,7 +15,7 @@
   --color-primary-hover: #ea580c;
   --color-primary-soft: #ffedd5;
   --color-primary-text: #2b170b;
-  --color-focus-ring: rgba(249, 115, 22, 0.25);
+  --color-focus-ring: #ea580c;
   --color-overlay: rgba(43, 23, 11, 0.48);
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
@@ -61,7 +61,7 @@
   --color-primary-hover: #fdba74;
   --color-primary-soft: #431407;
   --color-primary-text: #1f1308;
-  --color-focus-ring: rgba(251, 146, 60, 0.26);
+  --color-focus-ring: #fb923c;
   --color-overlay: rgba(0, 0, 0, 0.62);
   --color-danger: #f87171;
   --color-danger-hover: #fca5a5;
