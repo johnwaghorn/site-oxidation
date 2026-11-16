@@ -45,21 +45,25 @@ export function Login({ onLoginSuccess }: LoginProps) {
       <div className="form-card">
         <h1 style={{ marginBottom: "24px" }}>Site Oxidation</h1>
         <form onSubmit={handleSubmit} className="form-column">
-          <FormInput
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-          />
-          <SecretInput
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+          <label className="field-label">
+            <span className="field-label-text">Username</span>
+            <FormInput
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+            />
+          </label>
+          <label className="field-label">
+            <span className="field-label-text">Password</span>
+            <SecretInput
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </label>
           {error && <p className="error-box">{error}</p>}
           <button
             type="submit"

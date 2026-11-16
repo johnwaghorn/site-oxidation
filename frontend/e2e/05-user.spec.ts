@@ -27,11 +27,11 @@ test("maddie changes her temporary password on first sign-in", async ({
   });
 
   await test.step("When she chooses a new password", async () => {
-    await page.getByPlaceholder("Current password").fill(TEMP_USER_PASSWORD);
+    await page.getByLabel("Current password").fill(TEMP_USER_PASSWORD);
     await page
-      .getByPlaceholder("New password (12+ characters)")
+      .getByLabel("New password", { exact: true })
       .fill(MADDIE_PASSWORD);
-    await page.getByPlaceholder("Confirm new password").fill(MADDIE_PASSWORD);
+    await page.getByLabel("Confirm new password").fill(MADDIE_PASSWORD);
     await page.getByRole("button", { name: "Change Password" }).click();
   });
 
@@ -278,9 +278,9 @@ test("maddie does not see the previous user's teams after signing in on the same
   });
 
   await test.step("When maddie signs in without reloading the page", async () => {
-    await page.getByPlaceholder("Username").fill("maddie");
+    await page.getByLabel("Username").fill("maddie");
     await page
-      .getByPlaceholder("Password", { exact: true })
+      .getByLabel("Password", { exact: true })
       .fill(MADDIE_PASSWORD);
     await page.getByRole("button", { name: "Login" }).click();
   });

@@ -1,10 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 import { SecretInput } from "../components/ui/FormControls";
 import type { components } from "../generated/schema";
 
 type ChangePasswordRequest = components["schemas"]["ChangePasswordRequest"];
+
+const MIN_PASSWORD_LENGTH = 12;
 
 interface ChangePasswordFormProps {
   onPasswordChanged: () => void;
@@ -39,6 +41,7 @@ export function ChangePasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { refresh } = useAuth();
+  const newPasswordRuleId = useId();
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -75,29 +78,43 @@ export function ChangePasswordForm({
 
   return (
     <form onSubmit={handleSubmit} className="form-column">
-      <SecretInput
-        placeholder="Current password"
-        value={currentPassword}
-        onChange={(e) => setCurrentPassword(e.target.value)}
-        required
-        autoComplete="current-password"
-      />
-      <SecretInput
-        placeholder="New password (12+ characters)"
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-        required
-        minLength={12}
-        autoComplete="new-password"
-      />
-      <SecretInput
-        placeholder="Confirm new password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
-        minLength={12}
-        autoComplete="new-password"
-      />
+      <label className="field-label">
+        <span className="field-label-text">Current password</span>
+        <SecretInput
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+        />
+      </label>
+      <label className="field-label">
+        <span className="field-label-text">New password</span>
+        <SecretInput
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          required
+          minLength={MIN_PASSWORD_LENGTH}
+          autoComplete="new-password"
+          aria-describedby={newPasswordRuleId}
+        />
+      </label>
+      <p
+        id={newPasswordRuleId}
+        className="muted-text"
+        style={{ margin: "-8px 0 0", fontSize: "14px" }}
+      >
+        At least {MIN_PASSWORD_LENGTH} characters.
+      </p>
+      <label className="field-label">
+        <span className="field-label-text">Confirm new password</span>
+        <SecretInput
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={MIN_PASSWORD_LENGTH}
+          autoComplete="new-password"
+        />
+      </label>
       {error && <p className="error-box">{error}</p>}
       <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
         {onCancel && (

@@ -35,9 +35,9 @@ test("first run: create the admin account and sign in", async ({ page }) => {
   });
 
   await test.step("And I sign in with the generated credentials", async () => {
-    await page.getByPlaceholder("Username").fill("admin");
+    await page.getByLabel("Username").fill("admin");
     await page
-      .getByPlaceholder("Password", { exact: true })
+      .getByLabel("Password", { exact: true })
       .fill(generatedPassword);
     await page.getByRole("button", { name: "Login" }).click();
   });
@@ -49,11 +49,11 @@ test("first run: create the admin account and sign in", async ({ page }) => {
   });
 
   await test.step("When I change my password", async () => {
-    await page.getByPlaceholder("Current password").fill(generatedPassword);
+    await page.getByLabel("Current password").fill(generatedPassword);
     await page
-      .getByPlaceholder("New password (12+ characters)")
+      .getByLabel("New password", { exact: true })
       .fill(ADMIN_PASSWORD);
-    await page.getByPlaceholder("Confirm new password").fill(ADMIN_PASSWORD);
+    await page.getByLabel("Confirm new password").fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Change Password" }).click();
   });
 

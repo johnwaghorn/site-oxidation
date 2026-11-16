@@ -5,8 +5,8 @@ export const MADDIE_PASSWORD = "e2e-maddiePassword-1234";
 
 export async function signIn(page: Page, username: string, password: string) {
   await page.goto("/");
-  await page.getByPlaceholder("Username").fill(username);
-  await page.getByPlaceholder("Password", { exact: true }).fill(password);
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Login" }).click();
 }
 
