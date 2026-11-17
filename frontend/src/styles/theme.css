@@ -7,6 +7,7 @@
   --color-field-bg: #fffbf5;
   --color-border: #fed7aa;
   --color-border-strong: #fdba74;
+  --color-border-control: #a8825e;
   --color-text: #2b170b;
   --color-muted: #7c5a3a;
   --color-link: #c2410c;
@@ -53,6 +54,7 @@
   --color-field-bg: #1d1510;
   --color-border: #3a2a1a;
   --color-border-strong: #7c3f16;
+  --color-border-control: #85705c;
   --color-text: #fff7ed;
   --color-muted: #c9b8a6;
   --color-link: #fdba74;
