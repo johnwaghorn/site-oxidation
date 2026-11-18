@@ -38,7 +38,7 @@ export function SecretInput({
       <button
         type="button"
         className="form-field-button"
-        aria-label={isRevealed ? "Hide value" : "Show value"}
+        aria-label="Show value"
         aria-pressed={isRevealed}
         onClick={() => setIsRevealed((revealed) => !revealed)}
       >
