@@ -1,4 +1,12 @@
-import { useState, useRef, useEffect, type CSSProperties } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import type { ThemePreference } from "../../hooks/useThemePreference";
 import { useVersion } from "../../hooks/useVersion";
@@ -48,6 +56,8 @@ export function UserMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
   const version = useVersion();
 
   useEffect(() => {
@@ -62,17 +72,36 @@ export function UserMenu({
 
   const isSidebar = variant === "sidebar";
 
+  function closeOnEscape(event: KeyboardEvent) {
+    if (event.key !== "Escape" || !isOpen) return;
+    setIsOpen(false);
+    toggleRef.current?.focus();
+  }
+
+  function closeWhenFocusMovesOutside(event: FocusEvent) {
+    const elementReceivingFocus = event.relatedTarget;
+    const focusMovedToSomethingOutsideTheMenu =
+      elementReceivingFocus !== null &&
+      !menuRef.current?.contains(elementReceivingFocus);
+    if (focusMovedToSomethingOutsideTheMenu) setIsOpen(false);
+  }
+
   return (
     <div
       ref={menuRef}
       style={{ position: "relative", width: isSidebar ? "100%" : undefined }}
+      onKeyDown={closeOnEscape}
+      onBlur={closeWhenFocusMovesOutside}
     >
       <button
+        ref={toggleRef}
         className={isSidebar ? "app-sidebar-account" : "button-user-menu"}
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
       >
         {isSidebar && (
-          <span className="app-sidebar-account-avatar">
+          <span className="app-sidebar-account-avatar" aria-hidden="true">
             {username.slice(0, 1).toUpperCase()}
           </span>
         )}
@@ -81,6 +110,7 @@ export function UserMenu({
       </button>
       {isOpen && (
         <div
+          id={panelId}
           style={{
             position: "absolute",
             right: isSidebar ? "auto" : 0,
