@@ -8,5 +8,5 @@ const adminTabs = [
 ];
 
 export function AdminNav() {
-  return <Tabs items={adminTabs} />;
+  return <Tabs label="Admin" items={adminTabs} />;
 }

@@ -75,7 +75,7 @@ export function AppShell({
       >
         Skip to content
       </a>
-      <aside className="app-sidebar" aria-label="Primary navigation">
+      <aside className="app-sidebar">
         <div>
           <div className="app-sidebar-brand">
             <div className="app-sidebar-logo-wrap">
@@ -94,7 +94,7 @@ export function AppShell({
             </div>
           </div>
 
-          <nav className="app-sidebar-nav">
+          <nav className="app-sidebar-nav" aria-label="Main">
             <NavLink
               to="/"
               end

@@ -38,6 +38,7 @@ export function AdminTeamDetail() {
       </p>
 
       <Tabs
+        label="Team"
         items={[
           { to: `/admin/teams/${teamId}/members`, label: "Members" },
           { to: `/admin/teams/${teamId}/sites`, label: "Sites" },

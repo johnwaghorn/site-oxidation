@@ -6,13 +6,14 @@ export interface TabItem {
 }
 
 interface TabsProps {
+  label: string;
   items: TabItem[];
 }
 
-export function Tabs({ items }: TabsProps) {
+export function Tabs({ label, items }: TabsProps) {
   const location = useLocation();
   return (
-    <nav className="tabs-nav">
+    <nav className="tabs-nav" aria-label={label}>
       {items.map((item) => {
         const isActive = location.pathname === item.to;
         return (
