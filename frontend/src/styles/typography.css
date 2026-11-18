@@ -2,6 +2,7 @@
 
 .page-title {
   margin: 0 0 24px 0;
+  overflow-wrap: anywhere;
 }
 
 /* Page title with a primary action on the right */

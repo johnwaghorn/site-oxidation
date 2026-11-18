@@ -70,7 +70,7 @@ export function AdminUserDetail() {
       </Link>
 
       <h1 className="page-title" style={{ marginBottom: "8px" }}>
-        <Truncate text={user.username} maxWidth="90%" />
+        {user.username}
       </h1>
       <dl className="detail-list">
         <div>

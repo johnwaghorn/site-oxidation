@@ -3,7 +3,6 @@ import { useAdminTeam } from "../hooks/useAdmin";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { Tabs } from "../components/ui/Tabs";
-import { Truncate } from "../components/ui/Truncate";
 import { usePageTitle } from "../hooks/usePageTitle";
 
 export function AdminTeamDetail() {
@@ -29,9 +28,7 @@ export function AdminTeamDetail() {
         &larr; Back to Teams
       </Link>
 
-      <h1 className="page-title">
-        <Truncate text={team.name} maxWidth="90%" />
-      </h1>
+      <h1 className="page-title">{team.name}</h1>
       <p className="muted-text">
         {team.member_count} active member{team.member_count === 1 ? "" : "s"}{" "}
         and {team.site_count} assigned site{team.site_count === 1 ? "" : "s"}
