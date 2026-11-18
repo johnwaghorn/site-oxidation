@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { Modal } from "./Modal";
 
 interface ConfirmDialogProps {
@@ -11,6 +12,8 @@ interface ConfirmDialogProps {
   isDestructive?: boolean;
 }
 
+const STOP_WATCHING_FOR_REMOVAL_AFTER_MS = 10_000;
+
 export function ConfirmDialog({
   isOpen,
   onClose,
@@ -21,6 +24,22 @@ export function ConfirmDialog({
   cancelText = "Cancel",
   isDestructive = false,
 }: ConfirmDialogProps) {
+  const elementThatOpenedTheDialog = useRef<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      elementThatOpenedTheDialog.current =
+        document.activeElement as HTMLElement | null;
+    }
+  }, [isOpen]);
+
+  function confirm() {
+    onConfirm();
+    onClose();
+    const opener = elementThatOpenedTheDialog.current;
+    if (opener) focusPageHeadingIfTheOpenerIsRemoved(opener);
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <p style={{ margin: "0 0 24px 0", color: "var(--color-muted)" }}>
@@ -42,10 +61,7 @@ export function ConfirmDialog({
           {cancelText}
         </button>
         <button
-          onClick={() => {
-            onConfirm();
-            onClose();
-          }}
+          onClick={confirm}
           style={{
             padding: "8px 16px",
             border: "none",
@@ -64,4 +80,29 @@ export function ConfirmDialog({
       </div>
     </Modal>
   );
+}
+
+function focusPageHeadingIfTheOpenerIsRemoved(opener: HTMLElement) {
+  const watchForTheOpenerBeingRemoved = new MutationObserver(() => {
+    if (opener.isConnected) return;
+    stopWatching();
+    const focusWasLost = document.activeElement === document.body;
+    if (!focusWasLost) return;
+    const pageHeading = document.querySelector<HTMLElement>("main h1");
+    if (!pageHeading) return;
+    pageHeading.tabIndex = -1;
+    pageHeading.focus();
+  });
+  const giveUpTimer = setTimeout(
+    stopWatching,
+    STOP_WATCHING_FOR_REMOVAL_AFTER_MS,
+  );
+  function stopWatching() {
+    watchForTheOpenerBeingRemoved.disconnect();
+    clearTimeout(giveUpTimer);
+  }
+  watchForTheOpenerBeingRemoved.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 }
