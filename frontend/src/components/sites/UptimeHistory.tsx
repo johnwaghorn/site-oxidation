@@ -114,16 +114,22 @@ function isWatched(segment: WatchSegment) {
   return segment.state !== "not_running" && segment.state !== "canary_failing";
 }
 
-function moveFocusWithArrowKeys(event: KeyboardEvent<HTMLElement>) {
-  const neighbour =
+function moveFocusBetweenBars(event: KeyboardEvent<HTMLElement>) {
+  const bar = event.currentTarget;
+  const allBars = bar.parentElement;
+  const barToFocus =
     event.key === "ArrowLeft"
-      ? event.currentTarget.previousElementSibling
+      ? bar.previousElementSibling
       : event.key === "ArrowRight"
-        ? event.currentTarget.nextElementSibling
-        : null;
-  if (neighbour instanceof HTMLElement) {
+        ? bar.nextElementSibling
+        : event.key === "Home"
+          ? allBars?.firstElementChild
+          : event.key === "End"
+            ? allBars?.lastElementChild
+            : null;
+  if (barToFocus instanceof HTMLElement) {
     event.preventDefault();
-    neighbour.focus();
+    barToFocus.focus();
   }
 }
 
@@ -329,7 +335,11 @@ export function UptimeHistory({ siteId }: { siteId: number }) {
             data-days={data.days.length}
             onMouseLeave={() => setActiveIndex(null)}
           >
-            <div className="uptime-bars">
+            <div
+              className="uptime-bars"
+              role="group"
+              aria-label={`Daily uptime, last ${data.days.length} days`}
+            >
               {data.days.map((day, index) => {
                 const isDownNow =
                   index === lastIndex && data.down_since != null;
@@ -347,7 +357,7 @@ export function UptimeHistory({ siteId }: { siteId: number }) {
                     onMouseEnter={() => setActiveIndex(index)}
                     onFocus={() => setActiveIndex(index)}
                     onBlur={() => setActiveIndex(null)}
-                    onKeyDown={moveFocusWithArrowKeys}
+                    onKeyDown={moveFocusBetweenBars}
                   >
                     {day.watch_segments.filter(isWatched).map((segment) => (
                       <span
