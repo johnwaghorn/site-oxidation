@@ -7,7 +7,7 @@
   --color-field-bg: #fffbf5;
   --color-border: #fed7aa;
   --color-border-strong: #fdba74;
-  --color-border-control: #a8825e;
+  --color-border-control: #c67139;
   --color-text: #2b170b;
   --color-muted: #7c5a3a;
   --color-link: #c2410c;
@@ -17,6 +17,7 @@
   --color-primary-soft: #ffedd5;
   --color-primary-text: #2b170b;
   --color-focus-ring: #ea580c;
+  --color-focus-glow: rgba(249, 115, 22, 0.25);
   --color-overlay: rgba(43, 23, 11, 0.48);
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
@@ -54,7 +55,7 @@
   --color-field-bg: #1d1510;
   --color-border: #3a2a1a;
   --color-border-strong: #7c3f16;
-  --color-border-control: #85705c;
+  --color-border-control: #a65f30;
   --color-text: #fff7ed;
   --color-muted: #c9b8a6;
   --color-link: #fdba74;
@@ -64,6 +65,7 @@
   --color-primary-soft: #431407;
   --color-primary-text: #1f1308;
   --color-focus-ring: #fb923c;
+  --color-focus-glow: rgba(251, 146, 60, 0.3);
   --color-overlay: rgba(0, 0, 0, 0.62);
   --color-danger: #f87171;
   --color-danger-hover: #fca5a5;

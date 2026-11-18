@@ -39,8 +39,8 @@
 /* :focus-within covers composite fields (e.g. the search box wrapper). */
 .form-field:focus,
 .form-field:focus-within {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-focus-ring);
+  border-color: var(--color-focus-ring);
+  box-shadow: 0 0 0 3px var(--color-focus-glow);
   outline: none;
 }
 
