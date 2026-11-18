@@ -78,8 +78,10 @@ function Credential({ value, testId }: { value: string; testId: string }) {
         data-testid={testId}
         style={{
           margin: 0,
+          minWidth: 0,
           padding: "4px 8px",
-          overflowX: "auto",
+          whiteSpace: "pre-wrap",
+          overflowWrap: "anywhere",
           color: "var(--color-text)",
         }}
       >
