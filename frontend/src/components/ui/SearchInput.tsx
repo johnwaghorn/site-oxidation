@@ -1,4 +1,5 @@
-import { SearchIcon } from "../icons";
+import { useRef } from "react";
+import { CloseIcon, SearchIcon } from "../icons";
 
 interface SearchInputProps {
   value: string;
@@ -11,6 +12,13 @@ export function SearchInput({
   onChange,
   placeholder,
 }: SearchInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function clearSearchAndKeepFocusInTheBox() {
+    onChange("");
+    inputRef.current?.focus();
+  }
+
   return (
     <div
       className="form-field"
@@ -25,6 +33,7 @@ export function SearchInput({
     >
       <SearchIcon style={{ flexShrink: 0, color: "var(--color-muted)" }} />
       <input
+        ref={inputRef}
         type="text"
         aria-label={placeholder}
         placeholder={placeholder}
@@ -37,11 +46,11 @@ export function SearchInput({
         <button
           type="button"
           aria-label="Clear search"
-          onClick={() => onChange("")}
+          onClick={clearSearchAndKeepFocusInTheBox}
           className="form-field-button"
-          style={{ padding: "2px 4px", fontSize: "18px", lineHeight: 1 }}
+          style={{ minWidth: "32px", marginRight: "-8px", padding: 0 }}
         >
-          &times;
+          <CloseIcon width="15" height="15" />
         </button>
       )}
     </div>
