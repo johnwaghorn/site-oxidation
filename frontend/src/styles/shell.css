@@ -1,5 +1,22 @@
 /* App shell/sidebar navigation */
 
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background-color: var(--color-surface-elevated);
+  box-shadow: var(--shadow-popover);
+  font-weight: 600;
+  transform: translate(-50%, calc(-100% - 24px));
+}
+
+.skip-link:focus {
+  transform: translateX(-50%);
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;

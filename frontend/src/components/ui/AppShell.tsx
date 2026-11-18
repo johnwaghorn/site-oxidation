@@ -65,6 +65,16 @@ export function AppShell({
 
   return (
     <div className="app-shell">
+      <a
+        href="#main-content"
+        className="skip-link"
+        onClick={(event) => {
+          event.preventDefault();
+          mainRef.current?.focus();
+        }}
+      >
+        Skip to content
+      </a>
       <aside className="app-sidebar" aria-label="Primary navigation">
         <div>
           <div className="app-sidebar-brand">
@@ -163,7 +173,12 @@ export function AppShell({
         />
       </aside>
 
-      <main ref={mainRef} className="app-shell-main" tabIndex={-1}>
+      <main
+        ref={mainRef}
+        id="main-content"
+        className="app-shell-main"
+        tabIndex={-1}
+      >
         {children}
       </main>
     </div>
