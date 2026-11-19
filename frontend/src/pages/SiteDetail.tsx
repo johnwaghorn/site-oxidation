@@ -13,6 +13,7 @@ import { StatusBadge } from "../components/ui/StatusBadge";
 import { CanaryBadge } from "../components/ui/CanaryBadge";
 import { CertBadge } from "../components/ui/CertBadge";
 import { describeCertificate } from "../lib/certificate";
+import { describeSiteStatus } from "../lib/siteStatus";
 import type { components } from "../generated/schema";
 import { usePageTitle } from "../hooks/usePageTitle";
 
@@ -169,6 +170,9 @@ export function SiteDetail() {
         className="muted-text"
         style={{ marginTop: "-12px", marginBottom: "24px" }}
       >
+        <p style={{ margin: "0 0 4px 0" }}>
+          Status: {describeSiteStatus(site.status)}
+        </p>
         <p style={{ margin: "0 0 4px 0" }}>
           Monitoring since: {new Date(site.created_at).toLocaleString()}
         </p>
