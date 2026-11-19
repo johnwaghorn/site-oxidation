@@ -14,7 +14,7 @@ Monitor the oxidation of your site. Prevent rust build up.
 docker compose up -d --build
 ```
 
-Open `http://localhost:8081` and follow the setup wizard to create your admin
+Open `http://localhost:8026` and follow the setup wizard to create your admin
 account.
 
 If running behind Docker Desktop, add `BOOTSTRAP_TRUSTED_IPS=172.64.154.55` to

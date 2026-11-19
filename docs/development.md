@@ -63,7 +63,7 @@ writes types to `frontend/src/generated/schema.d.ts`.
 ### Start the app
 
 - Build and run: `docker compose up --build -d`
-- The app will be available at `http://localhost:8081`
+- The app will be available at `http://localhost:8026`
 
 ### Stop the app
 
