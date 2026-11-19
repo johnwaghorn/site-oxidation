@@ -11,6 +11,7 @@ import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Modal } from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { ExternalLink } from "../components/ui/ExternalLink";
+import { Notice } from "../components/ui/Notice";
 import { CertBadge } from "../components/ui/CertBadge";
 import { summariseCertificate } from "../lib/certificate";
 import { describeSiteStatus } from "../lib/siteStatus";
@@ -77,6 +78,11 @@ function LastProbe({
   );
 }
 
+const CANARY_NOTICE_TONES: Record<CanaryWarning, "danger" | "warning"> = {
+  inactive: "danger",
+  shares_host: "warning",
+};
+
 function CanaryNotice({
   warning,
   since,
@@ -91,39 +97,21 @@ function CanaryNotice({
     since,
     isAdmin,
   );
-  return (
-    <div className={`site-canary-notice is-${warning}`}>
-      <WarningIcon />
-      <p>{explanation}</p>
-      {isAdmin ? (
-        <Link to="/admin/canary" className="site-canary-action">
+  return isAdmin ? (
+    <Notice
+      tone={CANARY_NOTICE_TONES[warning]}
+      action={
+        <Link to="/admin/canary" className="notice-action">
           {action}
         </Link>
-      ) : (
-        <p>{action}</p>
-      )}
-    </div>
-  );
-}
-
-function WarningIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      width="20"
-      height="20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="site-canary-icon"
+      }
     >
-      <path d="M12 9v4" />
-      <path d="M12 17h.01" />
-      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
-    </svg>
+      {explanation}
+    </Notice>
+  ) : (
+    <Notice tone={CANARY_NOTICE_TONES[warning]}>
+      {explanation} {action}
+    </Notice>
   );
 }
 
@@ -217,14 +205,21 @@ export function SiteDetail() {
           isAdmin={role === "admin"}
         />
       )}
+      {site.status === "blocked" && (
+        <Notice tone="neutral">{describeSiteStatus("blocked")}.</Notice>
+      )}
 
       <dl className="site-tiles">
         <div className="site-tile">
           <dt>Status</dt>
           <dd className="site-tile-status">
             <StatusBadge status={site.status} />
-            <span>{describeSiteStatus(site.status)}</span>
           </dd>
+          {site.status !== "blocked" && (
+            <dd className="site-tile-detail">
+              {describeSiteStatus(site.status)}
+            </dd>
+          )}
           <dd className="site-tile-detail">
             Last probe: <LastProbe lastCheckedAt={site.last_checked_at} />
           </dd>
@@ -232,7 +227,9 @@ export function SiteDetail() {
         <div className="site-tile">
           <dt>Uptime</dt>
           <dd className="site-tile-value">
-            {formatUptime(site.uptime_basis_points)}
+            {site.uptime_basis_points == null
+              ? "No data"
+              : formatUptime(site.uptime_basis_points)}
           </dd>
           <dd className="site-tile-detail">
             {describeUptimeCoverage(site.created_at, site.uptime_window_days)}

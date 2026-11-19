@@ -29,57 +29,6 @@
   color: var(--color-muted);
 }
 
-.site-canary-notice {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 16px;
-  margin-bottom: 22px;
-  padding: 14px 18px;
-  border: 1px solid;
-  border-radius: 14px;
-  font-size: 14px;
-}
-
-.site-canary-notice p {
-  margin: 0;
-}
-
-.site-canary-notice p:first-of-type {
-  flex: 1 1 400px;
-}
-
-.site-canary-notice.is-inactive {
-  border-color: var(--color-danger);
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger-text);
-}
-
-.site-canary-notice.is-shares_host {
-  border-color: var(--color-caution);
-  background-color: var(--color-warning-bg);
-  color: var(--color-warning-text);
-}
-
-.site-canary-icon {
-  flex-shrink: 0;
-}
-
-/* Text colour, not the link colour, which falls under 4.5:1 on these backgrounds */
-.site-canary-action {
-  padding: 8px 14px;
-  border: 1px solid currentColor;
-  border-radius: 10px;
-  color: inherit;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.site-canary-action:hover {
-  color: inherit;
-  text-decoration: underline;
-}
-
 .site-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
