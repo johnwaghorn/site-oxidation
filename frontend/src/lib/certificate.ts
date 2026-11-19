@@ -2,6 +2,8 @@ import type { components } from "../generated/schema";
 
 type CertStatus = components["schemas"]["CertStatus"];
 
+const MILLISECONDS_IN_A_DAY = 24 * 60 * 60 * 1000;
+
 export function describeCertificate(
   status: CertStatus | null | undefined,
   expiresAt?: string | null,
@@ -19,11 +21,52 @@ export function describeCertificate(
         : "Certificate expired";
     default: {
       if (!expiresAt) return "Certificate valid";
-      const expiry = new Date(expiresAt);
-      const days = Math.ceil((expiry.getTime() - Date.now()) / 86400000);
-      return `Valid until ${expiry.toLocaleDateString()} (${days} day${
-        days === 1 ? "" : "s"
-      })`;
+      return `Valid until ${formatExpiryDate(expiresAt)} (${formatDaysLeft(expiresAt)})`;
     }
   }
+}
+
+export function summariseCertificate(
+  status: CertStatus | null | undefined,
+  expiresAt?: string | null,
+): { headline: string; detail: string } {
+  if (status == null)
+    return {
+      headline: "Unknown",
+      detail: "Not checked yet, blocked, or could not be read",
+    };
+  switch (status) {
+    case "none":
+      return { headline: "No TLS", detail: "Plain HTTP - no certificate" };
+    case "invalid":
+      return {
+        headline: "Invalid",
+        detail: "Untrusted, hostname mismatch, or unreachable",
+      };
+    case "expired":
+      return {
+        headline: "Expired",
+        detail: expiresAt
+          ? `Expired on ${formatExpiryDate(expiresAt)}`
+          : "The certificate has expired",
+      };
+    default:
+      return expiresAt
+        ? {
+            headline: formatDaysLeft(expiresAt),
+            detail: `Valid until ${formatExpiryDate(expiresAt)}`,
+          }
+        : { headline: "Valid", detail: "Expiry date unknown" };
+  }
+}
+
+function formatExpiryDate(expiresAt: string) {
+  return new Date(expiresAt).toLocaleDateString();
+}
+
+function formatDaysLeft(expiresAt: string) {
+  const days = Math.ceil(
+    (new Date(expiresAt).getTime() - Date.now()) / MILLISECONDS_IN_A_DAY,
+  );
+  return `${days} day${days === 1 ? "" : "s"}`;
 }

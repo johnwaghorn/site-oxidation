@@ -18,6 +18,7 @@ import "./styles/notification-outbox.css";
 import "./styles/not-found.css";
 import "./styles/import-export.css";
 import "./styles/uptime.css";
+import "./styles/site-summary.css";
 import App from "./App.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setQueryClient } from "./lib/api.ts";

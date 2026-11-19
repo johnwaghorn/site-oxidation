@@ -52,7 +52,7 @@ test("maddie adds a site for her team", async ({ page }) => {
       .getByPlaceholder("https://waghorn.tech")
       .fill("https://maddie.waghorn.tech");
     await page
-      .getByLabel("Team", { exact: true })
+      .getByRole("combobox", { name: /^Team\b/ })
       .selectOption({ label: "Team Rocket" });
     await page.getByRole("button", { name: "Add Site", exact: true }).click();
   });

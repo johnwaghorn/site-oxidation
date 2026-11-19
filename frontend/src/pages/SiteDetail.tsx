@@ -10,14 +10,17 @@ import { LoadingSpinner } from "../components/ui/LoadingSpinner";
 import { ErrorMessage } from "../components/ui/ErrorMessage";
 import { Modal } from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/StatusBadge";
-import { CanaryBadge } from "../components/ui/CanaryBadge";
+import { ExternalLink } from "../components/ui/ExternalLink";
 import { CertBadge } from "../components/ui/CertBadge";
-import { describeCertificate } from "../lib/certificate";
+import { summariseCertificate } from "../lib/certificate";
 import { describeSiteStatus } from "../lib/siteStatus";
+import { describeUptimeCoverage, formatUptime } from "../lib/uptime";
+import { describeCanaryWarning } from "../lib/canary";
 import type { components } from "../generated/schema";
 import { usePageTitle } from "../hooks/usePageTitle";
 
 type OutageResponse = components["schemas"]["OutageResponse"];
+type CanaryWarning = components["schemas"]["CanaryWarning"];
 
 const LAST_PROBE_REFRESH_MS = 1_000;
 
@@ -56,10 +59,8 @@ function formatTimeAgo(timestamp: string): string {
 
 function LastProbe({
   lastCheckedAt,
-  lastResponseTimeMs,
 }: {
   lastCheckedAt: string | null | undefined;
-  lastResponseTimeMs: number | null | undefined;
 }) {
   const [, refresh] = useState(0);
 
@@ -72,8 +73,57 @@ function LastProbe({
   return (
     <span title={new Date(lastCheckedAt).toLocaleString()}>
       {formatTimeAgo(lastCheckedAt)}
-      {lastResponseTimeMs != null && `, responded in ${lastResponseTimeMs}ms`}
     </span>
+  );
+}
+
+function CanaryNotice({
+  warning,
+  since,
+  isAdmin,
+}: {
+  warning: CanaryWarning;
+  since: string | null | undefined;
+  isAdmin: boolean;
+}) {
+  const { explanation, action } = describeCanaryWarning(
+    warning,
+    since,
+    isAdmin,
+  );
+  return (
+    <div className={`site-canary-notice is-${warning}`}>
+      <WarningIcon />
+      <p>{explanation}</p>
+      {isAdmin ? (
+        <Link to="/admin/canary" className="site-canary-action">
+          {action}
+        </Link>
+      ) : (
+        <p>{action}</p>
+      )}
+    </div>
+  );
+}
+
+function WarningIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="site-canary-icon"
+    >
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+    </svg>
   );
 }
 
@@ -109,43 +159,37 @@ export function SiteDetail() {
   if (siteError) return <ErrorMessage error={siteError} />;
   if (!site) return <ErrorMessage error={new Error("Site not found")} />;
 
+  const certificate = summariseCertificate(
+    site.cert_status,
+    site.cert_expires_at,
+  );
+
   return (
     <div className="page-wrapper">
       <Link to="/" className="back-link">
         &larr; Back to Dashboard
       </Link>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: "12px",
-          marginBottom: "24px",
-        }}
-      >
-        <h1 className="page-title" style={{ margin: 0 }}>
-          {site.name}
-        </h1>
-        <StatusBadge status={site.status} />
-        <CertBadge status={site.cert_status} expiresAt={site.cert_expires_at} />
-        {site.canary_warning && (
-          <CanaryBadge
-            warning={site.canary_warning}
-            since={site.canary_warning_since}
-            isAdmin={role === "admin"}
-          />
-        )}
+      <header className="site-header">
+        <div className="site-header-text">
+          <h1 className="page-title">{site.name}</h1>
+          <p className="site-header-meta">
+            <ExternalLink href={site.url}>{site.url}</ExternalLink>
+            <span aria-hidden="true">&middot;</span>
+            <span>
+              Monitoring since {new Date(site.created_at).toLocaleString()}
+            </span>
+          </p>
+        </div>
         <button
           type="button"
           className="button-primary-action"
           aria-haspopup="dialog"
           onClick={() => setIsEditing(true)}
-          style={{ marginLeft: "auto" }}
         >
           Edit
         </button>
-      </div>
+      </header>
 
       <Modal isOpen={isEditing} onClose={closeEdit} title="Edit site">
         <SiteForm
@@ -166,28 +210,55 @@ export function SiteDetail() {
         {updateSite.isError && <ErrorMessage error={updateSite.error} />}
       </Modal>
 
-      <div
-        className="muted-text"
-        style={{ marginTop: "-12px", marginBottom: "24px" }}
-      >
-        <p style={{ margin: "0 0 4px 0" }}>
-          Status: {describeSiteStatus(site.status)}
-        </p>
-        <p style={{ margin: "0 0 4px 0" }}>
-          Monitoring since: {new Date(site.created_at).toLocaleString()}
-        </p>
-        <p style={{ margin: "0 0 4px 0" }}>
-          Last probe:{" "}
-          <LastProbe
-            lastCheckedAt={site.last_checked_at}
-            lastResponseTimeMs={site.last_response_time_ms}
-          />
-        </p>
-        <p style={{ margin: 0 }}>
-          Certificate:{" "}
-          {describeCertificate(site.cert_status, site.cert_expires_at)}
-        </p>
-      </div>
+      {site.canary_warning && (
+        <CanaryNotice
+          warning={site.canary_warning}
+          since={site.canary_warning_since}
+          isAdmin={role === "admin"}
+        />
+      )}
+
+      <dl className="site-tiles">
+        <div className="site-tile">
+          <dt>Status</dt>
+          <dd className="site-tile-status">
+            <StatusBadge status={site.status} />
+            <span>{describeSiteStatus(site.status)}</span>
+          </dd>
+          <dd className="site-tile-detail">
+            Last probe: <LastProbe lastCheckedAt={site.last_checked_at} />
+          </dd>
+        </div>
+        <div className="site-tile">
+          <dt>Uptime</dt>
+          <dd className="site-tile-value">
+            {formatUptime(site.uptime_basis_points)}
+          </dd>
+          <dd className="site-tile-detail">
+            {describeUptimeCoverage(site.created_at, site.uptime_window_days)}
+          </dd>
+        </div>
+        <div className="site-tile">
+          <dt>Response time</dt>
+          <dd className="site-tile-value">
+            {site.last_response_time_ms != null
+              ? `${site.last_response_time_ms}ms`
+              : "-"}
+          </dd>
+          <dd className="site-tile-detail">Latest probe</dd>
+        </div>
+        <div className="site-tile">
+          <dt>Certificate</dt>
+          <dd className="site-tile-status">
+            <CertBadge
+              status={site.cert_status}
+              expiresAt={site.cert_expires_at}
+            />
+            <span>{certificate.headline}</span>
+          </dd>
+          <dd className="site-tile-detail">{certificate.detail}</dd>
+        </div>
+      </dl>
 
       <UptimeHistory siteId={siteId} />
 
