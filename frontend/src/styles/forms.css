@@ -133,9 +133,16 @@
   font-weight: 700;
 }
 
+.field-hint {
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: start;
   gap: 12px;
 }
 

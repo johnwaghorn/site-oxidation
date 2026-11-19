@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { FormInput, FormSelect } from "../ui/FormControls";
 import type { components } from "../../generated/schema";
 
@@ -64,6 +64,7 @@ export function SiteForm({
     }
   };
 
+  const hintId = useId();
   const isEdit = mode === "edit";
   const isTeamRequired = role !== "admin";
 
@@ -74,7 +75,6 @@ export function SiteForm({
         <FormInput
           type="text"
           placeholder="Site name"
-          title="Display name to identify this site on the dashboard."
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -82,90 +82,113 @@ export function SiteForm({
           maxLength={100}
         />
       </label>
-      <label className="field-label">
-        <span className="field-label-text">URL</span>
-        <FormInput
-          type="url"
-          placeholder="https://waghorn.tech"
-          title="Full URL to monitor, including https://. The cert check only runs for https URLs."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          required
-        />
-      </label>
-      {teams.length > 0 && (
+      <div className="field-label">
         <label className="field-label">
-          <span className="field-label-text">Team</span>
-          <FormSelect
-            value={teamId ?? ""}
-            onChange={(e) =>
-              setTeamId(e.target.value ? Number(e.target.value) : null)
-            }
-            required={isTeamRequired}
-            title="Team that owns this site. Only its members (and admins) can see it."
-          >
-            <option value="">
-              {isTeamRequired ? "Select team" : "No team"}
-            </option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </FormSelect>
+          <span className="field-label-text">URL</span>
+          <FormInput
+            type="url"
+            placeholder="https://waghorn.tech"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            required
+            aria-describedby={`${hintId}-url`}
+          />
         </label>
+        <p id={`${hintId}-url`} className="field-hint">
+          Full URL to monitor, including https://. The cert check only runs for
+          https URLs.
+        </p>
+      </div>
+      {teams.length > 0 && (
+        <div className="field-label">
+          <label className="field-label">
+            <span className="field-label-text">Team</span>
+            <FormSelect
+              value={teamId ?? ""}
+              onChange={(e) =>
+                setTeamId(e.target.value ? Number(e.target.value) : null)
+              }
+              required={isTeamRequired}
+              aria-describedby={`${hintId}-team`}
+            >
+              <option value="">
+                {isTeamRequired ? "Select team" : "No team"}
+              </option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </FormSelect>
+          </label>
+          <p id={`${hintId}-team`} className="field-hint">
+            Team that owns this site. Only its members (and admins) can see it.
+          </p>
+        </div>
       )}
-      <div className="field-row">
+      <div className="field-label">
         <label className="field-label">
           <span className="field-label-text">Expected status</span>
           <FormInput
             type="number"
             placeholder="Expected status code"
-            title="HTTP status code the site must return to be considered up (e.g. 200). Any other code marks it down."
             value={expectedStatus}
             onChange={(e) => setExpectedStatus(Number(e.target.value))}
             min={100}
             max={599}
+            aria-describedby={`${hintId}-status`}
           />
         </label>
-        <label className="field-label">
-          <span className="field-label-text">Check every</span>
-          <FormSelect
-            value={probeInterval}
-            onChange={(e) => setProbeInterval(Number(e.target.value))}
-            title="How often this site is checked for availability."
-          >
-            <option value={60}>1 minute</option>
-            <option value={300}>5 minutes</option>
-            <option value={600}>10 minutes</option>
-            <option value={1800}>30 minutes</option>
-            <option value={3600}>1 hour</option>
-          </FormSelect>
-        </label>
+        <p id={`${hintId}-status`} className="field-hint">
+          The site counts as up only when it returns this HTTP status code.
+        </p>
       </div>
       <label className="field-label">
-        <span className="field-label-text">
-          Expected text <span className="muted-text">(optional)</span>
-        </span>
-        <FormInput
-          type="text"
-          placeholder="Expected text (optional)"
-          title="Optional text that must appear in the response body for the site to count as up."
-          value={expectedText}
-          onChange={(e) => setExpectedText(e.target.value)}
-        />
+        <span className="field-label-text">Check every</span>
+        <FormSelect
+          value={probeInterval}
+          onChange={(e) => setProbeInterval(Number(e.target.value))}
+        >
+          <option value={60}>1 minute</option>
+          <option value={300}>5 minutes</option>
+          <option value={600}>10 minutes</option>
+          <option value={1800}>30 minutes</option>
+          <option value={3600}>1 hour</option>
+        </FormSelect>
       </label>
-      <label
-        style={{ display: "flex", alignItems: "center", gap: "8px" }}
-        title="Skip TLS trust and hostname verification for this site. Use for internal boxes with untrusted certs."
-      >
-        <input
-          type="checkbox"
-          checked={tlsAllowUntrusted}
-          onChange={(e) => setTlsAllowUntrusted(e.target.checked)}
-        />
-        Allow untrusted certificate
-      </label>
+      <div className="field-label">
+        <label className="field-label">
+          <span className="field-label-text">
+            Expected text <span className="muted-text">(optional)</span>
+          </span>
+          <FormInput
+            type="text"
+            placeholder="Expected text (optional)"
+            value={expectedText}
+            onChange={(e) => setExpectedText(e.target.value)}
+            aria-describedby={`${hintId}-text`}
+          />
+        </label>
+        <p id={`${hintId}-text`} className="field-hint">
+          Text that must appear in the response body for the site to count as
+          up.
+        </p>
+      </div>
+      <div className="field-label">
+        <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <input
+            type="checkbox"
+            checked={tlsAllowUntrusted}
+            onChange={(e) => setTlsAllowUntrusted(e.target.checked)}
+            aria-describedby={`${hintId}-untrusted`}
+          />
+          Allow untrusted certificate
+        </label>
+        <p id={`${hintId}-untrusted`} className="field-hint">
+          Skip TLS trust and hostname verification for this site. Use for
+          internal boxes with untrusted certificates.
+        </p>
+      </div>
       <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
         {onCancel && (
           <button
