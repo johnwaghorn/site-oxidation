@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>site-oxidation</Name>
+  <Repository>ghcr.io/johnwaghorn/site-oxidation:latest</Repository>
+  <Registry>https://github.com/johnwaghorn/site-oxidation/pkgs/container/site-oxidation</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/johnwaghorn/site-oxidation/issues</Support>
+  <Project>https://github.com/johnwaghorn/site-oxidation</Project>
+  <Overview>Self-hosted website uptime monitoring. Site Oxidation checks your sites on a schedule, records outages and response times, shows daily uptime history and warns before TLS certificates expire. Alerts go out by email, Slack or Microsoft Teams. Supports multiple users and teams, CSV export, and a connectivity canary so a lost internet connection is not recorded as every site going down.[br][br]Open the web UI after install and follow the setup wizard to create the first admin account.[br][br]Leave COOKIE_SECURE as false when browsing to the server directly over http on your LAN. Set it to true once you access the app through an HTTPS reverse proxy (SWAG, Nginx Proxy Manager, Cloudflare Tunnel), otherwise login will not work.</Overview>
+  <Category>Network:Management Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/johnwaghorn/site-oxidation/main/unraid/site-oxidation.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/johnwaghorn/site-oxidation/main/unraid/site-oxidation.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <Requires/>
+  <Config Name="Web UI port" Target="8080" Default="8026" Mode="tcp" Description="Port the web UI is served on." Type="Port" Display="always" Required="true" Mask="false">8026</Config>
+  <Config Name="App data" Target="/app/data" Default="/mnt/user/appdata/site-oxidation" Mode="rw" Description="Database and session key. Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/site-oxidation</Config>
+  <Config Name="COOKIE_SECURE" Target="COOKIE_SECURE" Default="false|true" Description="false for direct http access on your LAN. true when accessed through an HTTPS reverse proxy (login fails over plain http when true)." Type="Variable" Display="always" Required="true" Mask="false">false</Config>
+  <Config Name="PROBE_ALLOW_PRIVATE_IPS" Target="PROBE_ALLOW_PRIVATE_IPS" Default="false|true" Description="true to monitor services on your LAN (e.g. 192.168.x.x addresses)." Type="Variable" Display="always" Required="false" Mask="false">false</Config>
+  <Config Name="SMTP_ALLOW_PRIVATE_HOSTS" Target="SMTP_ALLOW_PRIVATE_HOSTS" Default="false|true" Description="true to send email alerts through an SMTP server on your LAN." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Description="User ID the app runs as. Unraid default is 99 (nobody)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Description="Group ID the app runs as. Unraid default is 100 (users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+</Container>
