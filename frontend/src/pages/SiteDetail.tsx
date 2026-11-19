@@ -12,6 +12,7 @@ import { Modal } from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { CanaryBadge } from "../components/ui/CanaryBadge";
 import { CertBadge } from "../components/ui/CertBadge";
+import { describeCertificate } from "../lib/certificate";
 import type { components } from "../generated/schema";
 import { usePageTitle } from "../hooks/usePageTitle";
 
@@ -178,12 +179,10 @@ export function SiteDetail() {
             lastResponseTimeMs={site.last_response_time_ms}
           />
         </p>
-        {site.cert_expires_at && (
-          <p style={{ margin: 0 }}>
-            Certificate expiry:{" "}
-            {new Date(site.cert_expires_at).toLocaleDateString()}
-          </p>
-        )}
+        <p style={{ margin: 0 }}>
+          Certificate:{" "}
+          {describeCertificate(site.cert_status, site.cert_expires_at)}
+        </p>
       </div>
 
       <UptimeHistory siteId={siteId} />
