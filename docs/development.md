@@ -2,12 +2,12 @@
 
 ## Prerequisites
 
-| Tool | Version | Install |
-|------|---------|---------|
-| Rust | 1.85+ (edition 2024) | [rustup.rs](https://rustup.rs/) |
-| Node | 24+ | [nvm](https://github.com/nvm-sh/nvm) (see `frontend/.nvmrc`) |
-| cargo-binstall | latest | `cargo install cargo-binstall` |
-| prek | latest | `cargo binstall prek` |
+| Tool | Version | Install | Configured in |
+|------|---------|---------|---------------|
+| Rust | 1.94+ (edition 2024) | [rustup.rs](https://rustup.rs/) | [Cargo.toml](../Cargo.toml), [Dockerfile](../Dockerfile) |
+| Node | 26+ | [nvm](https://github.com/nvm-sh/nvm) | [.nvmrc](../frontend/.nvmrc), [package.json](../frontend/package.json), [Dockerfile](../Dockerfile) |
+| cargo-binstall | latest | `cargo install cargo-binstall` | N/A |
+| prek | latest | `cargo binstall prek` | [.pre-commit-config.yaml](../.pre-commit-config.yaml) |
 
 ## Initial Setup
 
@@ -87,3 +87,9 @@ Useful commands:
 - Format Rust code: `cargo fmt`
 - Lint Rust code: `cargo clippy` (lints come from `[lints.clippy]` in `Cargo.toml`)
 - Lint frontend: `cd frontend && npm run lint`
+
+## Migrations
+
+Migration files must be named `{YYYYMMDDHHmmss}_name.sql` (e.g.
+`20251226195900_initial.sql`). Single-underscore prefixes like `001_init.sql`
+will not work. See [backend/migrations.md](backend/migrations.md).
