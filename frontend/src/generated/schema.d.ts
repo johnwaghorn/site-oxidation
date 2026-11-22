@@ -1269,7 +1269,23 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: components["schemas"]["NotificationOutboxEntryResponse"][];
+                        data: {
+                            /** Format: int64 */
+                            attempts: number;
+                            /** Format: date-time */
+                            created_at: string;
+                            /** Format: int64 */
+                            id: number;
+                            last_error?: string | null;
+                            /** Format: date-time */
+                            next_attempt_at: string;
+                            provider?: string | null;
+                            status: components["schemas"]["NotificationOutboxEntryStatus"];
+                            summary?: string | null;
+                            team?: string | null;
+                            /** Format: int64 */
+                            team_id?: number | null;
+                        }[];
                         /** Format: int32 */
                         page: number;
                         /** Format: int32 */
@@ -2899,7 +2915,6 @@ export interface operations {
                 per_page?: number;
                 /** @description Case-insensitive substring match. */
                 search?: string;
-                /** @description Restrict results to sites with this status. */
                 status?: components["schemas"]["SiteStatusFilter"];
             };
             header?: never;
