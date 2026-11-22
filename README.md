@@ -6,8 +6,10 @@
 
 <p align="center">Monitor the oxidation of your site. Prevent rust build up.</p>
 
-Site Oxidation is self-hosted website uptime monitoring. It checks your sites on
-a schedule and tells you when something goes wrong.
+Site Oxidation is self-hosted website uptime monitoring with a low memory
+footprint. It checks your sites on a schedule and tells you when something goes
+wrong. A single Rust binary with SQLite built in, it runs happily on a home
+server or small VPS.
 
 - Records outages and response times, with daily uptime history
 - Warns before TLS certificates expire
@@ -17,11 +19,20 @@ a schedule and tells you when something goes wrong.
 - Uses a connectivity canary, so losing your own internet connection is not
   recorded as every site going down
 
-## Lightweight
+## Screenshots
 
-Site Oxidation is a single Rust binary with SQLite built in. There is no
-separate database, cache or runtime to run alongside it, so it has a low memory
-footprint and sits comfortably on a home server or small VPS.
+Each site has its own page with status, response time, certificate expiry,
+90 days of uptime and its full outage history.
+
+![A site page showing status, uptime, response time and certificate tiles, 90 days of uptime bars and outage history](docs/images/site.png)
+
+All your sites at a glance, with filters for what's up, down or blocked.
+
+![The site list with status, certificate, uptime and response time for each site](docs/images/sites.png)
+
+Each team chooses where its alerts go: Slack, Microsoft Teams or email.
+
+![Notification settings for each team, with Slack, Microsoft Teams and email](docs/images/notifications.png)
 
 ## Quick Start
 
