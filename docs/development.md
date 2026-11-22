@@ -24,6 +24,20 @@ prek install --hook-type pre-commit --hook-type pre-push
 
 ## Running Locally
 
+Start the backend and the frontend dev server together:
+
+```bash
+./scripts/dev.sh
+```
+
+Options, which can be combined:
+
+- `--reset-db` deletes the local database before starting
+- `--https` also serves the app at `https://localhost:8443` through
+  [Caddy](https://caddyserver.com/docs/install), for testing secure cookies
+
+To run the backend on its own:
+
 - Start the backend: `cargo run`
 - The API will be available at `http://localhost:8080`
 - The OpenAPI spec is served at `http://localhost:8080/api/docs/openapi.json`
@@ -90,6 +104,5 @@ Useful commands:
 
 ## Migrations
 
-Migration files must be named `{YYYYMMDDHHmmss}_name.sql` (e.g.
-`20251226195900_initial.sql`). Single-underscore prefixes like `001_init.sql`
-will not work. See [backend/migrations.md](backend/migrations.md).
+See [backend/migrations.md](backend/migrations.md) for naming rules and how to
+add or change a migration.
