@@ -7,19 +7,19 @@ CREATE TABLE users (
     must_change_password INTEGER NOT NULL DEFAULT 1 CHECK(must_change_password IN (0, 1)),
     theme_preference TEXT NOT NULL DEFAULT 'system' CHECK(theme_preference IN ('system', 'light', 'dark')),
     auth_revision INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE COLLATE NOCASE CHECK(length(name) BETWEEN 1 AND 60),
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE team_members (
     team_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     PRIMARY KEY (team_id, user_id),
     FOREIGN KEY(team_id) REFERENCES teams(id) ON DELETE CASCADE,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -40,17 +40,17 @@ CREATE TABLE team_notification_settings (
     notify_site_down INTEGER NOT NULL DEFAULT 1 CHECK (notify_site_down IN (0, 1)),
     notify_site_recovered INTEGER NOT NULL DEFAULT 1 CHECK (notify_site_recovered IN (0, 1)),
     notify_cert_expiring INTEGER NOT NULL DEFAULT 1 CHECK (notify_cert_expiring IN (0, 1)),
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE notification_outbox (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     delivery TEXT NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
-    next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_attempt_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     last_error TEXT CHECK(last_error IS NULL OR length(last_error) <= 500),
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE canary_settings (
@@ -62,7 +62,7 @@ CREATE TABLE canary_settings (
     last_succeeded_at DATETIME,
     last_error TEXT CHECK(last_error IS NULL OR length(last_error) <= 500),
     settings_revision INTEGER NOT NULL DEFAULT 0,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     CHECK(enabled = 0 OR url IS NOT NULL)
 );
 
@@ -71,7 +71,7 @@ CREATE TABLE canary_history (
     state TEXT NOT NULL CHECK(state IN ('healthy', 'failing')),
     url TEXT NOT NULL CHECK(length(url) BETWEEN 10 AND 2048),
     active_since DATETIME NOT NULL,
-    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     ended_at DATETIME,
     CHECK(ended_at IS NULL OR ended_at >= started_at)
 );
@@ -91,7 +91,7 @@ CREATE TABLE sites (
     cert_expires_at DATETIME,
     cert_checked_at DATETIME,
     team_id INTEGER REFERENCES teams(id) ON DELETE RESTRICT,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 
 CREATE TABLE outages (
@@ -100,22 +100,22 @@ CREATE TABLE outages (
     http_status INTEGER CHECK(http_status IS NULL OR http_status BETWEEN 100 AND 599),
     expected_status INTEGER CHECK(expected_status IS NULL OR expected_status BETWEEN 100 AND 599),
     error_message TEXT CHECK(error_message IS NULL OR length(error_message) <= 500),
-    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     ended_at DATETIME
 );
 
 CREATE TABLE site_blocked_periods (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     ended_at DATETIME,
     CHECK(ended_at IS NULL OR ended_at >= started_at)
 );
 
 CREATE TABLE monitoring_periods (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    last_seen_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     CHECK(last_seen_at >= started_at)
 );
 

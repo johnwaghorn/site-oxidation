@@ -8,8 +8,9 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use chrono::Utc;
 use http_body_util::BodyExt;
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use sqlx::SqlitePool;
 use tower::ServiceExt;
 
@@ -118,8 +119,8 @@ async fn test_outage_export_returns_every_outage_oldest_first_as_csv(pool: Sqlit
     insert_test_site(&pool, SiteStatus::Down).await;
     sqlx::query(
         "INSERT INTO outages (site_id, http_status, expected_status, error_message, started_at, ended_at) VALUES \
-         (1, NULL, 200, 'connection refused', '2026-11-12 08:00:00', NULL), \
-         (1, 503, 200, 'Expected HTTP status 200, received 503', '2026-11-10 09:30:00', '2026-11-10 09:42:30')",
+         (1, NULL, 200, 'connection refused', '2026-11-12T08:00:00Z', NULL), \
+         (1, 503, 200, 'Expected HTTP status 200, received 503', '2026-11-10T09:30:00Z', '2026-11-10T09:42:30Z')",
     )
     .execute(&pool)
     .await
@@ -144,7 +145,7 @@ async fn test_outage_export_returns_every_outage_oldest_first_as_csv(pool: Sqlit
         response.headers()["content-disposition"],
         format!(
             "attachment; filename=\"site-oxidation-outages-Waghorn-Technology-Ltd-{}.csv\"",
-            Utc::now().date_naive()
+            Timestamp::now().to_zoned_datetime(TimeZone::UTC).date()
         )
         .as_str()
     );
@@ -163,8 +164,8 @@ async fn test_outage_export_includes_outages_beyond_the_first_chunk_read(pool: S
     sqlx::query(
         "WITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM numbers WHERE n < 2500) \
          INSERT INTO outages (site_id, http_status, expected_status, started_at, ended_at) \
-         SELECT 1, 500, 200, datetime('2026-01-01', '+' || n || ' hours'), \
-                datetime('2026-01-01', '+' || n || ' hours', '+5 minutes') FROM numbers",
+         SELECT 1, 500, 200, strftime('%Y-%m-%dT%H:%M:%SZ', '2026-01-01', '+' || n || ' hours'), \
+                strftime('%Y-%m-%dT%H:%M:%SZ', '2026-01-01', '+' || n || ' hours', '+5 minutes') FROM numbers",
     )
     .execute(&pool)
     .await

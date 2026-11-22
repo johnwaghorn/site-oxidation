@@ -1,7 +1,7 @@
 use super::queries::LIST_OUTAGES_OLDEST_FIRST_AFTER_OUTAGE_ID;
 use super::responses::OutageResponse;
-use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use futures::stream::{self, Stream, StreamExt};
+use jiff::civil::Date;
 use sqlx::SqlitePool;
 
 const OUTAGE_CSV_HEADER: &str =
@@ -20,7 +20,7 @@ pub(super) fn site_outages_as_csv_read_in_chunks(
     csv_header.chain(outage_csv_rows_read_in_chunks(pool, site_id))
 }
 
-pub(super) fn outage_csv_filename(site_name: &str, date_exported: NaiveDate) -> String {
+pub(super) fn outage_csv_filename(site_name: &str, date_exported: Date) -> String {
     format!(
         "site-oxidation-outages-{}-{date_exported}.csv",
         site_name_safe_for_a_filename(site_name)
@@ -74,8 +74,9 @@ fn outages_as_csv_rows(outages: &[OutageResponse]) -> String {
 fn outage_as_csv_row(outage: &OutageResponse) -> String {
     let duration_seconds = outage.ended_at.map(|ended_at| {
         ended_at
-            .signed_duration_since(outage.started_at)
-            .num_seconds()
+            .to_jiff()
+            .duration_since(outage.started_at.to_jiff())
+            .as_secs()
     });
     let fields = [
         timestamp_in_utc(outage.started_at),
@@ -90,8 +91,11 @@ fn outage_as_csv_row(outage: &OutageResponse) -> String {
     row
 }
 
-fn timestamp_in_utc(timestamp: DateTime<Utc>) -> String {
-    timestamp.to_rfc3339_opts(SecondsFormat::Secs, true)
+fn timestamp_in_utc(timestamp: jiff_sqlx::Timestamp) -> String {
+    timestamp
+        .to_jiff()
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+        .to_string()
 }
 
 fn number_or_empty(number: Option<i64>) -> String {
@@ -120,11 +124,13 @@ fn csv_text_field(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
+    use jiff::Timestamp;
+    use jiff::civil::date;
+    use jiff_sqlx::ToSqlx;
 
     #[test]
     fn test_filename_keeps_only_letters_and_digits_of_the_site_name() {
-        let date_exported = NaiveDate::from_ymd_opt(2026, 11, 15).unwrap();
+        let date_exported = date(2026, 11, 15);
         assert_eq!(
             outage_csv_filename("Waghorn Technology Ltd", date_exported),
             "site-oxidation-outages-Waghorn-Technology-Ltd-2026-11-15.csv"
@@ -172,7 +178,10 @@ mod tests {
             site_id: 1,
             http_status: None,
             expected_status: Some(200),
-            started_at: Utc.with_ymd_and_hms(2026, 11, 15, 9, 30, 0).unwrap(),
+            started_at: "2026-11-15T09:30:00Z"
+                .parse::<Timestamp>()
+                .unwrap()
+                .to_sqlx(),
             ended_at: None,
             error_message: Some("connection refused".to_owned()),
         };

@@ -1,5 +1,5 @@
 use crate::canary::{CanarySettings, CanaryState};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -9,8 +9,8 @@ pub struct CanarySettingsResponse {
     pub url: Option<String>,
     pub timeout_secs: u64,
     pub state: CanaryState,
-    pub last_checked_at: Option<DateTime<Utc>>,
-    pub last_succeeded_at: Option<DateTime<Utc>>,
+    pub last_checked_at: Option<Timestamp>,
+    pub last_succeeded_at: Option<Timestamp>,
     pub last_error: Option<String>,
 }
 

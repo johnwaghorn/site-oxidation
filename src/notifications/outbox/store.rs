@@ -1,5 +1,5 @@
 use crate::notifications::delivery::PendingDelivery;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use sqlx::{FromRow, Sqlite, SqlitePool, Transaction};
 
 #[derive(FromRow)]
@@ -15,8 +15,8 @@ struct StoredEntry {
     delivery: String,
     attempts: i64,
     last_error: Option<String>,
-    created_at: DateTime<Utc>,
-    next_attempt_at: DateTime<Utc>,
+    created_at: jiff_sqlx::Timestamp,
+    next_attempt_at: jiff_sqlx::Timestamp,
 }
 
 pub(crate) struct OutboxEntry {
@@ -27,8 +27,8 @@ pub(crate) struct OutboxEntry {
     pub team: Option<String>,
     pub attempts: i64,
     pub last_error: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub next_attempt_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub next_attempt_at: Timestamp,
 }
 
 impl OutboxEntry {
@@ -48,8 +48,8 @@ impl From<StoredEntry> for OutboxEntry {
             team: description.team,
             attempts: stored.attempts,
             last_error: stored.last_error,
-            created_at: stored.created_at,
-            next_attempt_at: stored.next_attempt_at,
+            created_at: stored.created_at.to_jiff(),
+            next_attempt_at: stored.next_attempt_at.to_jiff(),
         }
     }
 }
@@ -98,7 +98,7 @@ pub(in crate::notifications) async fn enqueue(
 pub(super) async fn load_due(pool: &SqlitePool, limit: i64) -> sqlx::Result<Vec<OutboxRow>> {
     sqlx::query_as::<_, OutboxRow>(
         "SELECT id, delivery, attempts FROM notification_outbox \
-         WHERE next_attempt_at <= CURRENT_TIMESTAMP ORDER BY id LIMIT ?",
+         WHERE next_attempt_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now') ORDER BY id LIMIT ?",
     )
     .bind(limit)
     .fetch_all(pool)
@@ -124,7 +124,7 @@ pub(super) async fn record_failure(
     let error: String = error.chars().take(500).collect();
     sqlx::query(
         "UPDATE notification_outbox SET attempts = ?, last_error = ?, \
-         next_attempt_at = datetime('now', ?) WHERE id = ?",
+         next_attempt_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) WHERE id = ?",
     )
     .bind(attempts)
     .bind(error)

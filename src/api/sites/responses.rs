@@ -1,5 +1,6 @@
 use crate::models::site::{CertStatus, SiteStatus};
-use chrono::{DateTime, NaiveDate, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -8,22 +9,22 @@ pub struct SiteResponse {
     pub id: i64,
     pub name: String,
     pub url: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: jiff_sqlx::Timestamp,
     pub expected_status: i64,
     pub expected_text: Option<String>,
     pub status: SiteStatus,
-    pub last_checked_at: Option<DateTime<Utc>>,
+    pub last_checked_at: Option<jiff_sqlx::Timestamp>,
     pub last_response_time_ms: Option<i64>,
     pub probe_interval_seconds: i64,
     pub team_id: Option<i64>,
     pub team_name: Option<String>,
     pub tls_allow_untrusted: bool,
     pub cert_status: Option<CertStatus>,
-    pub cert_expires_at: Option<DateTime<Utc>>,
+    pub cert_expires_at: Option<jiff_sqlx::Timestamp>,
     #[sqlx(skip)]
     pub canary_warning: Option<CanaryWarning>,
     #[sqlx(skip)]
-    pub canary_warning_since: Option<DateTime<Utc>>,
+    pub canary_warning_since: Option<jiff_sqlx::Timestamp>,
     /// Uptime over the last `uptime_window_days` days, or since the site was added if that is more recent.
     #[sqlx(skip)]
     pub uptime_basis_points: Option<i64>,
@@ -44,8 +45,8 @@ pub struct OutageResponse {
     pub site_id: i64,
     pub http_status: Option<i64>,
     pub expected_status: Option<i64>,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
+    pub started_at: jiff_sqlx::Timestamp,
+    pub ended_at: Option<jiff_sqlx::Timestamp>,
     pub error_message: Option<String>,
 }
 
@@ -53,13 +54,13 @@ pub struct OutageResponse {
 pub struct SiteUptimeResponse {
     pub uptime_basis_points: Option<i64>,
     pub unwatched_seconds: i64,
-    pub down_since: Option<DateTime<Utc>>,
+    pub down_since: Option<Timestamp>,
     pub days: Vec<UptimeDay>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, ToSchema)]
 pub struct UptimeDay {
-    pub date: NaiveDate,
+    pub date: Date,
     pub monitoring_started: bool,
     pub uptime_basis_points: Option<i64>,
     pub watched_seconds: i64,
@@ -77,15 +78,15 @@ pub struct UptimeDay {
 
 #[derive(Debug, PartialEq, Eq, Serialize, ToSchema)]
 pub struct BlockedSegment {
-    pub started_at: DateTime<Utc>,
-    pub ended_at: DateTime<Utc>,
+    pub started_at: Timestamp,
+    pub ended_at: Timestamp,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, ToSchema)]
 pub struct WatchSegment {
     pub state: WatchStatus,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: DateTime<Utc>,
+    pub started_at: Timestamp,
+    pub ended_at: Timestamp,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, ToSchema)]

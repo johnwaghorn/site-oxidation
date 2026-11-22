@@ -1,4 +1,5 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
+use jiff_sqlx::ToSqlx;
 use reqwest::Client;
 use serde::Serialize;
 use sqlx::{FromRow, SqlitePool};
@@ -29,8 +30,8 @@ struct CanarySettingsRow {
     enabled: bool,
     url: Option<String>,
     timeout_secs: i64,
-    last_checked_at: Option<DateTime<Utc>>,
-    last_succeeded_at: Option<DateTime<Utc>>,
+    last_checked_at: Option<jiff_sqlx::Timestamp>,
+    last_succeeded_at: Option<jiff_sqlx::Timestamp>,
     last_error: Option<String>,
     settings_revision: i64,
 }
@@ -38,8 +39,8 @@ struct CanarySettingsRow {
 #[derive(Debug)]
 pub struct CanarySettings {
     pub config: CanaryConfig,
-    pub last_checked_at: Option<DateTime<Utc>>,
-    pub last_succeeded_at: Option<DateTime<Utc>>,
+    pub last_checked_at: Option<Timestamp>,
+    pub last_succeeded_at: Option<Timestamp>,
     pub last_error: Option<String>,
     pub settings_revision: i64,
 }
@@ -69,14 +70,14 @@ pub enum CanaryHealth {
 pub struct CanaryPeriod {
     pub state: CanaryHealth,
     pub url: String,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
+    pub started_at: jiff_sqlx::Timestamp,
+    pub ended_at: Option<jiff_sqlx::Timestamp>,
 }
 
 #[derive(Debug, FromRow)]
 pub struct CanaryHistorySummary {
-    pub active_since: Option<DateTime<Utc>>,
-    pub last_ended_at: Option<DateTime<Utc>>,
+    pub active_since: Option<jiff_sqlx::Timestamp>,
+    pub last_ended_at: Option<jiff_sqlx::Timestamp>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -101,8 +102,8 @@ pub async fn load_settings(pool: &SqlitePool) -> Result<CanarySettings, sqlx::Er
             url: row.url,
             timeout_secs,
         },
-        last_checked_at: row.last_checked_at,
-        last_succeeded_at: row.last_succeeded_at,
+        last_checked_at: row.last_checked_at.map(jiff_sqlx::Timestamp::to_jiff),
+        last_succeeded_at: row.last_succeeded_at.map(jiff_sqlx::Timestamp::to_jiff),
         last_error: row.last_error,
         settings_revision: row.settings_revision,
     })
@@ -118,7 +119,7 @@ pub async fn update_settings(pool: &SqlitePool, config: &CanaryConfig) -> Result
              last_checked_at = CASE WHEN target_is_unchanged THEN last_checked_at ELSE NULL END,
              last_succeeded_at = CASE WHEN target_is_unchanged THEN last_succeeded_at ELSE NULL END,
              last_error = CASE WHEN target_is_unchanged THEN last_error ELSE NULL END,
-             settings_revision = settings_revision + 1, updated_at = CURRENT_TIMESTAMP
+             settings_revision = settings_revision + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
          FROM (SELECT url IS ? AND enabled = ? AS target_is_unchanged
                FROM canary_settings WHERE id = 1) AS prior
          WHERE id = 1",
@@ -131,7 +132,7 @@ pub async fn update_settings(pool: &SqlitePool, config: &CanaryConfig) -> Result
     .execute(&mut *transaction)
     .await?;
     sqlx::query(
-        "UPDATE canary_history SET ended_at = CURRENT_TIMESTAMP
+        "UPDATE canary_history SET ended_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
          WHERE ended_at IS NULL
            AND NOT EXISTS (SELECT 1 FROM canary_settings
                            WHERE id = 1 AND enabled = 1 AND url = canary_history.url)",
@@ -144,7 +145,7 @@ pub async fn update_settings(pool: &SqlitePool, config: &CanaryConfig) -> Result
 pub async fn delete_old_history(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
     let deleted = sqlx::query(
         "DELETE FROM canary_history
-         WHERE ended_at IS NOT NULL AND ended_at < datetime('now', ?)",
+         WHERE ended_at IS NOT NULL AND ended_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)",
     )
     .bind(HISTORY_RETENTION)
     .execute(pool)
@@ -154,14 +155,14 @@ pub async fn delete_old_history(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
 
 pub async fn load_periods_in_uptime_calculation_window(
     pool: &SqlitePool,
-    window_start: DateTime<Utc>,
+    window_start: Timestamp,
 ) -> Result<Vec<CanaryPeriod>, sqlx::Error> {
     sqlx::query_as::<_, CanaryPeriod>(
         "SELECT state, url, started_at, ended_at FROM canary_history
          WHERE ended_at IS NULL OR ended_at > ?
          ORDER BY started_at",
     )
-    .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+    .bind(window_start.to_sqlx())
     .fetch_all(pool)
     .await
 }
@@ -187,14 +188,16 @@ async fn record_health_change(
         return Ok(());
     }
     let open_period_id = open_period.map(|(id, _)| id);
-    sqlx::query("UPDATE canary_history SET ended_at = CURRENT_TIMESTAMP WHERE id = ?")
-        .bind(open_period_id)
-        .execute(&mut *connection)
-        .await?;
+    sqlx::query(
+        "UPDATE canary_history SET ended_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
+    )
+    .bind(open_period_id)
+    .execute(&mut *connection)
+    .await?;
     sqlx::query(
         "INSERT INTO canary_history (state, url, active_since)
          SELECT ?1, url,
-                COALESCE((SELECT active_since FROM canary_history WHERE id = ?2), CURRENT_TIMESTAMP)
+                COALESCE((SELECT active_since FROM canary_history WHERE id = ?2), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
          FROM canary_settings WHERE id = 1",
     )
     .bind(health)
@@ -228,8 +231,8 @@ pub async fn record_result_if_current(
         Ok(()) => {
             sqlx::query(
                 "UPDATE canary_settings
-                 SET last_checked_at = CURRENT_TIMESTAMP,
-                     last_succeeded_at = CURRENT_TIMESTAMP,
+                 SET last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                     last_succeeded_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
                      last_error = NULL
                  WHERE id = 1 AND settings_revision = ?",
             )
@@ -240,7 +243,7 @@ pub async fn record_result_if_current(
         Err(error) => {
             sqlx::query(
                 "UPDATE canary_settings
-                 SET last_checked_at = CURRENT_TIMESTAMP, last_error = ?
+                 SET last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), last_error = ?
                  WHERE id = 1 AND settings_revision = ?",
             )
             .bind(error)
@@ -289,13 +292,13 @@ mod tests {
     struct HistoryRow {
         state: CanaryHealth,
         url: String,
-        active_since: DateTime<Utc>,
-        started_at: DateTime<Utc>,
-        ended_at: Option<DateTime<Utc>>,
+        active_since: jiff_sqlx::Timestamp,
+        started_at: jiff_sqlx::Timestamp,
+        ended_at: Option<jiff_sqlx::Timestamp>,
     }
 
     async fn backdate_active_since(pool: &SqlitePool) {
-        sqlx::query("UPDATE canary_history SET active_since = '2026-01-01 00:00:00'")
+        sqlx::query("UPDATE canary_history SET active_since = '2026-01-01T00:00:00Z'")
             .execute(pool)
             .await
             .unwrap();
@@ -408,8 +411,8 @@ mod tests {
         assert_eq!(history[1].state, CanaryHealth::Failing);
         assert!(history[1].ended_at.is_none());
         assert_eq!(
-            history[1].active_since.to_rfc3339(),
-            "2026-01-01T00:00:00+00:00",
+            history[1].active_since.to_jiff().to_string(),
+            "2026-01-01T00:00:00Z",
             "a health change must keep the original active since"
         );
     }
@@ -475,9 +478,9 @@ mod tests {
     async fn test_old_history_is_deleted_but_recent_and_open_periods_stay(pool: SqlitePool) {
         sqlx::query(
             "INSERT INTO canary_history (state, url, active_since, started_at, ended_at) VALUES
-             ('healthy', ?1, datetime('now', '-500 days'), datetime('now', '-500 days'), datetime('now', '-400 days')),
-             ('failing', ?1, datetime('now', '-500 days'), datetime('now', '-400 days'), datetime('now', '-10 days')),
-             ('healthy', ?1, datetime('now', '-500 days'), datetime('now', '-10 days'), NULL)",
+             ('healthy', ?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-500 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-500 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-400 days')),
+             ('failing', ?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-500 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-400 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 days')),
+             ('healthy', ?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-500 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 days'), NULL)",
         )
         .bind(URL)
         .execute(&pool)

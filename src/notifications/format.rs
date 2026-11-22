@@ -1,7 +1,7 @@
 use crate::models::site::{CertStatus, SiteRow};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeResult, UNKNOWN_PROBE_ERROR_MESSAGE};
-use chrono::Utc;
+use jiff::Timestamp;
 
 pub(super) fn site_down_title(site: &SiteRow) -> String {
     format!("Site '{}' is DOWN", site.name)
@@ -39,7 +39,7 @@ pub(super) fn cert_summary(cert: &CertCheck) -> String {
         cert.expires_at.map_or_else(
             || "is expiring soon".to_owned(),
             |expires_at| {
-                let days = expires_at.signed_duration_since(Utc::now()).num_days();
+                let days = expires_at.duration_since(Timestamp::now()).as_hours() / 24;
                 format!("expires in {days} day(s)")
             },
         )
@@ -49,6 +49,6 @@ pub(super) fn cert_summary(cert: &CertCheck) -> String {
 pub(super) fn cert_expiry(cert: &CertCheck) -> String {
     cert.expires_at.map_or_else(
         || "unknown".to_owned(),
-        |expires_at| expires_at.format("%Y-%m-%d %H:%M UTC").to_string(),
+        |expires_at| expires_at.strftime("%Y-%m-%d %H:%M UTC").to_string(),
     )
 }

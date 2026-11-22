@@ -15,11 +15,13 @@ async fn test_canary_is_skipped_when_no_sites_are_due(pool: SqlitePool) {
         false,
     )
     .await;
-    sqlx::query("UPDATE sites SET last_checked_at = CURRENT_TIMESTAMP WHERE id = ?")
-        .bind(site_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE sites SET last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
+    )
+    .bind(site_id)
+    .execute(&pool)
+    .await
+    .unwrap();
     enable_canary(&pool, server.base_url()).await;
     let client = Client::new();
     let config = probe_config();
@@ -153,11 +155,13 @@ async fn test_due_site_coalesces_recent_equivalent_monitor_with_same_interval(po
         false,
     )
     .await;
-    sqlx::query("UPDATE sites SET last_checked_at = datetime('now') WHERE id = ?")
-        .bind(recent_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE sites SET last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
+    )
+    .bind(recent_id)
+    .execute(&pool)
+    .await
+    .unwrap();
     let client = Client::new();
     let config = probe_config();
     run_due_site_checks(

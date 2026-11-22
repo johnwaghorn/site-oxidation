@@ -6,7 +6,7 @@ use crate::notifications::{Notifier, outbox, planning};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeFailureKind, ProbeResult};
 use crate::tests::{TEST_SITE_NAME, TEST_SITE_URL, TestHttpServer};
-use chrono::{Duration as ChronoDuration, Utc};
+use jiff::{SignedDuration, Timestamp};
 use reqwest::Client;
 use sqlx::SqlitePool;
 
@@ -39,7 +39,7 @@ fn down_result() -> ProbeResult {
 fn expiring_cert() -> CertCheck {
     CertCheck {
         status: CertStatus::Expiring,
-        expires_at: Some(Utc::now() + ChronoDuration::days(10)),
+        expires_at: Some(Timestamp::now() + SignedDuration::from_hours(10 * 24)),
     }
 }
 

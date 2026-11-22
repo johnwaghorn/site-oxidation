@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::extract::State;
-use chrono::Utc;
+use jiff::Timestamp;
 
 use super::queries::{EXPORT_SITES_ADMIN, EXPORT_SITES_USER};
 use super::responses::{ExportedSite, SiteExportResponse};
@@ -39,7 +39,7 @@ pub async fn export_sites(
     };
     Ok(Json(SiteExportResponse {
         version: SITE_EXPORT_VERSION,
-        exported_at: Utc::now(),
+        exported_at: Timestamp::now(),
         exported_by: env!("CARGO_PKG_VERSION"),
         sites,
     }))

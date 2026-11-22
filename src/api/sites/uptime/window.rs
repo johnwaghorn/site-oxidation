@@ -6,15 +6,14 @@ use crate::api::sites::canary_warning::normalised_url_host;
 use crate::api::sites::responses::{BlockedSegment, UptimeDay, WatchStatus};
 use crate::canary::CanaryPeriod;
 use crate::monitoring::periods::MonitoringPeriod;
-use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveTime, Utc};
-use jiff::Timestamp;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
+use jiff::{Span, Timestamp};
 
 pub(in crate::api::sites) struct UptimeWindow<'a> {
     pub site_url: &'a str,
-    pub monitored_from: DateTime<Utc>,
-    pub now: DateTime<Utc>,
+    pub monitored_from: Timestamp,
+    pub now: Timestamp,
     pub time_zone: TimeZone,
     pub days: u64,
     pub outages: &'a [OutageTimes],
@@ -29,15 +28,13 @@ pub(in crate::api::sites) struct WindowSummary {
 }
 
 pub(in crate::api::sites) fn uptime_window_start(
-    now: DateTime<Utc>,
+    now: Timestamp,
     time_zone: &TimeZone,
     days: u64,
-) -> DateTime<Utc> {
+) -> Timestamp {
     let today = local_date(now, time_zone);
-    let first_day = today
-        .checked_sub_days(Days::new(days.saturating_sub(1)))
-        .unwrap_or(today);
-    start_of_local_day(first_day, time_zone)
+    let first_day = days_before(today, days.saturating_sub(1)).unwrap_or(today);
+    start_of_local_day(first_day, time_zone).unwrap_or(now)
 }
 
 pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<UptimeDay> {
@@ -58,26 +55,29 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
     };
     (0..window.days)
         .rev()
-        .filter_map(|days_ago| today.checked_sub_days(Days::new(days_ago)))
-        .map(|date| {
-            let day_start = start_of_local_day(date, &window.time_zone);
-            let day_end = date.succ_opt().map_or(window.now, |next| {
-                start_of_local_day(next, &window.time_zone)
-            });
+        .filter_map(|days_ago| days_before(today, days_ago))
+        .filter_map(|date| {
+            let day_start = start_of_local_day(date, &window.time_zone)?;
+            let day_end = date
+                .tomorrow()
+                .ok()
+                .and_then(|next| start_of_local_day(next, &window.time_zone))
+                .unwrap_or(window.now);
             let day_range = TimeRange {
                 start: day_start.max(window.monitored_from),
                 end: day_end.min(window.now),
             };
             if day_range.duration_seconds() == 0 {
-                return day_before_monitoring_started(date);
+                return Some(day_before_monitoring_started(date));
             }
             let outage_count = window
                 .outages
                 .iter()
                 .filter(|outage| {
-                    day_range
-                        .overlap_seconds(outage.started_at, outage.ended_at.unwrap_or(window.now))
-                        > 0
+                    let outage_end = outage
+                        .ended_at
+                        .map_or(window.now, jiff_sqlx::Timestamp::to_jiff);
+                    day_range.overlap_seconds(outage.started_at.to_jiff(), outage_end) > 0
                 })
                 .count();
             let MeasuredUptime {
@@ -85,7 +85,7 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
                 blocked,
                 watched,
             } = measure_uptime_in_range(&day_range, &records, canary_shares_site_host);
-            UptimeDay {
+            Some(UptimeDay {
                 date,
                 monitoring_started: true,
                 uptime_basis_points: watched.uptime_basis_points(),
@@ -109,7 +109,7 @@ pub(in crate::api::sites) fn daily_uptime(window: &UptimeWindow<'_>) -> Vec<Upti
                         ended_at: range.end,
                     })
                     .collect(),
-            }
+            })
         })
         .collect()
 }
@@ -139,37 +139,25 @@ pub(in crate::api::sites) fn window_summary(window: &UptimeWindow<'_>) -> Window
     }
 }
 
-fn local_date(instant: DateTime<Utc>, time_zone: &TimeZone) -> NaiveDate {
-    Timestamp::from_second(instant.timestamp())
-        .ok()
-        .and_then(|timestamp| {
-            let date = timestamp.to_zoned(time_zone.clone()).date();
-            NaiveDate::from_ymd_opt(
-                date.year().into(),
-                date.month().unsigned_abs().into(),
-                date.day().unsigned_abs().into(),
-            )
-        })
-        .unwrap_or_else(|| instant.date_naive())
+fn local_date(instant: Timestamp, time_zone: &TimeZone) -> Date {
+    instant.to_zoned_datetime(time_zone.clone()).date()
 }
 
-fn start_of_local_day(date: NaiveDate, time_zone: &TimeZone) -> DateTime<Utc> {
-    let first_instant = || {
-        let year = i16::try_from(date.year()).ok()?;
-        let month = i8::try_from(date.month()).ok()?;
-        let day = i8::try_from(date.day()).ok()?;
-        let start = Date::new(year, month, day)
-            .ok()?
-            .to_zoned(time_zone.clone())
-            .ok()?
-            .start_of_day()
-            .ok()?;
-        DateTime::from_timestamp(start.timestamp().as_second(), 0)
-    };
-    first_instant().unwrap_or_else(|| date.and_time(NaiveTime::MIN).and_utc())
+fn days_before(date: Date, days: u64) -> Option<Date> {
+    let days = i64::try_from(days).ok()?;
+    date.checked_sub(Span::new().try_days(days).ok()?).ok()
 }
 
-fn day_before_monitoring_started(date: NaiveDate) -> UptimeDay {
+fn start_of_local_day(date: Date, time_zone: &TimeZone) -> Option<Timestamp> {
+    let start = date
+        .to_zoned_datetime(time_zone.clone())
+        .ok()?
+        .start_of_day()
+        .ok()?;
+    Some(start.timestamp())
+}
+
+fn day_before_monitoring_started(date: Date) -> UptimeDay {
     UptimeDay {
         date,
         monitoring_started: false,

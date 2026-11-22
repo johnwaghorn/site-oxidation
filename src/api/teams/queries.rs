@@ -92,7 +92,7 @@ pub const UPSERT_NOTIFICATIONS: &str = concat!(
     "notify_site_down = CASE WHEN ? THEN excluded.notify_site_down ELSE notify_site_down END, ",
     "notify_site_recovered = CASE WHEN ? THEN excluded.notify_site_recovered ELSE notify_site_recovered END, ",
     "notify_cert_expiring = CASE WHEN ? THEN excluded.notify_cert_expiring ELSE notify_cert_expiring END, ",
-    "updated_at = CURRENT_TIMESTAMP ",
+    "updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') ",
     "RETURNING team_id, slack_webhook_url, microsoft_teams_webhook_url, ",
     "smtp_host, smtp_port, smtp_tls_mode, smtp_auth, smtp_username, smtp_from_email, smtp_to_email, ",
     "smtp_password IS NOT NULL AS smtp_password_set, ",

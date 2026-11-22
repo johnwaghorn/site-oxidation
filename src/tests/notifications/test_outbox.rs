@@ -87,7 +87,7 @@ async fn test_failed_outbox_delivery_is_retained_for_retry(pool: SqlitePool) {
     transaction.commit().await.unwrap();
     notifier.process_outbox(&pool).await;
     let (attempts, last_error, retry_is_future): (i64, Option<String>, bool) = sqlx::query_as(
-        "SELECT attempts, last_error, next_attempt_at > CURRENT_TIMESTAMP \
+        "SELECT attempts, last_error, next_attempt_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now') \
          FROM notification_outbox",
     )
     .fetch_one(&pool)

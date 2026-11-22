@@ -2,8 +2,9 @@ use super::{BlockedTimes, OutageTimes, UptimeWindow, daily_uptime, window_summar
 use crate::api::sites::responses::{UptimeDay, WatchStatus};
 use crate::canary::{CanaryHealth, CanaryPeriod};
 use crate::monitoring::periods::MonitoringPeriod;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use jiff::tz::TimeZone;
+use jiff_sqlx::ToSqlx;
 use std::sync::LazyLock;
 
 const SITE_URL: &str = "https://waghorn.tech";
@@ -11,23 +12,27 @@ const SITE_URL: &str = "https://waghorn.tech";
 static ALWAYS_RUNNING: LazyLock<[MonitoringPeriod; 1]> =
     LazyLock::new(|| [period("2026-01-01 00:00:00", "2027-01-01 00:00:00")]);
 
-fn utc(timestamp: &str) -> DateTime<Utc> {
-    chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%d %H:%M:%S")
+fn utc(timestamp: &str) -> Timestamp {
+    TimeZone::UTC
+        .to_timestamp(timestamp.parse().unwrap())
         .unwrap()
-        .and_utc()
+}
+
+fn stored(timestamp: &str) -> jiff_sqlx::Timestamp {
+    utc(timestamp).to_sqlx()
 }
 
 fn outage(started_at: &str, ended_at: Option<&str>) -> OutageTimes {
     OutageTimes {
-        started_at: utc(started_at),
-        ended_at: ended_at.map(utc),
+        started_at: stored(started_at),
+        ended_at: ended_at.map(stored),
     }
 }
 
 fn blocked(started_at: &str, ended_at: Option<&str>) -> BlockedTimes {
     BlockedTimes {
-        started_at: utc(started_at),
-        ended_at: ended_at.map(utc),
+        started_at: stored(started_at),
+        ended_at: ended_at.map(stored),
     }
 }
 
@@ -40,15 +45,15 @@ fn canary(
     CanaryPeriod {
         state,
         url: url.to_owned(),
-        started_at: utc(started_at),
-        ended_at: ended_at.map(utc),
+        started_at: stored(started_at),
+        ended_at: ended_at.map(stored),
     }
 }
 
 fn period(started_at: &str, last_seen_at: &str) -> MonitoringPeriod {
     MonitoringPeriod {
-        started_at: utc(started_at),
-        last_seen_at: utc(last_seen_at),
+        started_at: stored(started_at),
+        last_seen_at: stored(last_seen_at),
     }
 }
 
@@ -77,8 +82,8 @@ fn segment_times(day: &UptimeDay) -> Vec<(WatchStatus, String, String)> {
         .map(|segment| {
             (
                 segment.state,
-                segment.started_at.format("%H:%M").to_string(),
-                segment.ended_at.format("%H:%M").to_string(),
+                segment.started_at.strftime("%H:%M").to_string(),
+                segment.ended_at.strftime("%H:%M").to_string(),
             )
         })
         .collect()
@@ -322,8 +327,8 @@ fn test_time_the_site_was_blocked_is_left_out_of_uptime() {
         .iter()
         .map(|segment| {
             (
-                segment.started_at.format("%H:%M").to_string(),
-                segment.ended_at.format("%H:%M").to_string(),
+                segment.started_at.strftime("%H:%M").to_string(),
+                segment.ended_at.strftime("%H:%M").to_string(),
             )
         })
         .collect();

@@ -5,8 +5,8 @@ use crate::models::site::SiteRow;
 use crate::notifications::Notifier;
 use crate::probe::cert::{CertExpiryWindows, check_certificate};
 use crate::probe::http::{CheckExpectation, ProbeResult, check_url};
-use chrono::Utc;
 use futures::stream::{self, StreamExt};
+use jiff::Timestamp;
 use reqwest::Client;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
@@ -281,7 +281,7 @@ async fn check_site_group(
         group_key.tls_allow_untrusted,
         config.probe_allow_private_ips,
         probe_timeout,
-        Utc::now(),
+        Timestamp::now(),
         CertExpiryWindows {
             warn_days: config.cert_warn_days,
             critical_days: config.cert_critical_days,

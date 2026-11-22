@@ -27,8 +27,9 @@ use crate::canary;
 use crate::models::user::UserRole;
 use crate::monitoring::periods;
 use crate::state::AppState;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use jiff::tz::TimeZone;
+use jiff_sqlx::ToSqlx;
 
 use axum::{
     Json,
@@ -218,16 +219,16 @@ pub async fn get_site_uptime(
         .map_err(|_| ApiErrorResponse::validation("Unknown time zone"))?;
     let (site_url, site_created_at, last_checked_at): (
         String,
-        DateTime<Utc>,
-        Option<DateTime<Utc>>,
+        jiff_sqlx::Timestamp,
+        Option<jiff_sqlx::Timestamp>,
     ) = sqlx::query_as(SELECT_SITE_URL_CREATED_AT_AND_LAST_CHECKED_AT)
         .bind(id)
         .fetch_one(&state.pool)
         .await
         .map_err(|e| internal_err(&format!("Failed to load site {id} for uptime"), e))?;
-    let now = Utc::now();
+    let now = Timestamp::now();
     let monitored_from = if last_checked_at.is_some() {
-        site_created_at
+        site_created_at.to_jiff()
     } else {
         now
     };
@@ -235,14 +236,14 @@ pub async fn get_site_uptime(
     let window_start = uptime_window_start(now, &time_zone, days);
     let outages = sqlx::query_as::<_, OutageTimes>(LIST_SITE_OUTAGES_IN_UPTIME_CALCULATION_WINDOW)
         .bind(id)
-        .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+        .bind(window_start.to_sqlx())
         .fetch_all(&state.pool)
         .await
         .map_err(|e| internal_err(&format!("Failed to load outages for site {id}"), e))?;
     let blocked_periods =
         sqlx::query_as::<_, BlockedTimes>(LIST_SITE_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW)
             .bind(id)
-            .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+            .bind(window_start.to_sqlx())
             .fetch_all(&state.pool)
             .await
             .map_err(|e| {
@@ -274,7 +275,7 @@ pub async fn get_site_uptime(
         down_since: outages
             .iter()
             .find(|outage| outage.ended_at.is_none())
-            .map(|outage| outage.started_at),
+            .map(|outage| outage.started_at.to_jiff()),
         days: daily_uptime(&window),
     }))
 }
@@ -348,7 +349,10 @@ pub async fn export_site_outages_as_csv(
         .await
         .map_err(|e| internal_err(&format!("Failed to load the name of site {id}"), e))?
         .ok_or_else(|| ApiErrorResponse::not_found("Site"))?;
-    let filename = outage_csv_filename(&site_name, Utc::now().date_naive());
+    let filename = outage_csv_filename(
+        &site_name,
+        Timestamp::now().to_zoned_datetime(TimeZone::UTC).date(),
+    );
     Ok((
         [
             (header::CONTENT_TYPE, "text/csv; charset=utf-8".to_owned()),

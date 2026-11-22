@@ -61,7 +61,7 @@ mod tests {
     use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteRow, SiteStatus};
     use crate::probe::http::ProbeFailureKind;
-    use chrono::{Duration as ChronoDuration, Utc};
+    use jiff::{SignedDuration, Timestamp};
     use reqwest::StatusCode;
 
     fn site_row() -> SiteRow {
@@ -113,7 +113,7 @@ mod tests {
     fn cert_expiring_payload_includes_days_remaining() {
         let cert = CertCheck {
             status: CertStatus::Expiring,
-            expires_at: Some(Utc::now() + ChronoDuration::days(10)),
+            expires_at: Some(Timestamp::now() + SignedDuration::from_hours(10 * 24)),
         };
         let payload = cert_expiring(&site_row(), &cert);
         assert!(payload.text.contains("Waghorn Technology Ltd"));
@@ -127,7 +127,7 @@ mod tests {
     fn cert_expiring_payload_reports_expired_certs() {
         let cert = CertCheck {
             status: CertStatus::Expired,
-            expires_at: Some(Utc::now() - ChronoDuration::days(1)),
+            expires_at: Some(Timestamp::now() - SignedDuration::from_hours(24)),
         };
         let payload = cert_expiring(&site_row(), &cert);
         assert!(payload.text.contains("has EXPIRED"));
