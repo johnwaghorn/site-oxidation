@@ -12,7 +12,7 @@
   <Category>Network:Management Tools:Utilities</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/johnwaghorn/site-oxidation/main/unraid/site-oxidation.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/johnwaghorn/site-oxidation/main/unraid/site-oxidation.png</Icon>
+  <Icon>https://raw.githubusercontent.com/johnwaghorn/site-oxidation/main/docs/images/site-oxidation.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <Requires/>

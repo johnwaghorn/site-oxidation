@@ -1,6 +1,10 @@
-# Site Oxidation
+<p align="center">
+  <img src="docs/images/site-oxidation.png" alt="" width="120">
+</p>
 
-Monitor the oxidation of your site. Prevent rust build up.
+<h1 align="center">Site Oxidation</h1>
+
+<p align="center">Monitor the oxidation of your site. Prevent rust build up.</p>
 
 Site Oxidation is self-hosted website uptime monitoring. It checks your sites on
 a schedule and tells you when something goes wrong.
