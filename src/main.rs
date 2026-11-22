@@ -15,6 +15,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task;
 use tower_http::services::{ServeDir, ServeFile};
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::LevelFilter;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -32,7 +34,7 @@ mod state;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    init_logging();
     let config = AppConfig::from_env().context("Failed to load app config from env")?;
     let pool = db::init_db(&config.database_path).await.with_context(|| {
         format!(
@@ -131,6 +133,13 @@ async fn main() -> Result<()> {
     .await
     .context("Axum server terminated with an error")?;
     Ok(())
+}
+
+fn init_logging() {
+    let log_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env_lossy();
+    tracing_subscriber::fmt().with_env_filter(log_filter).init();
 }
 
 fn spawn_expired_session_cleanup(pool: SqlitePool) {
