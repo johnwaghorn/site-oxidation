@@ -43,5 +43,6 @@ LICENSE
 README.md
 docs
 scripts
+unraid
 **/data
 identifier.sqlite
