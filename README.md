@@ -23,8 +23,9 @@ footprint and sits comfortably on a home server or small VPS.
 
 ### Unraid
 
-Install from Community Apps, or see the [`unraid`](unraid) folder for the
-template and a Docker Compose alternative.
+Install from Community Apps, or with Docker Compose. See
+[docs/deployment/unraid.md](docs/deployment/unraid.md) for both, plus HTTPS and
+backups.
 
 ### Docker Compose
 
