@@ -7,15 +7,14 @@ repository = "https://github.com/johnwaghorn/site-oxidation"
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 axum = "0.8.8"
-sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "migrate", "chrono"] }
+sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "migrate"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
-chrono = { version = "0.4.45", features = ["serde"] }
 tower-http = { version = "0.7.0", features = ["cors", "fs"] }
-utoipa = { version = "6", features = ["axum_extras", "chrono"] }
+utoipa = { version = "6", features = ["axum_extras", "jiff_0_2"] }
 utoipa-swagger-ui = { version = "10", features = ["axum"] }
 futures = "0.3.31"
 url = "2.5.8"
@@ -30,7 +29,8 @@ rustls-platform-verifier = "0.7"
 x509-cert = { version = "0.3", default-features = false, features = ["std"] }
 lettre = { version = "0.11.22", default-features = false, features = ["smtp-transport", "builder", "hostname", "tokio1", "tokio1-rustls-tls", "tokio1-rustls", "rustls-platform-verifier", "aws-lc-rs"] }
 axum-extra = { version = "0.12.6", features = ["cookie-signed"] }
-jiff = "0.2.43"
+jiff = { version = "1.0.2", features = ["serde"] }
+jiff-sqlx = { version = "1.0.0", features = ["sqlite", "serde"] }
 
 [dev-dependencies]
 http-body-util = "0.1.3"

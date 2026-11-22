@@ -1,6 +1,6 @@
 use crate::models::site::CertStatus;
 use crate::security::resolver::{resolve_addrs, resolve_public_addrs, warn_probe_private_host};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::crypto::CryptoProvider;
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
@@ -14,11 +14,11 @@ use x509_cert::der::Decode;
 
 pub struct CertCheck {
     pub status: CertStatus,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
 }
 
 struct CertFacts {
-    expires_at: DateTime<Utc>,
+    expires_at: Timestamp,
     trusted: bool,
 }
 
@@ -75,7 +75,7 @@ pub async fn check_certificate(
     allow_untrusted: bool,
     allow_private_ips: bool,
     timeout: Duration,
-    now: DateTime<Utc>,
+    now: Timestamp,
     windows: CertExpiryWindows,
 ) -> CertCheck {
     let Ok(parsed) = reqwest::Url::parse(url) else {
@@ -121,10 +121,10 @@ pub async fn check_certificate(
 }
 
 fn classify_cert_status(
-    expires_at: Option<DateTime<Utc>>,
+    expires_at: Option<Timestamp>,
     trusted: bool,
     allow_untrusted: bool,
-    now: DateTime<Utc>,
+    now: Timestamp,
     windows: CertExpiryWindows,
 ) -> CertStatus {
     let Some(expires_at) = expires_at else {
@@ -136,7 +136,7 @@ fn classify_cert_status(
     if !allow_untrusted && !trusted {
         return CertStatus::Invalid;
     }
-    let days_left = expires_at.signed_duration_since(now).num_days();
+    let days_left = expires_at.duration_since(now).as_hours() / 24;
     if days_left <= windows.critical_days {
         CertStatus::Critical
     } else if days_left <= windows.warn_days {
@@ -197,7 +197,7 @@ fn is_cert_trusted(
     })
 }
 
-fn cert_expiry_from_der(der: &[u8]) -> Option<DateTime<Utc>> {
+fn cert_expiry_from_der(der: &[u8]) -> Option<Timestamp> {
     let cert = Certificate::from_der(der).ok()?;
     let secs = cert
         .tbs_certificate()
@@ -205,7 +205,7 @@ fn cert_expiry_from_der(der: &[u8]) -> Option<DateTime<Utc>> {
         .not_after
         .to_unix_duration()
         .as_secs();
-    DateTime::from_timestamp(i64::try_from(secs).ok()?, 0)
+    Timestamp::from_second(i64::try_from(secs).ok()?).ok()
 }
 
 fn no_verify_config() -> Option<Arc<ClientConfig>> {
@@ -248,19 +248,19 @@ mod tests {
         clippy::unnecessary_wraps
     )]
     use super::*;
-    use chrono::Duration as ChronoDuration;
+    use jiff::SignedDuration;
 
     const EXPIRY_WINDOWS: CertExpiryWindows = CertExpiryWindows {
         warn_days: 30,
         critical_days: 7,
     };
 
-    fn now() -> DateTime<Utc> {
-        DateTime::from_timestamp(1_700_000_000, 0).expect("valid fixed timestamp")
+    fn now() -> Timestamp {
+        Timestamp::from_second(1_700_000_000).expect("valid fixed timestamp")
     }
 
-    fn in_days(days: i64) -> Option<DateTime<Utc>> {
-        Some(now() + ChronoDuration::days(days))
+    fn in_days(days: i64) -> Option<Timestamp> {
+        Some(now() + SignedDuration::from_hours(24 * days))
     }
 
     #[test]

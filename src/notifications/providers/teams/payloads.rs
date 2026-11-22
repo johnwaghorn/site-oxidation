@@ -83,7 +83,7 @@ mod tests {
     use crate::models::notifications::TeamNotificationConfig;
     use crate::models::site::{CertStatus, SiteStatus};
     use crate::probe::http::ProbeFailureKind;
-    use chrono::{Duration as ChronoDuration, Utc};
+    use jiff::{SignedDuration, Timestamp};
     use reqwest::StatusCode;
 
     fn site_row() -> SiteRow {
@@ -134,7 +134,7 @@ mod tests {
     fn cert_expiring_card_includes_days_remaining() {
         let cert = CertCheck {
             status: CertStatus::Expiring,
-            expires_at: Some(Utc::now() + ChronoDuration::days(10)),
+            expires_at: Some(Timestamp::now() + SignedDuration::from_hours(10 * 24)),
         };
         let rendered = cert_expiring(&site_row(), &cert).to_string();
         assert!(rendered.contains("TLS certificate for site 'Waghorn Technology Ltd'"));

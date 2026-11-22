@@ -1,38 +1,35 @@
 use crate::api::sites::responses::{WatchSegment, WatchStatus};
 use crate::canary::{CanaryHealth, CanaryPeriod};
 use crate::monitoring::periods::{MAX_HEARTBEAT_GAP_SECONDS, MonitoringPeriod};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use sqlx::FromRow;
 
 const FULL_UPTIME_BASIS_POINTS: i64 = 10_000;
 
 #[derive(Debug, FromRow)]
 pub(in crate::api::sites) struct OutageTimes {
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
+    pub started_at: jiff_sqlx::Timestamp,
+    pub ended_at: Option<jiff_sqlx::Timestamp>,
 }
 
 #[derive(Debug, FromRow)]
 pub(in crate::api::sites) struct BlockedTimes {
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
+    pub started_at: jiff_sqlx::Timestamp,
+    pub ended_at: Option<jiff_sqlx::Timestamp>,
 }
 
 #[derive(Clone, Copy)]
 pub(super) struct TimeRange {
-    pub(super) start: DateTime<Utc>,
-    pub(super) end: DateTime<Utc>,
+    pub(super) start: Timestamp,
+    pub(super) end: Timestamp,
 }
 
 impl TimeRange {
     pub(super) fn duration_seconds(&self) -> i64 {
-        self.end
-            .signed_duration_since(self.start)
-            .num_seconds()
-            .max(0)
+        self.end.duration_since(self.start).as_secs().max(0)
     }
 
-    pub(super) fn overlap_seconds(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> i64 {
+    pub(super) fn overlap_seconds(&self, start: Timestamp, end: Timestamp) -> i64 {
         let overlap = TimeRange {
             start: self.start.max(start),
             end: self.end.min(end),
@@ -46,7 +43,7 @@ pub(super) struct UptimeRecords<'a> {
     pub(super) blocked_ranges: &'a [TimeRange],
     pub(super) canary_periods: &'a [CanaryPeriod],
     pub(super) outages: &'a [OutageTimes],
-    pub(super) now: DateTime<Utc>,
+    pub(super) now: Timestamp,
 }
 
 pub(super) struct MeasuredUptime {
@@ -71,20 +68,17 @@ impl WatchedTime {
 
 pub(super) fn monitor_running_ranges(
     monitoring_periods: &[MonitoringPeriod],
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Vec<TimeRange> {
     monitoring_periods
         .iter()
         .map(|period| {
-            let still_running = now.signed_duration_since(period.last_seen_at).num_seconds()
-                <= MAX_HEARTBEAT_GAP_SECONDS;
+            let last_seen_at = period.last_seen_at.to_jiff();
+            let still_running =
+                now.duration_since(last_seen_at).as_secs() <= MAX_HEARTBEAT_GAP_SECONDS;
             TimeRange {
-                start: period.started_at,
-                end: if still_running {
-                    now
-                } else {
-                    period.last_seen_at
-                },
+                start: period.started_at.to_jiff(),
+                end: if still_running { now } else { last_seen_at },
             }
         })
         .collect()
@@ -92,13 +86,13 @@ pub(super) fn monitor_running_ranges(
 
 pub(super) fn site_blocked_ranges(
     blocked_periods: &[BlockedTimes],
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Vec<TimeRange> {
     blocked_periods
         .iter()
         .map(|period| TimeRange {
-            start: period.started_at,
-            end: period.ended_at.unwrap_or(now),
+            start: period.started_at.to_jiff(),
+            end: period.ended_at.map_or(now, jiff_sqlx::Timestamp::to_jiff),
         })
         .collect()
 }
@@ -129,7 +123,7 @@ fn build_watch_timeline(
     range: &TimeRange,
     running_ranges: &[TimeRange],
     canary_periods: &[CanaryPeriod],
-    now: DateTime<Utc>,
+    now: Timestamp,
     canary_shares_site_host: impl Fn(&str) -> bool,
 ) -> Vec<WatchSegment> {
     let canary_only =
@@ -174,7 +168,7 @@ fn measure_watched_time(
     timeline: &[WatchSegment],
     blocked: &[TimeRange],
     outages: &[OutageTimes],
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> WatchedTime {
     let watched: Vec<TimeRange> = timeline
         .iter()
@@ -195,9 +189,9 @@ fn measure_watched_time(
         })
         .collect();
     let down_seconds = outages.iter().fold(0_i64, |total, outage| {
-        let outage_end = outage.ended_at.unwrap_or(now);
+        let outage_end = outage.ended_at.map_or(now, jiff_sqlx::Timestamp::to_jiff);
         watched.iter().fold(total, |total, range| {
-            total.saturating_add(range.overlap_seconds(outage.started_at, outage_end))
+            total.saturating_add(range.overlap_seconds(outage.started_at.to_jiff(), outage_end))
         })
     });
     WatchedTime {
@@ -214,8 +208,8 @@ pub(super) fn seconds_in_state(timeline: &[WatchSegment], state: WatchStatus) ->
             total.saturating_add(
                 segment
                     .ended_at
-                    .signed_duration_since(segment.started_at)
-                    .num_seconds(),
+                    .duration_since(segment.started_at)
+                    .as_secs(),
             )
         })
 }
@@ -233,14 +227,17 @@ fn uptime_as_basis_points(up_seconds: i64, total_seconds: i64) -> Option<i64> {
 fn segments_from_canary_periods(
     range: &TimeRange,
     periods: &[CanaryPeriod],
-    now: DateTime<Utc>,
+    now: Timestamp,
     canary_shares_site_host: impl Fn(&str) -> bool,
 ) -> Vec<WatchSegment> {
     let mut segments: Vec<WatchSegment> = Vec::new();
     let mut covered_until = range.start;
     for period in periods {
-        let started_at = period.started_at.max(covered_until);
-        let ended_at = period.ended_at.unwrap_or(now).min(range.end);
+        let started_at = period.started_at.to_jiff().max(covered_until);
+        let ended_at = period
+            .ended_at
+            .map_or(now, jiff_sqlx::Timestamp::to_jiff)
+            .min(range.end);
         if ended_at <= started_at {
             continue;
         }
@@ -338,8 +335,8 @@ fn time_outside(range: TimeRange, excluded: &[TimeRange]) -> Vec<TimeRange> {
 fn push_segment_or_extend_previous(
     segments: &mut Vec<WatchSegment>,
     state: WatchStatus,
-    started_at: DateTime<Utc>,
-    ended_at: DateTime<Utc>,
+    started_at: Timestamp,
+    ended_at: Timestamp,
 ) {
     if let Some(previous) = segments.last_mut()
         && previous.state == state

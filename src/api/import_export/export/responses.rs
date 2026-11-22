@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use utoipa::ToSchema;
 
 #[derive(Serialize, ToSchema)]
 pub struct SiteExportResponse {
     pub version: u32,
-    pub exported_at: DateTime<Utc>,
+    pub exported_at: Timestamp,
     pub exported_by: &'static str,
     pub sites: Vec<ExportedSite>,
 }

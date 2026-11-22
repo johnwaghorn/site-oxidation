@@ -1,4 +1,5 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
+use jiff_sqlx::ToSqlx;
 use sqlx::{FromRow, SqlitePool};
 
 pub const MAX_HEARTBEAT_GAP_SECONDS: i64 = 120;
@@ -6,14 +7,14 @@ const PERIOD_RETENTION: &str = "-365 days";
 
 #[derive(Debug, FromRow)]
 pub struct MonitoringPeriod {
-    pub started_at: DateTime<Utc>,
-    pub last_seen_at: DateTime<Utc>,
+    pub started_at: jiff_sqlx::Timestamp,
+    pub last_seen_at: jiff_sqlx::Timestamp,
 }
 
 pub async fn record_heartbeat(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let extended = sqlx::query(
-        "UPDATE monitoring_periods SET last_seen_at = CURRENT_TIMESTAMP
-         WHERE id = (SELECT MAX(id) FROM monitoring_periods) AND last_seen_at >= datetime('now', ?)",
+        "UPDATE monitoring_periods SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         WHERE id = (SELECT MAX(id) FROM monitoring_periods) AND last_seen_at >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)",
     )
     .bind(format!("-{MAX_HEARTBEAT_GAP_SECONDS} seconds"))
     .execute(pool)
@@ -28,7 +29,7 @@ pub async fn record_heartbeat(pool: &SqlitePool) -> Result<(), sqlx::Error> {
 
 pub async fn delete_old_periods(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
     let deleted =
-        sqlx::query("DELETE FROM monitoring_periods WHERE last_seen_at < datetime('now', ?)")
+        sqlx::query("DELETE FROM monitoring_periods WHERE last_seen_at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)")
             .bind(PERIOD_RETENTION)
             .execute(pool)
             .await?;
@@ -37,14 +38,14 @@ pub async fn delete_old_periods(pool: &SqlitePool) -> Result<u64, sqlx::Error> {
 
 pub async fn load_periods_in_uptime_calculation_window(
     pool: &SqlitePool,
-    window_start: DateTime<Utc>,
+    window_start: Timestamp,
 ) -> Result<Vec<MonitoringPeriod>, sqlx::Error> {
     sqlx::query_as::<_, MonitoringPeriod>(
         "SELECT started_at, last_seen_at FROM monitoring_periods
          WHERE last_seen_at > ?
          ORDER BY started_at",
     )
-    .bind(window_start.format("%Y-%m-%d %H:%M:%S").to_string())
+    .bind(window_start.to_sqlx())
     .fetch_all(pool)
     .await
 }
@@ -70,7 +71,7 @@ mod tests {
     async fn test_heartbeat_soon_after_the_last_extends_the_period(pool: SqlitePool) {
         sqlx::query(
             "INSERT INTO monitoring_periods (started_at, last_seen_at)
-             VALUES (datetime('now', '-1 hour'), datetime('now', '-30 seconds'))",
+             VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 seconds'))",
         )
         .execute(&pool)
         .await
@@ -85,7 +86,7 @@ mod tests {
     async fn test_heartbeat_after_a_long_gap_starts_a_new_period(pool: SqlitePool) {
         sqlx::query(
             "INSERT INTO monitoring_periods (started_at, last_seen_at)
-             VALUES (datetime('now', '-1 hour'), datetime('now', '-10 minutes'))",
+             VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 minutes'))",
         )
         .execute(&pool)
         .await
@@ -98,9 +99,9 @@ mod tests {
     async fn test_only_periods_that_ended_over_a_year_ago_are_deleted(pool: SqlitePool) {
         sqlx::query(
             "INSERT INTO monitoring_periods (started_at, last_seen_at) VALUES
-             (datetime('now', '-500 days'), datetime('now', '-400 days')),
-             (datetime('now', '-390 days'), datetime('now', '-300 days')),
-             (datetime('now', '-1 hour'), datetime('now'))",
+             (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-500 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-400 days')),
+             (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-390 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-300 days')),
+             (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
         )
         .execute(&pool)
         .await

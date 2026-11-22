@@ -14,14 +14,14 @@ async fn insert_site_added_a_day_ago_with_outage(pool: &SqlitePool, outage_secon
     let site_id: i64 = sqlx::query_scalar(
         "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
          VALUES ('Day Old', 'https://day-old.waghorn.tech', 'up', \
-                 datetime('now', '-1 day'), datetime('now')) RETURNING id",
+                 strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) RETURNING id",
     )
     .fetch_one(pool)
     .await
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) \
-         VALUES (?1, datetime('now', '-2 hours'), datetime('now', '-2 hours', ?2))",
+         VALUES (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 hours'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 hours', ?2))",
     )
     .bind(site_id)
     .bind(format!("+{outage_seconds} seconds"))
@@ -52,7 +52,7 @@ async fn test_site_uptime_returns_one_day_per_entry_ending_today(pool: SqlitePoo
     let body = parse_json_body(response).await;
     let days = body["days"].as_array().unwrap();
     assert_eq!(days.len(), 7);
-    let today_in_london = jiff::Zoned::now()
+    let today_in_london = jiff::ZonedDateTime::now()
         .in_tz("Europe/London")
         .unwrap()
         .date()
@@ -64,14 +64,14 @@ async fn test_site_uptime_returns_one_day_per_entry_ending_today(pool: SqlitePoo
 #[sqlx::test(migrations = "./migrations")]
 async fn test_site_uptime_is_empty_until_the_site_has_been_checked(pool: SqlitePool) {
     let site = insert_test_site(&pool, SiteStatus::Pending).await;
-    sqlx::query("UPDATE sites SET created_at = datetime('now', '-1 hour') WHERE id = ?")
+    sqlx::query("UPDATE sites SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour') WHERE id = ?")
         .bind(site.id)
         .execute(&pool)
         .await
         .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-2 hours'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 hours'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -102,7 +102,7 @@ async fn test_site_uptime_is_empty_until_the_site_has_been_checked(pool: SqliteP
 async fn test_site_blocked_since_it_was_added_has_no_uptime(pool: SqlitePool) {
     let site = insert_test_site(&pool, SiteStatus::Blocked).await;
     sqlx::query(
-        "UPDATE sites SET created_at = datetime('now', '-1 hour'), last_checked_at = datetime('now') \
+        "UPDATE sites SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour'), last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') \
          WHERE id = ?",
     )
     .bind(site.id)
@@ -110,7 +110,7 @@ async fn test_site_blocked_since_it_was_added_has_no_uptime(pool: SqlitePool) {
     .await
     .unwrap();
     sqlx::query(
-        "INSERT INTO site_blocked_periods (site_id, started_at) VALUES (?, datetime('now', '-1 hour'))",
+        "INSERT INTO site_blocked_periods (site_id, started_at) VALUES (?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour'))",
     )
     .bind(site.id)
     .execute(&pool)
@@ -118,7 +118,7 @@ async fn test_site_blocked_since_it_was_added_has_no_uptime(pool: SqlitePool) {
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-2 hours'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 hours'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -169,7 +169,7 @@ async fn test_site_blocked_since_it_was_added_has_no_uptime(pool: SqlitePool) {
 async fn test_site_blocked_after_being_monitored_keeps_its_earlier_uptime(pool: SqlitePool) {
     let site = insert_test_site(&pool, SiteStatus::Blocked).await;
     sqlx::query(
-        "UPDATE sites SET created_at = datetime('now', '-3 days'), last_checked_at = datetime('now') \
+        "UPDATE sites SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-3 days'), last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') \
          WHERE id = ?",
     )
     .bind(site.id)
@@ -178,14 +178,14 @@ async fn test_site_blocked_after_being_monitored_keeps_its_earlier_uptime(pool: 
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) \
-         VALUES (?, datetime('now', '-2 days'), datetime('now', '-2 days', '+1 hour'))",
+         VALUES (?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 days', '+1 hour'))",
     )
     .bind(site.id)
     .execute(&pool)
     .await
     .unwrap();
     sqlx::query(
-        "INSERT INTO site_blocked_periods (site_id, started_at) VALUES (?, datetime('now', '-1 day'))",
+        "INSERT INTO site_blocked_periods (site_id, started_at) VALUES (?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day'))",
     )
     .bind(site.id)
     .execute(&pool)
@@ -193,7 +193,7 @@ async fn test_site_blocked_after_being_monitored_keeps_its_earlier_uptime(pool: 
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-4 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-4 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -252,7 +252,7 @@ async fn test_site_blocked_after_being_monitored_keeps_its_earlier_uptime(pool: 
 async fn test_site_uptime_reports_an_ongoing_outage(pool: SqlitePool) {
     let site = insert_test_site(&pool, SiteStatus::Down).await;
     sqlx::query(
-        "UPDATE sites SET created_at = datetime('now', '-1 hour'), last_checked_at = datetime('now') \
+        "UPDATE sites SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour'), last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') \
          WHERE id = ?",
     )
     .bind(site.id)
@@ -260,7 +260,7 @@ async fn test_site_uptime_reports_an_ongoing_outage(pool: SqlitePool) {
     .await
     .unwrap();
     sqlx::query(
-        "INSERT INTO outages (site_id, started_at) VALUES (?, datetime('now', '-5 minutes'))",
+        "INSERT INTO outages (site_id, started_at) VALUES (?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-5 minutes'))",
     )
     .bind(site.id)
     .execute(&pool)
@@ -355,7 +355,7 @@ async fn test_list_sites_includes_uptime_for_each_checked_site(pool: SqlitePool)
     insert_test_site(&pool, SiteStatus::Pending).await;
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-2 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-2 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -400,15 +400,15 @@ async fn test_site_uptime_figure_only_covers_the_last_90_days(pool: SqlitePool) 
     let site_id: i64 = sqlx::query_scalar(
         "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
          VALUES ('Year Old', 'https://year-old.waghorn.tech', 'up', \
-                 datetime('now', '-365 days'), datetime('now')) RETURNING id",
+                 strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-365 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) RETURNING id",
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
-         (?1, datetime('now', '-200 days'), datetime('now', '-100 days')), \
-         (?1, datetime('now', '-9 days'), datetime('now', '-216 hours', '+7776 seconds'))",
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-200 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-100 days')), \
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-9 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-216 hours', '+7776 seconds'))",
     )
     .bind(site_id)
     .execute(&pool)
@@ -416,7 +416,7 @@ async fn test_site_uptime_figure_only_covers_the_last_90_days(pool: SqlitePool) 
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-365 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-365 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -445,15 +445,15 @@ async fn test_site_uptime_figure_counts_an_outage_already_under_way_90_days_ago(
     let site_id: i64 = sqlx::query_scalar(
         "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
          VALUES ('Year Old', 'https://year-old.waghorn.tech', 'up', \
-                 datetime('now', '-365 days'), datetime('now')) RETURNING id",
+                 strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-365 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) RETURNING id",
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
-         (?1, datetime('now', '-300 days'), datetime('now', '-299 days')), \
-         (?1, datetime('now', '-100 days'), datetime('now', '-89 days'))",
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-300 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-299 days')), \
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-100 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-89 days'))",
     )
     .bind(site_id)
     .execute(&pool)
@@ -461,7 +461,7 @@ async fn test_site_uptime_figure_counts_an_outage_already_under_way_90_days_ago(
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-365 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-365 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -490,15 +490,15 @@ async fn test_site_uptime_days_include_an_outage_that_began_before_the_first_day
     let site_id: i64 = sqlx::query_scalar(
         "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
          VALUES ('Month Old', 'https://month-old.waghorn.tech', 'up', \
-                 datetime('now', '-30 days'), datetime('now')) RETURNING id",
+                 strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) RETURNING id",
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
-         (?1, datetime('now', '-20 days'), datetime('now', '-19 days')), \
-         (?1, datetime('now', '-10 days'), datetime('now', '-3 days'))",
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-20 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-19 days')), \
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-10 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-3 days'))",
     )
     .bind(site_id)
     .execute(&pool)
@@ -506,7 +506,7 @@ async fn test_site_uptime_days_include_an_outage_that_began_before_the_first_day
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-30 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -536,15 +536,15 @@ async fn test_site_uptime_figure_counts_an_older_outage_overlapping_a_newer_fini
     let site_id: i64 = sqlx::query_scalar(
         "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
          VALUES ('Year Old', 'https://year-old.waghorn.tech', 'up', \
-                 datetime('now', '-365 days'), datetime('now')) RETURNING id",
+                 strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-365 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) RETURNING id",
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
-         (?1, datetime('now', '-200 days'), datetime('now', '-89 days')), \
-         (?1, datetime('now', '-150 days'), datetime('now', '-140 days'))",
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-200 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-89 days')), \
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-150 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-140 days'))",
     )
     .bind(site_id)
     .execute(&pool)
@@ -552,7 +552,7 @@ async fn test_site_uptime_figure_counts_an_older_outage_overlapping_a_newer_fini
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-365 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-365 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -583,15 +583,15 @@ async fn test_site_uptime_days_include_an_older_outage_overlapping_a_newer_finis
     let site_id: i64 = sqlx::query_scalar(
         "INSERT INTO sites (name, url, status, created_at, last_checked_at) \
          VALUES ('Month Old', 'https://month-old.waghorn.tech', 'up', \
-                 datetime('now', '-30 days'), datetime('now')) RETURNING id",
+                 strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')) RETURNING id",
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     sqlx::query(
         "INSERT INTO outages (site_id, started_at, ended_at) VALUES \
-         (?1, datetime('now', '-20 days'), datetime('now', '-3 days')), \
-         (?1, datetime('now', '-15 days'), datetime('now', '-12 days'))",
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-20 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-3 days')), \
+         (?1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-15 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-12 days'))",
     )
     .bind(site_id)
     .execute(&pool)
@@ -599,7 +599,7 @@ async fn test_site_uptime_days_include_an_older_outage_overlapping_a_newer_finis
     .unwrap();
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-30 days'), datetime('now'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-30 days'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
     )
     .execute(&pool)
     .await
@@ -627,7 +627,7 @@ async fn test_site_uptime_leaves_out_time_the_monitor_was_not_running(pool: Sqli
     let site_id = insert_site_added_a_day_ago_with_outage(&pool, 864).await;
     sqlx::query(
         "INSERT INTO monitoring_periods (started_at, last_seen_at) \
-         VALUES (datetime('now', '-1 day'), datetime('now', '-3 hours'))",
+         VALUES (strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-3 hours'))",
     )
     .execute(&pool)
     .await

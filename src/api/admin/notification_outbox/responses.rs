@@ -1,5 +1,5 @@
 use crate::notifications::outbox::OutboxEntry;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -13,8 +13,8 @@ pub struct NotificationOutboxEntryResponse {
     pub status: NotificationOutboxEntryStatus,
     pub attempts: i64,
     pub last_error: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub next_attempt_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub next_attempt_at: Timestamp,
 }
 
 impl From<OutboxEntry> for NotificationOutboxEntryResponse {

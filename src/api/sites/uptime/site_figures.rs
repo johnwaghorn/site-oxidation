@@ -10,7 +10,8 @@ use crate::api::sites::queries::{
 use crate::api::sites::responses::SiteResponse;
 use crate::canary;
 use crate::monitoring::periods;
-use chrono::{Days, Utc};
+use jiff::{SignedDuration, Timestamp};
+use jiff_sqlx::ToSqlx;
 use sqlx::{FromRow, SqlitePool};
 use std::collections::HashMap;
 
@@ -40,15 +41,13 @@ pub(crate) async fn set_site_uptime_figures(
     let Some(earliest_created_at) = sites
         .iter()
         .filter(|site| site.last_checked_at.is_some())
-        .map(|site| site.created_at)
+        .map(|site| site.created_at.to_jiff())
         .min()
     else {
         return Ok(());
     };
-    let now = Utc::now();
-    let window_start = now
-        .checked_sub_days(Days::new(SITE_UPTIME_WINDOW_DAYS))
-        .unwrap_or(now);
+    let now = Timestamp::now();
+    let window_start = site_uptime_window_start(now);
     let earliest_needed = earliest_created_at.max(window_start);
     let site_ids: Vec<i64> = sites.iter().map(|site| site.id).collect();
     let site_ids_json = serde_json::to_string(&site_ids)
@@ -57,7 +56,7 @@ pub(crate) async fn set_site_uptime_figures(
     for outage in
         sqlx::query_as::<_, SiteOutageTimes>(LIST_OUTAGES_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS)
             .bind(&site_ids_json)
-            .bind(earliest_needed.format("%Y-%m-%d %H:%M:%S").to_string())
+            .bind(earliest_needed.to_sqlx())
             .fetch_all(pool)
             .await
             .map_err(|error| internal_err("Failed to load site outages", error))?
@@ -72,7 +71,7 @@ pub(crate) async fn set_site_uptime_figures(
         LIST_BLOCKED_PERIODS_IN_UPTIME_CALCULATION_WINDOW_FOR_SITE_IDS,
     )
     .bind(&site_ids_json)
-    .bind(earliest_needed.format("%Y-%m-%d %H:%M:%S").to_string())
+    .bind(earliest_needed.to_sqlx())
     .fetch_all(pool)
     .await
     .map_err(|error| internal_err("Failed to load site blocked periods", error))?
@@ -95,7 +94,7 @@ pub(crate) async fn set_site_uptime_figures(
             continue;
         }
         let window_range = TimeRange {
-            start: site.created_at.max(window_start),
+            start: site.created_at.to_jiff().max(window_start),
             end: now,
         };
         let blocked_periods = blocked_periods_by_site
@@ -113,4 +112,12 @@ pub(crate) async fn set_site_uptime_figures(
             .uptime_basis_points();
     }
     Ok(())
+}
+
+fn site_uptime_window_start(now: Timestamp) -> Timestamp {
+    i32::try_from(SITE_UPTIME_WINDOW_DAYS)
+        .ok()
+        .and_then(|days| SignedDuration::from_hours(24).checked_mul(days))
+        .and_then(|window| now.checked_sub(window).ok())
+        .unwrap_or(now)
 }

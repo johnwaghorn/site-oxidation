@@ -2,7 +2,7 @@ use crate::models::site::{CertStatus, SiteRow, SiteStatus};
 use crate::notifications::{Notifier, planning};
 use crate::probe::cert::CertCheck;
 use crate::probe::http::{ProbeResult, UNKNOWN_PROBE_ERROR_MESSAGE};
-use chrono::Utc;
+use jiff_sqlx::ToSqlx;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 
 pub(super) enum SiteTransition {
@@ -96,10 +96,9 @@ pub(super) async fn update_site_status(
     result: &ProbeResult,
 ) -> sqlx::Result<SiteTransition> {
     sqlx::query(
-        "UPDATE sites SET status = ?, last_checked_at = ?, last_response_time_ms = ? WHERE id = ?",
+        "UPDATE sites SET status = ?, last_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), last_response_time_ms = ? WHERE id = ?",
     )
     .bind(result.status)
-    .bind(Utc::now())
     .bind(
         result
             .latency_ms
@@ -122,9 +121,10 @@ pub(super) async fn update_site_status(
         return Ok(SiteTransition::WentDown);
     }
     if site.status.is_down() && !result.status.is_down() {
-        sqlx::query("UPDATE outages SET ended_at = ? WHERE site_id = ? AND ended_at IS NULL")
-            .bind(Utc::now())
-            .bind(site.id)
+        sqlx::query(
+            "UPDATE outages SET ended_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE site_id = ? AND ended_at IS NULL",
+        )
+        .bind(site.id)
             .execute(&mut **transaction)
             .await?;
         if result.status.is_up() {
@@ -148,7 +148,7 @@ async fn record_blocked_period_change(
         let never_checked_before = site.status == SiteStatus::Pending;
         sqlx::query(
             "INSERT OR IGNORE INTO site_blocked_periods (site_id, started_at) \
-             SELECT id, CASE WHEN ? THEN created_at ELSE CURRENT_TIMESTAMP END \
+             SELECT id, CASE WHEN ? THEN created_at ELSE strftime('%Y-%m-%dT%H:%M:%SZ', 'now') END \
              FROM sites WHERE id = ?",
         )
         .bind(never_checked_before)
@@ -157,9 +157,8 @@ async fn record_blocked_period_change(
         .await?;
     } else if stopped_being_blocked {
         sqlx::query(
-            "UPDATE site_blocked_periods SET ended_at = ? WHERE site_id = ? AND ended_at IS NULL",
+            "UPDATE site_blocked_periods SET ended_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE site_id = ? AND ended_at IS NULL",
         )
-        .bind(Utc::now())
         .bind(site.id)
         .execute(&mut **transaction)
         .await?;
@@ -173,11 +172,10 @@ async fn update_site_cert_status(
     cert: &CertCheck,
 ) -> sqlx::Result<()> {
     sqlx::query(
-        "UPDATE sites SET cert_status = ?, cert_expires_at = ?, cert_checked_at = ? WHERE id = ?",
+        "UPDATE sites SET cert_status = ?, cert_expires_at = ?, cert_checked_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?",
     )
     .bind(cert.status)
-    .bind(cert.expires_at)
-    .bind(Utc::now())
+    .bind(cert.expires_at.map(ToSqlx::to_sqlx))
     .bind(site_id)
     .execute(&mut **transaction)
     .await?;

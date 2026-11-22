@@ -133,7 +133,7 @@ async fn test_blocked_period_is_recorded_while_the_site_is_blocked(pool: SqliteP
 #[sqlx::test(migrations = "./migrations")]
 async fn test_site_blocked_on_its_first_check_is_blocked_from_when_it_was_added(pool: SqlitePool) {
     let never_checked = insert_test_site(&pool, SiteStatus::Pending).await;
-    sqlx::query("UPDATE sites SET created_at = datetime('now', '-1 hour') WHERE id = ?")
+    sqlx::query("UPDATE sites SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour') WHERE id = ?")
         .bind(never_checked.id)
         .execute(&pool)
         .await
@@ -161,7 +161,7 @@ async fn test_site_blocked_on_its_first_check_is_blocked_from_when_it_was_added(
 #[sqlx::test(migrations = "./migrations")]
 async fn test_site_blocked_after_working_is_blocked_from_now(pool: SqlitePool) {
     let working = insert_test_site(&pool, SiteStatus::Up).await;
-    sqlx::query("UPDATE sites SET created_at = datetime('now', '-1 hour') WHERE id = ?")
+    sqlx::query("UPDATE sites SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 hour') WHERE id = ?")
         .bind(working.id)
         .execute(&pool)
         .await
@@ -176,7 +176,7 @@ async fn test_site_blocked_after_working_is_blocked_from_now(pool: SqlitePool) {
     .await
     .unwrap();
     let started_just_now: bool = sqlx::query_scalar(
-        "SELECT started_at >= datetime('now', '-1 minute') FROM site_blocked_periods \
+        "SELECT started_at >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 minute') FROM site_blocked_periods \
          WHERE site_id = ?",
     )
     .bind(working.id)
