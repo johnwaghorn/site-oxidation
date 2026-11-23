@@ -37,7 +37,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-promise": "^7.2.1",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
+    "eslint-plugin-react-refresh": "^0.5.8",
     "globals": "^17.14.0",
     "openapi-typescript": "^7.10.1",
     "prettier": "^3.10.1",
