@@ -1,6 +1,6 @@
 [package]
 name = "site-oxidation"
-version = "0.13.2"
+version = "1.0.0"
 edition = "2024"
 repository = "https://github.com/johnwaghorn/site-oxidation"
 
